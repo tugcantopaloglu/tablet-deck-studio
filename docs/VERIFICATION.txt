@@ -1,4 +1,4 @@
-Tablet Deck Studio 1.1.0 — verification
+Tablet Deck Studio 1.2.0 — verification
 
 Built for Windows10/11 x64 and Android8.0+ (minSDK26, targetSDK35).
 
@@ -7,16 +7,20 @@ BUILD
 - Windows package: .NET10 self-contained single-file executable with external UI/sound assets.
 - Android compilation and D8 dex conversion: success.
 - APK signing verification: APK Signature Scheme v2 and v3 valid.
-- Android package: app.tabletdeck.studio, versionCode2, signed with the same private key as 1.0.0.
+- Android package: app.tabletdeck.studio, versionCode3, signed with the same private key as 1.0.0 and 1.1.0.
 - Only Android INTERNET permission is requested. Backups are disabled. Cleartext network traffic is disabled.
 
 TESTS
--20 companion self-tests pass, including Soundpad routing, allowlisted commands, input rejection, named-pipe status framing, fragmented responses, and rejection statuses, plus the original companion checks.
+-26 companion self-tests pass, including Soundpad routing, allowlisted commands, XML names/categories, unsafe XML rejection, fragmented responses, mixer validation, atomic layout updates and Soundpad import/deduplication/limits, plus the original companion checks.
 -44 integration checks pass against the real companion and a mock OBS WebSocket v5 service. New checks cover Soundpad configuration, board delivery, command-injection rejection, and the editor output field.
+-31 additional feature checks pass: authenticated library/app/layout endpoints, tablet import isolation, real Windows session enumeration, invalid/stale session rejection, atomic reorder, preserved targets, PC mouse drag, tablet touch drag/cancel, keyboard ordering, touch move across twelve-key groups, library search/categories/play/import payloads, escaped sound titles, volume/mute UI, overflow, and browser errors.
+- Total:101 automated checks. Both browser suites were rerun against the published Release executable.
+- Additional hardware smoke test passes against a real Windows Core Audio playback session: creates a silent session in the test process, changes its own volume/mute, verifies values, restores originals, and stops. It does not adjust other applications' audio.
 - Checks cover TLS pairing, one-use PINs, five-attempt lockout, revoked credentials, local editor isolation, OBS state/actions, scene buttons, input volumes/mute, source/filter/media controls, sequential macros, editor save, cancelled recording confirmation, truthful disconnect state, browser errors, overflow, and tablet touch targets.
 - Browser rendering inspected at1536x1024,1280x800,1024x600, and390x844. Android-native rendering was not captured.
 - Windows USB helper correctly reports that no authorized Android device is connected.
-- Independent design review: all8 material fixes and a compact active-key clipping regression scored resolved. Disposition ship applies to those reviewed fixes.
+- The new Soundpad and app-mixer UI was captured at1280x800 and390x844, plus board arrangement at1024x600. Soundpad and app-mixer UI fixtures are labeled test data. No physical Android capture was produced.
+- Independent design review identified cross-group touch ordering as a gap. Added a full-page position picker and verified moving button13 to position1 by touch and saving. Disposition ship applies to that scored browser-UI fix. The incumbent Studio design system remains unchanged.
 
 SECURITY
 The requested snyk_code_scan tool was not exposed in this session. Snyk Code CLI was run and rescanned after fixes instead.
@@ -24,6 +28,7 @@ The requested snyk_code_scan tool was not exposed in this session. Snyk Code CLI
 - Final report:0 error-level findings,0 warning-level findings,1 note: java/JavaScriptEnabled.
 - The note is intentional for the bundled WebView UI. External navigation, frames, file/content access, cleartext traffic, and arbitrary native endpoints are blocked; it is retained transparently, not suppressed.
 - npm dependency audit:0 vulnerabilities at build time.
+- NuGet vulnerability audit, including transitive NAudio dependencies: no vulnerable packages reported by configured sources at build time.
 - Secrets and pairing records are generated on the user's PC at runtime, not included in this ZIP.
 
 NOT YET VERIFIED ON HARDWARE

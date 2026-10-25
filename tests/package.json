@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "node integration.cjs"
+    "test": "node integration.cjs && node features.cjs",
+    "test:features": "node features.cjs"
   },
   "keywords": [],
   "author": "",

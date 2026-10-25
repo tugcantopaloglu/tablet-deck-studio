@@ -9,7 +9,7 @@ Use a prebuilt release if you only want to use the app. These instructions are f
 - JDK 17, Android platform 35, and Android build-tools 35.0.0 for the APK.
 - Node.js 22+ and Chrome for the optional integration tests.
 
-No Gradle or Maven dependencies are required. The Android wrapper uses platform APIs; its web interface and dependencies are vendored locally.
+No Gradle or Maven dependencies are required. The Android wrapper uses platform APIs; its web interface and dependencies are vendored locally. The Windows build restores NAudio.Wasapi 2.2.1 and its dependencies from NuGet for audio-session control.
 
 ## Clone and publish Windows
 
@@ -20,7 +20,13 @@ dotnet publish .\companion\TabletDeck.csproj -c Release -r win-x64 --self-contai
 .\dist\Windows\TabletDeck-Companion.exe --self-test
 ```
 
-Keep the published `wwwroot` and `Sounds` folders beside the executable. Twenty self-tests cover defaults, included sound assets, validation, key mapping, OBS authentication, confirmation propagation, and silent Windows WAV playback/stop.
+Keep the published `wwwroot`, `Sounds`, and `Licenses` folders beside the executable. Twenty-six self-tests cover defaults, included sound assets, validation, key mapping, OBS authentication, confirmations, Soundpad pipe/XML parsing, app-mixer validation, atomic layout reorder, and Soundpad button import.
+
+An additional real Windows audio smoke test creates a silent playback session, adjusts only its own volume/mute, verifies those values, and restores them:
+
+```powershell
+.\dist\Windows\TabletDeck-Companion.exe --audio-smoke-test
+```
 
 Run the companion without `--self-test` to open the PC editor. Developer options are `--no-browser`, `--data-dir PATH`, `--http-port NUMBER`, and `--https-port NUMBER`. The shipping Android app uses HTTPS port 8743; alternate ports are for isolated development tests.
 
@@ -71,7 +77,7 @@ $output = Join-Path (Get-Location) 'dist'
 
 The script compiles resources and Java, converts classes to DEX, packages the bundled interface, aligns the APK, signs it, and verifies the result. Output: `dist/TabletDeck-Studio.apk`.
 
-App identity: `app.tabletdeck.studio`, version `1.1.0`, version code `2`, minimum SDK `26`, target SDK `35`. Increment version code for later releases.
+App identity: `app.tabletdeck.studio`, version `1.2.0`, version code `3`, minimum SDK `26`, target SDK `35`. Increment version code for later releases.
 
 On first build, the script generates `toolchain/signing/tabletdeck.jks` and a random password file. Keep these private and preserve them to update your own APK installation later. Git ignores them. The original release's private signing key is not in this repository; a newly generated key produces a different identity and cannot update the original APK without uninstalling it first.
 
@@ -79,7 +85,7 @@ On first build, the script generates `toolchain/signing/tabletdeck.jks` and a ra
 
 Place the APK directly under `dist` and publish the companion to `dist/Windows`. Copy `USB-Connect.cmd`, `USB-Connect.ps1`, `Install-APK.cmd`, and `Install-APK.ps1` from `scripts` into `dist/Windows`.
 
-Copy `adb.exe`, `AdbWinApi.dll`, `AdbWinUsbApi.dll`, and `NOTICE.txt` from the verified platform-tools archive into `dist/Windows/platform-tools`. Preserve the included font, DOMPurify, icon, Android-tool, and Microsoft runtime notices when distributing those components.
+Copy `adb.exe`, `AdbWinApi.dll`, `AdbWinUsbApi.dll`, and `NOTICE.txt` from the verified platform-tools archive into `dist/Windows/platform-tools`. Preserve the included font, DOMPurify, icon, NAudio, Android-tool, and Microsoft runtime notices when distributing those components.
 
 Do not bundle runtime configuration, paired-device records, private certificates, or signing material.
 
@@ -108,7 +114,9 @@ $env:TABLETDECK_CHROME = 'C:\Path\To\chrome.exe'
 npm test --prefix .\tests
 ```
 
-The 44 checks cover pairing, lockout, revocation, editor isolation, OBS actions, audio, macros, saves, cancellation, disconnect state, browser errors, and layout constraints. Results and screenshots are written to ignored `.test-output`. Close the test companion using Ctrl+C afterward.
+The 44 original checks cover pairing, lockout, revocation, editor isolation, OBS actions, audio, macros, saves, cancellation, disconnect state, browser errors, and layout constraints. Another 29 checks cover library/mixer APIs, validation, mouse/touch/keyboard reordering, save/cancel, search/categories, escaped titles, volume/mute, playback/import payloads, and layout bounds. `npm test` runs both suites. To run only the new suite, use `npm run test:features --prefix .\tests`.
+
+Soundpad library and mixer UI tests use fixtures; actual layout endpoints and Windows session enumeration use the real companion. The optional audio smoke test exercises Windows volume writes only for its own process. Results and screenshots are written to ignored `.test-output`. Close the test companion using Ctrl+C afterward.
 
 Never publish `.test-output/data`: it contains runtime editor/device credentials even though the OBS service and its password are test fixtures. Passing this suite does not verify physical Android installation, WebView, Wi-Fi, or USB operation.
 
@@ -117,6 +125,7 @@ Never publish `.test-output/data`: it contains runtime editor/device credentials
 ```powershell
 npx snyk code test .
 npm audit --prefix .\tests
+dotnet list .\companion\TabletDeck.csproj package --vulnerable --include-transitive
 ```
 
 Snyk authentication may be required. `.dcignore` excludes generated builds and separately audited third-party code. The initial scan retains the informational `java/JavaScriptEnabled` note for the bundled Android interface. That does not justify loading arbitrary remote pages into its native bridge.
@@ -125,4 +134,4 @@ Snyk authentication may be required. `.dcignore` excludes generated builds and s
 
 Android bundled UI → restricted Java bridge → certificate-pinned HTTPS → Windows ASP.NET Core companion → authenticated OBS v5 on loopback or a configured Windows action.
 
-USB adds an ADB reverse tunnel for the same HTTPS port. The PC editor uses a separate authenticated loopback endpoint. Tablet action requests contain configured action IDs; PC targets are edited locally. Preserve this boundary when adding features.
+USB adds an ADB reverse tunnel for the same HTTPS port. The PC editor uses a separate authenticated loopback endpoint. Tablet action requests contain configured action IDs; PC targets are edited locally. Paired tablets can also reorder the exact existing button set, play library indices validated against Soundpad, and adjust enumerated audio sessions by opaque IDs. Soundpad button import remains local-admin only. Preserve these boundaries when adding features.

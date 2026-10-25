@@ -8,6 +8,7 @@ namespace TabletDeck;
 // Uses the documented Soundpad remote-control protocol, not shell commands.
 public static class SoundpadClient
 {
+    internal static readonly SemaphoreSlim ChannelGate=new(1,1);
     public static bool Supports(string kind)=>kind is "soundpadPlay" or "soundpadStop" or "soundpadPause" or "soundpadNext" or "soundpadPrevious";
     public static string BuildCommand(string kind,string target,string output)
     {
@@ -36,6 +37,7 @@ public static class SoundpadClient
     {
         using var timeout=CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(TimeSpan.FromSeconds(3));
+        await ChannelGate.WaitAsync(timeout.Token);
         using var pipe=new NamedPipeClientStream(".",pipeName,PipeDirection.InOut,PipeOptions.Asynchronous|PipeOptions.CurrentUserOnly,TokenImpersonationLevel.Identification);
         try {
             await pipe.ConnectAsync(timeout.Token);
@@ -52,5 +54,6 @@ public static class SoundpadClient
         } catch(IOException ex) {
             throw new IOException("Cannot communicate with Soundpad. Start it under the same Windows account and check its Remote Control support.",ex);
         }
+        finally {ChannelGate.Release();}
     }
 }

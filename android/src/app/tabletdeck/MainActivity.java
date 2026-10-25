@@ -39,8 +39,8 @@ import java.util.concurrent.Executors;
 
 public final class MainActivity extends Activity {
     private static final String UI_HOST="app.tabletdeck.local";
-    private static final Set<String> GET_PATHS=new HashSet<>(Arrays.asList("/api/board","/api/state"));
-    private static final Set<String> POST_PATHS=new HashSet<>(Arrays.asList("/api/action","/api/audio","/api/mute"));
+    private static final Set<String> GET_PATHS=new HashSet<>(Arrays.asList("/api/board","/api/state","/api/apps","/api/soundpad/library"));
+    private static final Set<String> POST_PATHS=new HashSet<>(Arrays.asList("/api/action","/api/audio","/api/mute","/api/apps","/api/layout","/api/soundpad/play","/api/soundpad/library"));
     private WebView web;
     private SharedPreferences preferences;
     private final ExecutorService network=Executors.newFixedThreadPool(3);
@@ -70,7 +70,7 @@ public final class MainActivity extends Activity {
                 Uri url=request.getUrl();
                 if(!"https".equals(url.getScheme())||!UI_HOST.equals(url.getHost())||!"GET".equals(request.getMethod())) return blocked();
                 String path=url.getPath();if(path==null||path.equals("/"))path="/index.html";
-                if(!Arrays.asList("/index.html","/app.js","/style.css","/fonts/Manrope.ttf","/vendor/purify.min.js").contains(path))return blocked();
+                if(!Arrays.asList("/index.html","/app.js","/features.js","/style.css","/fonts/Manrope.ttf","/vendor/purify.min.js").contains(path))return blocked();
                 try {
                     String mime=path.endsWith(".html")?"text/html":path.endsWith(".js")?"application/javascript":path.endsWith(".css")?"text/css":"font/ttf";
                     Map<String,String> headers=new HashMap<>();
@@ -170,7 +170,7 @@ public final class MainActivity extends Activity {
             InputStream stream=status>=200&&status<300?conn.getInputStream():conn.getErrorStream();
             if(stream==null)throw new Exception("The PC refused the connection ("+status+").");
             ByteArrayOutputStream data=new ByteArrayOutputStream();
-            try(InputStream input=stream){byte[] buffer=new byte[8192];int count;while((count=input.read(buffer))!=-1){data.write(buffer,0,count);if(data.size()>2*1024*1024)throw new Exception("PC response exceeds limit.");}}
+            try(InputStream input=stream){byte[] buffer=new byte[8192];int count;while((count=input.read(buffer))!=-1){data.write(buffer,0,count);if(data.size()>8*1024*1024)throw new Exception("PC response exceeds limit.");}}
             JSONObject response=new JSONObject(data.toString("UTF-8"));
             if(status<200||status>=300)throw new Exception(response.optString("error","The PC refused this action ("+status+")."));
             return response;

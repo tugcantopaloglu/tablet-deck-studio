@@ -93,6 +93,38 @@ public sealed class DataStore
         File.WriteAllText(temp,JsonSerializer.Serialize(value,Json)); File.Move(temp,dest,true);
     }
     public void Save(DeckConfig config) { lock(gate) { Validate(config); Write("config.json",config); Config=config; } }
+    public void Modify(Action<DeckConfig> change)
+    {
+        lock(gate) {
+            var copy=JsonSerializer.Deserialize<DeckConfig>(JsonSerializer.Serialize(Config,Json),Json)!;
+            change(copy);Save(copy);
+        }
+    }
+    public void Reorder(IReadOnlyList<PageOrder> order)
+    {
+        Modify(c=>{
+            if(order.Count!=c.Pages.Count||order.Select(p=>p.Id).Distinct(StringComparer.Ordinal).Count()!=c.Pages.Count)throw new ArgumentException("The pages changed. Reload the board before arranging.");
+            foreach(var entry in order) {
+                var page=c.Pages.FirstOrDefault(p=>p.Id==entry.Id)??throw new ArgumentException("Unknown page.");
+                var byId=page.Buttons.ToDictionary(a=>a.Id,StringComparer.Ordinal);
+                if(entry.ButtonIds.Length!=byId.Count||entry.ButtonIds.Distinct(StringComparer.Ordinal).Count()!=byId.Count||entry.ButtonIds.Any(id=>!byId.ContainsKey(id)))throw new ArgumentException("Arranging may only reorder existing buttons within their page.");
+                page.Buttons=entry.ButtonIds.Select(id=>byId[id]).ToList();
+            }
+        });
+    }
+    public void ImportSounds(string pageId,IReadOnlyList<LibrarySound> sounds,string output)
+    {
+        if(sounds.Count is <1 or >120)throw new ArgumentException("Select between 1 and 120 sounds.");
+        foreach(var sound in sounds)SoundpadClient.BuildCommand("soundpadPlay",sound.Index.ToString(System.Globalization.CultureInfo.InvariantCulture),output);
+        Modify(c=>{
+            var page=c.Pages.FirstOrDefault(p=>p.Id==pageId)??throw new ArgumentException("Select an existing page.");
+            foreach(var sound in sounds) {
+                var target=sound.Index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                if(page.Buttons.Any(a=>a.Kind=="soundpadPlay"&&a.Target==target&&a.Value==output))continue;
+                page.Buttons.Add(new DeckAction{Label=sound.Name.Length>60?sound.Name[..60]:sound.Name,Kind="soundpadPlay",Target=target,Value=output,Icon="speaker",Color="amber"});
+            }
+        });
+    }
     public void AddDevice(PairedDevice device) { lock(gate) { Devices = [..Devices,device]; Write("devices.json",Devices); } }
     public void Revoke(string id) { lock(gate) { Devices=Devices.Where(x=>x.Id!=id).ToList();Write("devices.json",Devices); } }
     public bool Authenticate(string token)
@@ -126,3 +158,4 @@ public sealed class DataStore
         foreach(var s in a.Steps) ValidateAction(s,depth+1);
     }
 }
+public sealed record PageOrder(string Id,string[] ButtonIds);

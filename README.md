@@ -6,21 +6,21 @@ Turn an Android tablet into a customizable control board for a Windows streaming
 
 ![Studio layout with twelve action keys and two audio faders — illustrative design preview](docs/images/studio-preview.png)
 
-The Studio layout has twelve large buttons beside two audio faders and five page tabs. Version **1.1.0** adds direct Soundpad control and a Discord setup guide. The screenshot shows illustrative state, not a live broadcast. The release passes **64 automated checks**; physical tablet, Soundpad audio, Discord sharing, actual Wi-Fi, and USB still need a rehearsal on your setup.
+The Studio layout has twelve large buttons beside two audio faders and five page tabs. Version **1.2.0** adds a searchable Soundpad library, Windows app volume controls, and drag-and-drop button order on PC and tablet. See the [new controls guide](docs/CONTROLS.md). The screenshot shows illustrative state, not a live broadcast. The release passes **101 automated checks** plus a real Windows audio-session smoke test; physical tablet, Soundpad audio, Discord sharing, actual Wi-Fi, and USB still need a rehearsal on your setup.
 
 ## Features
 
 | Area | Controls |
 | --- | --- |
 | Scenes | Switch program scene, set Studio Mode preview, take a transition |
-| Audio | Two configurable OBS faders, input mute, PC soundboard with two synthesized demo effects |
+| Audio | Two configurable OBS faders, input mute, Windows per-app playback volume/mute, PC soundboard with two synthesized demo effects |
 | Broadcast | Streaming, recording, replay-buffer save, virtual camera, Studio Mode |
 | Sources | Scene-source visibility, source-filter toggle, media restart/stop |
 | Windows | App/shortcut launching, websites, keyboard shortcuts, volume/media keys |
-| Soundpad | Play by index to mic/speakers/both, stop, pause/resume, next, previous |
+| Soundpad | Search sounds and categories, play to mic/speakers/both, import selected sounds as buttons on PC, stop, pause/resume, next, previous |
 | Discord and other tools | Matching app keybinds; Discord mute/deafen/screen-share setup documented |
 | Macros | Multiple steps, delays, confirmation, stop on first error |
-| Customization | Labels, icons, colors, button order, multiple pages, JSON import/export |
+| Customization | Labels, icons, colors, drag-and-drop ordering on PC/tablet, multiple pages, JSON import/export |
 | Connection | Encrypted local Wi-Fi or an ADB reverse tunnel over a USB data cable |
 
 ## Contents
@@ -47,7 +47,7 @@ The Studio layout has twelve large buttons beside two audio faders and five page
 
 ## First run
 
-Download `TabletDeck-Studio-1.1.zip` from [Releases](https://github.com/tugcantopaloglu/tablet-deck-studio/releases/latest) for the complete package, or download `TabletDeck-Studio.apk` separately if you only need the Android installer.
+Download `TabletDeck-Studio-1.2.zip` from [Releases](https://github.com/tugcantopaloglu/tablet-deck-studio/releases/latest) for the complete package, or download `TabletDeck-Studio.apk` separately if you only need the Android installer.
 
 ```text
 TabletDeck-Studio/
@@ -116,7 +116,9 @@ See Android's [ADB documentation](https://developer.android.com/tools/adb) and [
 
 ## Customize the board
 
-Use Edit in the Windows panel. Select a page and button, then change its name, action, icon, and color. Add pages or buttons and move buttons earlier or later. Each screen shows 12 buttons; larger pages have Previous and Next controls. Save changes to sync to the tablet. Board editing is intentionally restricted to the local PC.
+Use Edit in the Windows panel. Select a page and button, then change its name, action, icon, and color. Add pages or buttons; drag a row by its handle to change the order, or use Move earlier/later. Each screen shows 12 buttons; larger pages have Previous and Next controls. Save changes to sync to the tablet. Adding actions and changing PC targets remain restricted to the local PC.
+
+On the tablet, choose **Edit → Arrange buttons**, drag keys to move them, then choose **Save order**. **Cancel** keeps the saved order. Actions do not run while arranging. On PC, **Edit → Arrange board** opens the same mode after editor changes are saved or discarded. See [ordering, library, and volume instructions](docs/CONTROLS.md).
 
 Actions:
 
@@ -128,7 +130,7 @@ Actions:
 - Toggle recording, streaming, Studio Mode, or the virtual camera; save an enabled OBS replay buffer. Streaming and recording always ask for confirmation, including inside macros.
 - Run multiple steps in sequence. Each macro step has an action, target, and optional source/filter/media value. Delay steps use milliseconds (0–10000). Steps stop at the first error. Execution has a 45-second budget; changes already made are not rolled back.
 
-The audio faders adjust the two configured OBS inputs from -60 to 0 dB. They are OBS input controls, not Windows master-volume controls. Mute is neutral; muted channels show red Unmute. PC/OBS loss clears ACTIVE scene state and shows Stream unknown.
+The audio faders adjust the two configured OBS inputs from -60 to 0 dB. **App volumes** opens separate Windows playback-session volume and mute controls. Start playback in an app if it is missing, then refresh. These controls change Windows Volume Mixer settings and may affect what OBS or Discord captures from that app. They do not set microphone gain. Mute is neutral; muted channels show red Unmute. PC/OBS loss clears ACTIVE scene state and shows Stream unknown.
 
 For sound effects to reach viewers, capture the PC’s playback output in OBS Desktop Audio, application audio capture, or your virtual mixer. Sound playback alone does not inject audio into the microphone. The deck’s Stop sounds button only stops deck playback. Restart/stop OBS media actions target media sources separately.
 
@@ -168,7 +170,7 @@ Supported shortcuts include letters, digits, F1–F24, CTRL, SHIFT, ALT, WIN, EN
 
 Yes, the board can be used with **Discord desktop streams and calls**, as well as OBS. See the detailed [integration guide](docs/INTEGRATIONS.md).
 
-**Soundpad:** keep it running on the PC, add a **Soundpad · play sound** button, and enter the index from its All sounds category. Use output **mic** to send an effect through Soundpad's configured microphone, **both** to hear it locally as well, or **speakers** for local-only playback. Dedicated stop, pause/resume, next, and previous controls do not need keyboard focus or an executable path.
+**Soundpad:** keep it running on the PC, then choose **Soundpad** in the board toolbar to browse names and categories. Select a playback output and press **Play**. In the PC library, select sounds and choose **Add selected buttons** to put them on a page. You can also add a **Soundpad · play sound** action manually by its All sounds index. Use output **mic** to send an effect through Soundpad's configured microphone, **both** to hear it locally as well, or **speakers** for local-only playback. Dedicated stop, pause/resume, next, and previous controls do not need keyboard focus or an executable path.
 
 **Discord controls:** configure Toggle Mute, Toggle Deafen, or Toggle Screen Share in Discord's desktop **User Settings → Keybinds**, then create matching **Send keyboard shortcut** buttons here. Leave Discord's keybind editor before testing. The share picker or stream settings may still need confirmation in Discord. These are shortcut controls, not live Discord-state indicators. The board's Start stream button controls OBS, not Discord.
 
@@ -228,6 +230,10 @@ To remove access, use **Revoke** in the PC's Pair tablet panel. To clear the tab
 | Sound heard locally but not on stream | Capture playback output in OBS; check virtual-mixer routing and make a test recording |
 | App/sound says Set up on PC | Choose an existing absolute file path in Edit |
 | Hotkey does nothing | Focus the intended app and check its shortcut; Windows may block injection into elevated apps |
+| Soundpad library unavailable | Keep Soundpad running under the same account; use Refresh library after changing its sounds |
+| Wrong Soundpad sound after reordering | Indices follow All sounds; refresh the library and update existing button indices |
+| App missing from volumes | Start audio playback, then Refresh apps; each output/session can have its own row |
+| App volume reports session ended | Refresh apps after restarting the app or changing output device |
 | Save replay fails | Configure and start OBS's replay buffer first |
 | No authorized Android device | Data cable, USB debugging, unlocked tablet, PC authorization, manufacturer USB driver if required |
 | ADB shows unauthorized | Approve the USB-debugging prompt on the tablet |
@@ -270,6 +276,6 @@ For changes, fork the repository, create a branch, run the relevant checks, and 
 
 ## Third-party notices
 
-Manrope is distributed under the [SIL Open Font License](companion/wwwroot/fonts/OFL.txt). DOMPurify is vendored with its [license](companion/wwwroot/vendor/DOMPurify-LICENSE.txt). OBS and Discord vector marks are from [Simple Icons under CC0](companion/wwwroot/vendor/Simple-Icons-CC0.txt); trademarks belong to their owners. Release packages retain Android platform-tools and Microsoft .NET notices.
+Manrope is distributed under the [SIL Open Font License](companion/wwwroot/fonts/OFL.txt). DOMPurify is vendored with its [license](companion/wwwroot/vendor/DOMPurify-LICENSE.txt). Windows audio-session access uses [NAudio under the MIT license](companion/Licenses/NAudio.txt). OBS and Discord vector marks are from [Simple Icons under CC0](companion/wwwroot/vendor/Simple-Icons-CC0.txt); trademarks belong to their owners. Release packages retain Android platform-tools and Microsoft .NET notices.
 
 No project-wide open-source license has been assigned. Public visibility does not replace the licenses of the third-party components above. This project is not affiliated with or endorsed by Elgato, OBS, Discord, Google, or Microsoft.

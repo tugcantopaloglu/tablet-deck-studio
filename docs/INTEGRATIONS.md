@@ -7,7 +7,8 @@ Tablet Deck Studio 1.1 adds direct Soundpad playback controls. Other application
 | Tool or workflow | Connection | What the board controls |
 | --- | --- | --- |
 | OBS Studio | Authenticated WebSocket v5 | Scenes, inputs, sources, filters, media, recording/streaming, replay, virtual camera |
-| Soundpad | Official local remote-control named pipe | Play by index; microphone/speakers routing; stop, pause/resume, next, previous |
+| Soundpad | Official local remote-control named pipe | Search names/categories, import selected sounds on PC, play by index; microphone/speakers routing; stop, pause/resume, next, previous |
+| Windows app audio | Windows Core Audio sessions | Per-app playback volume and mute by output/session |
 | Discord desktop | User-configured keybinds | Toggle mute/deafen/streamer mode/screen sharing when the same keybind is configured in Discord |
 | Discord voice audio | Soundpad microphone output | Effects reach the microphone device selected by Discord |
 | Discord screen-share audio | Discord's selected audio capture | Must be configured in Discord; the board does not capture or mix it |
@@ -18,7 +19,7 @@ The board is a controller. It does not install Soundpad, replace Discord's share
 
 ## Soundpad
 
-### What changed in 1.1
+### Direct controls and library browsing
 
 Dedicated actions use Soundpad's [supported remote-control interface](https://www.leppsoft.com/soundpad/en/rc/), independent of window focus. No executable path or custom shell command is needed. Soundpad must already be running on the PC under the same Windows account as the companion.
 
@@ -41,7 +42,9 @@ Both the standalone and Steam editions use Soundpad's remote interface; actual a
 
 6. Give the button a label/icon and save.
 
-Moving sounds within Soundpad's All sounds list can change their indices. Recheck affected buttons after reordering the list. The board currently does not import or browse Soundpad's library automatically.
+Version 1.2 adds a **Soundpad** library window on PC and tablet. Search names, artists, and categories, choose an output, then press Play. On PC, select sounds and choose **Add selected buttons** to import them into a page. See the [controls guide](CONTROLS.md) for steps and limits. Manual index entry remains available.
+
+Moving sounds within Soundpad's All sounds list can change their indices. Refresh the library and recheck affected saved buttons after reordering the list; existing buttons are not automatically remapped.
 
 ### Playback controls and macros
 
@@ -96,6 +99,8 @@ You can select **OBS Virtual Camera** as the camera in Discord to use OBS's comp
 For a Go Live workflow, you can open an [OBS projector window](https://obsproject.com/kb/power-of-projectors) and manually select that window in Discord's share picker. Scene changes then alter the projected video. Configure audio separately and rehearse the result. Neither workflow creates an automatic Discord broadcast integration or guarantees capture behavior on your device/client version.
 
 ## Other stream tools
+
+**App volumes** lists Windows playback sessions and controls their volume/mute separately from OBS input faders. Start audio playback if an app is absent and refresh after changing its output device. An app can have several rows. These changes affect Windows playback levels and may alter audio captured by OBS or Discord; they do not adjust microphone gain. See the [controls guide](CONTROLS.md).
 
 For a tool that offers a keyboard shortcut or global hotkey, configure the tool first, then create a matching **Send keyboard shortcut** button. App launches can be combined with shortcuts and delays in a macro, but starting an app does not automatically focus its window.
 

@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.IO.Pipes;
+using NAudio.Wave;
 
 namespace TabletDeck;
 public static class SelfTests
@@ -33,6 +34,16 @@ public static class SelfTests
         Reject(()=>SoundpadClient.BuildCommand("soundpadPlay","1","bad-output"),"unknown Soundpad output");
         Reject(()=>SoundpadClient.BuildCommand("arbitrary","",""),"unknown Soundpad command");
         TestSoundpadPipe().GetAwaiter().GetResult();Check(true,"Soundpad named-pipe status framing, fragmentation, and rejection");
+        var sampleXml="<Soundlist><Sound index=\"1\" title=\"Air &amp; horn\" url=\"C:\\Private\\horn.wav\" artist=\"Demo\"/><Sound index=\"2\" url=\"C:\\Private\\clap.wav\"/></Soundlist>";
+        var categoryXml="<Categories><Category name=\"Alerts\"><Sound index=\"1\" url=\"C:\\Private\\horn.wav\"/></Category></Categories>";
+        var library=SoundpadLibrary.Parse(sampleXml,categoryXml);
+        Check(library.Sounds.Count==2&&library.Sounds[0].Name=="Air & horn"&&library.Sounds[0].Categories.SequenceEqual(new[]{"Alerts"})&&library.Sounds[1].Name=="clap","Soundpad names, categories, and file-name fallback");
+        Check(!System.Text.Json.JsonSerializer.Serialize(library).Contains("Private"),"Soundpad library never exposes PC file paths");
+        var unsafeXml="<!DOCTYPE Soundlist [<!ENTITY x SYSTEM 'file:///C:/private'>]><Soundlist>&x;</Soundlist>";
+        try {SoundpadLibrary.ParseXml(unsafeXml);throw new Exception("Unsafe XML was accepted.");}catch(System.Xml.XmlException){Check(true,"Soundpad XML external entities are prohibited");}
+        TestLibraryPipe(sampleXml).GetAwaiter().GetResult();Check(true,"fragmented Soundpad XML responses are fully read");
+        TestAppMixer().GetAwaiter().GetResult();Check(true,"app mixer set/mute, invalid volume, and stale sessions");
+        TestReorder();Check(true,"layout reorder preserves actions and rejects duplicate IDs atomically");
         var silentPath=Path.Combine(Path.GetTempPath(),"tabletdeck-silence-"+Guid.NewGuid().ToString("N")+".wav");
         try {
             using(var stream=File.Create(silentPath)) using(var writer=new BinaryWriter(stream)) {
@@ -41,6 +52,59 @@ public static class SelfTests
             WindowsActions.PlaySound(silentPath);WindowsActions.StopSounds();Check(true,"Windows WAV playback and stop using a silent test file");
         } finally {WindowsActions.StopSounds();File.Delete(silentPath);}
         Console.WriteLine($"{passed} self-tests passed.");
+    }
+    private static async Task TestLibraryPipe(string xml)
+    {
+        var name="tabletdeck-library-test-"+Guid.NewGuid().ToString("N");using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var server=new NamedPipeServerStream(name,PipeDirection.InOut,1,PipeTransmissionMode.Byte,PipeOptions.Asynchronous|PipeOptions.CurrentUserOnly);
+        var peer=Task.Run(async()=>{await server.WaitForConnectionAsync(timeout.Token);var request=new byte[14];await server.ReadExactlyAsync(request,timeout.Token);if(Encoding.UTF8.GetString(request)!="GetSoundlist()")throw new Exception("Unexpected library command.");var data=Encoding.UTF8.GetBytes(xml);await server.WriteAsync(data.AsMemory(0,25),timeout.Token);await Task.Delay(15,timeout.Token);await server.WriteAsync(data.AsMemory(25),timeout.Token);await server.FlushAsync(timeout.Token);});
+        var received=await SoundpadLibrary.Query("GetSoundlist()",name,timeout.Token);await peer;
+        if(received!=xml)throw new Exception("Soundpad XML was truncated.");
+    }
+    private sealed class FakeAppBackend : IAppAudioBackend
+    {
+        public AppAudioSession Session=new(new string('A',64),"Test app","Test output",80,false,true);
+        public IReadOnlyList<AppAudioSession> List()=>[Session];
+        public void Set(string id,double? percent,bool? muted){if(id!=Session.Id)throw new InvalidOperationException("Stale session");Session=Session with{Percent=percent??Session.Percent,Muted=muted??Session.Muted};}
+    }
+    private static async Task TestAppMixer()
+    {
+        using var mixer=new AppAudioMixer(new FakeAppBackend());var first=(await mixer.List())[0];await mixer.Set(first.Id,37,true);var changed=(await mixer.List())[0];
+        if(changed.Percent!=37||!changed.Muted)throw new Exception("App mixer did not update.");
+        try{await mixer.Set(first.Id,-1,null);throw new Exception("Invalid app volume accepted.");}catch(ArgumentException){}
+        try{await mixer.Set(first.Id,double.NaN,null);throw new Exception("Non-finite app volume accepted.");}catch(ArgumentException){}
+        try{await mixer.Set(new string('B',64),50,null);throw new Exception("Stale app session accepted.");}catch(InvalidOperationException){}
+    }
+    private static void TestReorder()
+    {
+        var temp=Path.GetFullPath(Path.Combine(Path.GetTempPath(),"tabletdeck-layout-"+Guid.NewGuid().ToString("N")));
+        try {
+            var store=new DataStore(temp);var original=store.Config.Pages[0].Buttons[0];
+            var order=store.Config.Pages.Select(p=>new PageOrder(p.Id,p.Buttons.Select(a=>a.Id).Reverse().ToArray())).ToArray();store.Reorder(order);
+            if(store.Config.Pages[0].Buttons[^1].Id!=original.Id||store.Config.Pages[0].Buttons[^1].Target!=original.Target)throw new Exception("Layout changed an action.");
+            var before=System.Text.Json.JsonSerializer.Serialize(store.Config);order[0].ButtonIds[0]=order[0].ButtonIds[1];
+            try{store.Reorder(order);throw new Exception("Duplicate layout IDs accepted.");}catch(ArgumentException){}
+            if(System.Text.Json.JsonSerializer.Serialize(store.Config)!=before)throw new Exception("Failed layout was partly saved.");
+            var pageId=store.Config.Pages[^1].Id;var sound=new LibrarySound(42,"Library sound","","",[]);
+            store.ImportSounds(pageId,[sound],"mic");store.ImportSounds(pageId,[sound],"mic");
+            var imported=store.Config.Pages[^1].Buttons;if(imported.Count!=1||imported[0].Kind!="soundpadPlay"||imported[0].Target!="42"||imported[0].Value!="mic")throw new Exception("Soundpad import did not preserve routing or deduplicate.");
+            before=System.Text.Json.JsonSerializer.Serialize(store.Config);
+            try{store.ImportSounds(pageId,Enumerable.Range(1,120).Select(i=>new LibrarySound(i,"Sound","","",[])).ToArray(),"both");throw new Exception("Overflowing page import accepted.");}catch(ArgumentException){}
+            if(System.Text.Json.JsonSerializer.Serialize(store.Config)!=before)throw new Exception("Overflowing import was partly saved.");
+        } finally {if(temp.StartsWith(Path.GetFullPath(Path.GetTempPath()),StringComparison.OrdinalIgnoreCase)&&Directory.Exists(temp))Directory.Delete(temp,true);}
+    }
+    public static async Task AudioSmokeTest()
+    {
+        // The only volume modified is a silent stream in this test process.
+        using var output=new WasapiOut();output.Init(new SilenceProvider(new WaveFormat(48000,16,2)));output.Play();
+        using var mixer=new AppAudioMixer();AppAudioSession? own=null;
+        try {
+            for(var attempt=0;attempt<10&&own is null;attempt++){await Task.Delay(100);own=(await mixer.List()).FirstOrDefault(s=>s.ProcessId==Environment.ProcessId);}
+            if(own is null)throw new Exception("The silent test audio session was not enumerated.");
+            await mixer.Set(own.Id,37,true);var changed=(await mixer.List()).First(s=>s.Id==own.Id);
+            if(Math.Abs(changed.Percent-37)>1||!changed.Muted)throw new Exception("Windows did not apply the test session's volume/mute.");
+            Console.WriteLine("PASS actual Windows session enumeration, volume, and mute using silence.");
+        } finally {if(own is not null)await mixer.Set(own.Id,own.Percent,own.Muted);output.Stop();}
     }
     private static async Task TestSoundpadPipe()
     {

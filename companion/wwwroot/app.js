@@ -77,6 +77,7 @@ function renderBoard(){
   const pagination=$('#pagination');pagination.hidden=total<=1;pagination.innerHTML=DOMPurify.sanitize(`<button id="prev-keys" class="quiet" ${slice===0?'disabled':''}>Previous</button><span>Page ${slice+1} of ${total}</span><button id="next-keys" class="quiet" ${slice===total-1?'disabled':''}>Next</button>`);
   $('#prev-keys').onclick=()=>{slice--;renderBoard();};$('#next-keys').onclick=()=>{slice++;renderBoard();};
   const nav=$('#pages');nav.replaceChildren();for(const p of pages){const button=document.createElement('button');button.className='page-tab'+(p.id===pageId?' selected':'');button.setAttribute('aria-current',p.id===pageId?'page':'false');button.innerHTML=DOMPurify.sanitize(icon(p.icon==='home'&&p.id===pageId?'homeFilled':p.icon)+`<span>${esc(p.name)}</span>`);button.onclick=()=>{pageId=p.id;slice=0;renderBoard();};nav.appendChild(button);}
+  if(typeof attachBoardReorder==='function')attachBoardReorder();
 }
 async function trigger(a,button){
   if(preview){notice('Design preview — pair a tablet to use real controls.');return;}
@@ -104,12 +105,12 @@ function updateState(){
     $('#input-error-'+ch).hidden=available||!state.obsConnected;$('#input-error-'+ch).title=input?.error||'';
     const mute=$('#mute-'+ch);mute.classList.toggle('is-muted',!!input?.muted);mute.setAttribute('aria-pressed',String(!!input?.muted));mute.innerHTML=DOMPurify.sanitize(icon(input?.muted?'micOff':ch==='mic'?'mic':'speaker')+`<span>${input?.muted?'Unmute':'Mute'}</span>`);
   }
-  renderBoard();
+  if(typeof arranging==='undefined'||!arranging)renderBoard();
 }
 async function refresh(force=false){
   if(refreshing||preview||(!force&&(document.hidden||panel.open)))return;refreshing=true;
   try{
-    if(force||Date.now()-lastBoard>10000){const board=await api('/api/board');pages=board.pages;lastBoard=Date.now();}
+    if((typeof arranging==='undefined'||!arranging)&&(force||Date.now()-lastBoard>10000)){const board=await api('/api/board');pages=board.pages;lastBoard=Date.now();}
     state=await api('/api/state');state.pcConnected=true;updateState();
   }catch(error){state={pcConnected:false,obsConnected:false,inputs:{},error:error.message};updateState();if(force)notice(error.message,true);}
   finally{refreshing=false;}
@@ -129,11 +130,13 @@ Object.assign(targetHints,{soundpadPlay:'Index from Soundpad All sounds (1, 2, 3
 const newAction=()=>({id:crypto.randomUUID().replaceAll('-',''),label:'New button',kind:'scene',target:'',value:'',icon:'monitor',color:'violet',confirm:false,steps:[]});
 function options(items,value){return Object.entries(items).map(([v,label])=>`<option value="${esc(v)}" ${v===value?'selected':''}>${esc(label)}</option>`).join('');}
 async function showEditor(){
+  if(native&&typeof showTabletTools==='function'){showTabletTools();return;}
   if(native){openPanel('Edit your board',`<section class="setup"><h3>Make it yours on the PC.</h3><p>Open the Windows companion’s control panel and select <strong>Edit</strong> to change buttons, add sounds and apps, create macros, or choose OBS inputs. Changes sync to this tablet automatically.</p><div class="row"><button id="tablet-connection" class="primary">Connection settings</button></div></section>`);$('#tablet-connection').onclick=connectionForm;return;}
   if(preview){notice('Design preview — open the Windows companion to edit.');return;}
   try{config=await api('/api/admin/config');editing=true;dirty=false;selectedPage=0;selectedButton=0;renderEditor();}catch(error){notice(error.message,true);}
 }
 function renderEditor(){
+  if(typeof attachEditorReorder==='function')queueMicrotask(attachEditorReorder);
   const page=config.pages[selectedPage]||config.pages[0];selectedPage=config.pages.indexOf(page);
   const action=page.buttons[selectedButton];
   openPanel('Edit your studio',`<h3>OBS connection</h3><div class="form-grid"><label>OBS WebSocket port<input id="obs-port" type="number" min="1" max="65535" value="${config.obsPort}"></label><label>OBS WebSocket password<input id="obs-password" type="password" placeholder="${config.passwordConfigured?'Saved — leave blank to keep':'Enter OBS password'}" autocomplete="new-password" value="${esc(config.obsPassword)}"></label><label>Mic input name<input id="mic-input" value="${esc(config.micInput)}" list="obs-inputs"></label><label>Desktop input name<input id="desktop-input" value="${esc(config.desktopInput)}" list="obs-inputs"></label></div><datalist id="obs-inputs"></datalist><div class="row"><button id="load-obs" class="quiet">Find OBS inputs</button><button id="import-scenes" class="quiet">Import OBS scenes</button><label class="check"><input id="clear-password" type="checkbox">Clear saved OBS password</label></div><p class="help">In OBS, enable Tools → WebSocket Server Settings and keep authentication enabled. Scene and input names must match OBS. Audio faders change OBS input volume, not the Windows system volume.</p><div class="editor-layout"><section><div class="row"><label>Page<select id="edit-page">${config.pages.map((p,i)=>`<option value="${i}" ${i===selectedPage?'selected':''}>${esc(p.name)}</option>`).join('')}</select></label></div><label>Page name<input id="page-name" value="${esc(page.name)}" maxlength="30"></label><div class="row"><button id="add-page" class="quiet">Add page</button><button id="delete-page" class="quiet">Delete page</button></div><div class="editor-list">${page.buttons.map((a,i)=>`<button class="quiet editor-item ${i===selectedButton?'selected':''}" data-edit-index="${i}">${icon(a.icon)}${esc(a.label)}</button>`).join('')}</div><div class="row"><button id="add-button" class="primary">Add button</button></div></section><section class="editor-form" id="action-form"></section></div><div class="save-bar"><span class="help" id="save-status">${dirty?'Unsaved changes':'Changes sync to your tablet after saving.'}</span><button id="export-config" class="quiet">Export</button><button id="import-config" class="quiet">Import</button><input id="config-file" type="file" accept=".json,application/json" hidden><button id="save-config" class="primary">Save changes</button></div>`);
@@ -190,7 +193,7 @@ function previewData(){
   state={obsConnected:true,scene:'Gameplay',streaming:false,recording:false,inputs:{mic:{available:true,db:-6,muted:false},desktop:{available:true,db:-12,muted:false}}};$('#preview-label').hidden=false;updateState();
 }
 async function init(){
-  buildMixer();$('#edit-button').innerHTML=DOMPurify.sanitize(icon('settings')+'<span>Edit</span>');$('#edit-button').onclick=showEditor;
+  buildMixer();$('#edit-button').innerHTML=DOMPurify.sanitize(icon('settings')+'<span>Edit</span>');$('#edit-button').onclick=()=>typeof arranging!=='undefined'&&arranging?saveArrangement():showEditor();
   $('#pair-button').hidden=native||preview;$('#pair-button').onclick=showPairing;
   $('#connection').onclick=()=>native?connectionForm():state.error?notice(state.error,true):notice('The PC editor controls OBS through its local WebSocket server.');
   if(preview){previewData();return;}

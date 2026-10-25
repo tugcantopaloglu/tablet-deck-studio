@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.Globalization;
 
 if(args.Contains("--self-test")) { SelfTests.Run();return; }
+if(args.Contains("--audio-smoke-test")) {await SelfTests.AudioSmokeTest();return;}
 string Option(string name,string fallback) {var i=Array.IndexOf(args,name);return i>=0&&i+1<args.Length?args[i+1]:fallback;}
 var dataDir=Option("--data-dir",Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"TabletDeck"));
 var store=new DataStore(dataDir);
@@ -38,6 +39,7 @@ builder.WebHost.ConfigureKestrel(k=>{k.Limits.MaxRequestBodySize=1024*1024;k.Lim
 var app=builder.Build();
 await using var obs=new ObsClient(()=>store.Config);
 var engine=new DeckEngine(store,obs);
+using var appMixer=new AppAudioMixer();
 bool IsAdmin(HttpContext c)=>c.Connection.LocalPort==httpPort&&IPAddress.IsLoopback(c.Connection.RemoteIpAddress??IPAddress.None)&&SafeEqual(c.Request.Headers["X-Deck-Admin"].ToString(),adminToken);
 bool IsAuthorized(HttpContext c)=>IsAdmin(c)||store.Authenticate(c.Request.Headers.Authorization.ToString().Replace("Bearer ","",StringComparison.Ordinal));
 app.Use(async (ctx,next)=>{
@@ -65,6 +67,17 @@ app.Use(async (ctx,next)=>{
 app.UseDefaultFiles();app.UseStaticFiles();
 app.MapGet("/api/board",()=>new {pages=store.Config.Pages.Select(p=>new {p.Id,p.Name,p.Icon,buttons=p.Buttons.Select(a=>new{a.Id,a.Label,a.Kind,a.Icon,a.Color,confirm=DeckEngine.NeedsConfirm(a),target=a.Kind is "scene" or "preview"?a.Target:"",configured=!(a.Kind is "app" or "sound" or "url" or "hotkey" or "soundpadPlay")||a.Target.Length>0})})});
 app.MapGet("/api/state",()=>engine.State());
+app.MapGet("/api/apps",async ()=>new {apps=await appMixer.List()});
+app.MapPost("/api/apps",async (AppAudioRequest req)=>{await appMixer.Set(req.Id,req.Percent,req.Muted);return Results.Ok(new{ok=true});});
+app.MapPost("/api/layout",(LayoutRequest req)=>{store.Reorder(req.Pages);return Results.Ok(new{ok=true});});
+app.MapGet("/api/soundpad/library",async (HttpContext ctx)=>await SoundpadLibrary.Get(false,ctx.RequestAborted));
+app.MapPost("/api/soundpad/library",async (HttpContext ctx)=>await SoundpadLibrary.Get(true,ctx.RequestAborted));
+app.MapPost("/api/soundpad/play",async (SoundpadPlayRequest req,HttpContext ctx)=>{
+    var library=await SoundpadLibrary.Get(false,ctx.RequestAborted);
+    if(!library.Sounds.Any(s=>s.Index==req.Index))throw new ArgumentException("This sound is no longer in the library. Refresh Soundpad.");
+    await engine.Execute(new DeckAction{Kind="soundpadPlay",Target=req.Index.ToString(CultureInfo.InvariantCulture),Value=req.Output});
+    return Results.Ok(new{ok=true});
+});
 app.MapPost("/api/action",async (ActionRequest req)=>{
     var action=store.Config.Pages.SelectMany(p=>p.Buttons).FirstOrDefault(a=>a.Id==req.Id)??throw new ArgumentException("This button no longer exists. Reload the board.");
     if(DeckEngine.NeedsConfirm(action)&&!req.Confirmed) return Results.Json(new{error="Confirm this action on the tablet."},statusCode:409);
@@ -88,6 +101,14 @@ app.MapGet("/api/admin/config",()=>{
 app.MapPost("/api/admin/config",(ConfigRequest req)=>{
     if(!req.ReplacePassword) req.Config.ObsPassword=store.Config.ObsPassword;
     store.Save(req.Config);engine.Invalidate();return Results.Ok(new{ok=true});
+});
+app.MapPost("/api/admin/soundpad/import",async (SoundpadImportRequest req,HttpContext ctx)=>{
+    if(req.Indices.Length is <1 or >120)throw new ArgumentException("Select between 1 and 120 sounds.");
+    var library=await SoundpadLibrary.Get(false,ctx.RequestAborted);
+    var sounds=library.Sounds.ToDictionary(s=>s.Index);
+    var selected=req.Indices.Distinct().Select(index=>sounds.TryGetValue(index,out var sound)?sound:throw new ArgumentException("A selected sound is no longer in the library. Refresh Soundpad.")).ToArray();
+    store.ImportSounds(req.PageId,selected,req.Output);
+    return Results.Ok(new{ok=true});
 });
 app.MapGet("/api/admin/obs",async ()=>new {scenes=await obs.Call("GetSceneList"),inputs=await obs.Call("GetInputList")});
 app.MapPost("/api/admin/import-scenes",async ()=>{
@@ -118,6 +139,10 @@ record MuteRequest(string Channel);
 record PairRequest(string Code,string? Name);
 record RevokeRequest(string Id);
 record ConfigRequest(DeckConfig Config,bool ReplacePassword=false);
+record AppAudioRequest(string Id,double? Percent=null,bool? Muted=null);
+record LayoutRequest(PageOrder[] Pages);
+record SoundpadPlayRequest(int Index,string Output="mic");
+record SoundpadImportRequest(string PageId,int[] Indices,string Output="mic");
 sealed class Pairing
 {
     private readonly object gate=new();private string code="";private DateTime expires=DateTime.MinValue;private int attempts;

@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="style.css">
   <script src="vendor/purify.min.js" defer></script>
   <script src="app.js" defer></script>
+  <script src="features.js" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -16,6 +17,8 @@
     <span id="transport" class="transport">Local control</span>
     <span id="stream-status" class="stream-status"><span class="dot"></span>Stream offline</span>
     <button id="pair-button" class="quiet" hidden>Pair tablet</button>
+    <button id="soundpad-button" class="quiet">Soundpad</button>
+    <button id="arrange-cancel" class="quiet" hidden>Cancel</button>
     <button id="edit-button" class="quiet"></button>
   </header>
   <main id="workspace" class="workspace">
@@ -23,6 +26,7 @@
     <aside class="mixer" aria-label="OBS audio mixer">
       <div class="mixer-heading"><h2>Audio</h2><span id="preview-label" hidden>Design preview</span></div>
       <div class="channels" id="channels"></div>
+      <button id="apps-button" class="quiet apps-launch">App volumes</button>
     </aside>
   </main>
   <nav id="pages" class="pages" aria-label="Button pages"></nav>
