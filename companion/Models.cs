@@ -13,6 +13,7 @@ public sealed class DeckAction
     public string Kind { get; set; } = "scene";
     public string Target { get; set; } = "";
     public string Value { get; set; } = "";
+    public string SoundpadKey { get; set; } = "";
     public string Icon { get; set; } = "monitor";
     public string Color { get; set; } = "violet";
     public bool Confirm { get; set; }
@@ -120,8 +121,8 @@ public sealed class DataStore
             var page=c.Pages.FirstOrDefault(p=>p.Id==pageId)??throw new ArgumentException("Select an existing page.");
             foreach(var sound in sounds) {
                 var target=sound.Index.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                if(page.Buttons.Any(a=>a.Kind=="soundpadPlay"&&a.Target==target&&a.Value==output))continue;
-                page.Buttons.Add(new DeckAction{Label=sound.Name.Length>60?sound.Name[..60]:sound.Name,Kind="soundpadPlay",Target=target,Value=output,Icon="speaker",Color="amber"});
+                if(page.Buttons.Any(a=>a.Kind=="soundpadPlay"&&a.Value==output&&(sound.Key.Length>0?a.SoundpadKey==sound.Key:a.Target==target)))continue;
+                page.Buttons.Add(new DeckAction{Label=sound.Name.Length>60?sound.Name[..60]:sound.Name,Kind="soundpadPlay",Target=target,Value=output,SoundpadKey=sound.Key,Icon="speaker",Color="amber"});
             }
         });
     }
@@ -149,9 +150,12 @@ public sealed class DataStore
     }
     private static void ValidateAction(DeckAction a,int depth)
     {
-        string[] kinds=["scene","preview","transition","sound","stopSounds","app","url","hotkey","mute","source","filter","media","record","stream","replay","virtualCamera","studioMode","macro","delay"];
+        string[] kinds=["scene","preview","transition","sound","stopSounds","app","url","hotkey","holdHotkey","mute","source","filter","media","record","stream","replay","virtualCamera","studioMode","macro","delay","voicemeeter"];
         if(depth>3||(!kinds.Contains(a.Kind)&&!SoundpadClient.Supports(a.Kind))||a.Label.Length is <1 or >60||a.Target.Length>2048||a.Value.Length>1024||a.Steps.Count>30) throw new ArgumentException("Invalid button or macro (maximum 30 steps, 3 nesting levels).");
         if(SoundpadClient.Supports(a.Kind)&&!(a.Kind=="soundpadPlay"&&a.Target.Length==0)) SoundpadClient.BuildCommand(a.Kind,a.Target,a.Value);
+        if(a.SoundpadKey.Length>0&&(a.SoundpadKey.Length!=64||!a.SoundpadKey.All(Uri.IsHexDigit)))throw new ArgumentException("Invalid Soundpad binding. Reimport the sound from the library.");
+        if(a.Kind=="holdHotkey") {if(depth>0||a.Confirm)throw new ArgumentException("Hold shortcuts must be standalone buttons without confirmation.");WindowsActions.ParseHotkey(a.Target);}
+        if(a.Kind=="voicemeeter")VoicemeeterClient.Validate(a.Target,a.Value);
         if(a.Kind=="app" && a.Target.Length>0 && (!Path.IsPathFullyQualified(a.Target)||!new[]{".exe",".lnk"}.Contains(Path.GetExtension(a.Target).ToLowerInvariant()))) throw new ArgumentException("App actions require an absolute .exe or .lnk path.");
         if(a.Kind=="url"&&a.Target.Length>0&&(!Uri.TryCreate(a.Target,UriKind.Absolute,out var u)||u.Scheme is not ("https" or "http"))) throw new ArgumentException("Website actions require http:// or https://.");
         if(a.Kind=="sound"&&a.Target.Length>0&&(!Path.IsPathFullyQualified(a.Target)||!new[]{".wav",".mp3",".wma"}.Contains(Path.GetExtension(a.Target).ToLowerInvariant()))) throw new ArgumentException("Sound actions require an absolute WAV, MP3, or WMA file path.");

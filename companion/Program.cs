@@ -10,6 +10,7 @@ using System.Globalization;
 
 if(args.Contains("--self-test")) { SelfTests.Run();return; }
 if(args.Contains("--audio-smoke-test")) {await SelfTests.AudioSmokeTest();return;}
+if(args.Contains("--hardening-self-test")) {await HardeningTests.Run();return;}
 string Option(string name,string fallback) {var i=Array.IndexOf(args,name);return i>=0&&i+1<args.Length?args[i+1]:fallback;}
 var dataDir=Option("--data-dir",Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"TabletDeck"));
 var store=new DataStore(dataDir);
@@ -40,8 +41,15 @@ var app=builder.Build();
 await using var obs=new ObsClient(()=>store.Config);
 var engine=new DeckEngine(store,obs);
 using var appMixer=new AppAudioMixer();
+using var holds=new HoldKeys();
+var desktop=new DesktopPreferences(store.DirectoryPath);
+using var usb=new UsbReconnect(desktop,httpsPort);
+using var updates=new ReleaseUpdates();
+using var backgroundStop=new CancellationTokenSource();
+DesktopTray? tray=null;
 bool IsAdmin(HttpContext c)=>c.Connection.LocalPort==httpPort&&IPAddress.IsLoopback(c.Connection.RemoteIpAddress??IPAddress.None)&&SafeEqual(c.Request.Headers["X-Deck-Admin"].ToString(),adminToken);
 bool IsAuthorized(HttpContext c)=>IsAdmin(c)||store.Authenticate(c.Request.Headers.Authorization.ToString().Replace("Bearer ","",StringComparison.Ordinal));
+string Principal(HttpContext c)=>IsAdmin(c)?"admin":Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(c.Request.Headers.Authorization.ToString().Replace("Bearer ","",StringComparison.Ordinal))));
 app.Use(async (ctx,next)=>{
     ctx.Response.Headers["X-Content-Type-Options"]="nosniff";
     ctx.Response.Headers["X-Frame-Options"]="DENY";
@@ -67,12 +75,22 @@ app.Use(async (ctx,next)=>{
 app.UseDefaultFiles();app.UseStaticFiles();
 app.MapGet("/api/board",()=>new {pages=store.Config.Pages.Select(p=>new {p.Id,p.Name,p.Icon,buttons=p.Buttons.Select(a=>new{a.Id,a.Label,a.Kind,a.Icon,a.Color,confirm=DeckEngine.NeedsConfirm(a),target=a.Kind is "scene" or "preview"?a.Target:"",configured=!(a.Kind is "app" or "sound" or "url" or "hotkey" or "soundpadPlay")||a.Target.Length>0})})});
 app.MapGet("/api/state",()=>engine.State());
+app.MapPost("/api/hold",(HoldRequest req,HttpContext ctx)=>{
+    var principal=Principal(ctx);
+    if(req.Operation=="release"){holds.Release(principal,req.Lease);return Results.Ok(new{ok=true});}
+    if(req.Operation=="renew"){holds.Renew(principal,req.Lease);return Results.Ok(new{ok=true});}
+    if(req.Operation!="begin")throw new ArgumentException("Unknown hold operation.");
+    var action=store.Config.Pages.SelectMany(page=>page.Buttons).FirstOrDefault(action=>action.Id==req.Id);
+    if(action?.Kind!="holdHotkey")throw new ArgumentException("Choose a configured hold shortcut button.");
+    return Results.Ok(new{lease=holds.Begin(principal,action.Target),expiresIn=3});
+});
 app.MapGet("/api/apps",async ()=>new {apps=await appMixer.List()});
 app.MapPost("/api/apps",async (AppAudioRequest req)=>{await appMixer.Set(req.Id,req.Percent,req.Muted);return Results.Ok(new{ok=true});});
 app.MapPost("/api/layout",(LayoutRequest req)=>{store.Reorder(req.Pages);return Results.Ok(new{ok=true});});
 app.MapGet("/api/soundpad/library",async (HttpContext ctx)=>await SoundpadLibrary.Get(false,ctx.RequestAborted));
 app.MapPost("/api/soundpad/library",async (HttpContext ctx)=>await SoundpadLibrary.Get(true,ctx.RequestAborted));
 app.MapPost("/api/soundpad/play",async (SoundpadPlayRequest req,HttpContext ctx)=>{
+    if(req.Key.Length>0){if(req.Key.Length!=64||!req.Key.All(Uri.IsHexDigit))throw new ArgumentException("Invalid library sound identity.");await engine.Execute(new DeckAction{Kind="soundpadPlay",Target=req.Index.ToString(CultureInfo.InvariantCulture),Value=req.Output,SoundpadKey=req.Key});return Results.Ok(new{ok=true});}
     var library=await SoundpadLibrary.Get(false,ctx.RequestAborted);
     if(!library.Sounds.Any(s=>s.Index==req.Index))throw new ArgumentException("This sound is no longer in the library. Refresh Soundpad.");
     await engine.Execute(new DeckAction{Kind="soundpadPlay",Target=req.Index.ToString(CultureInfo.InvariantCulture),Value=req.Output});
@@ -94,13 +112,17 @@ app.MapPost("/api/pair",(PairRequest req)=>{
 });
 app.MapGet("/api/admin/info",()=>new {httpPort,httpsPort,fingerprint,certificateCode=fingerprint[..24],addresses=NetworkAddresses(),dataDirectory=store.DirectoryPath,devices=store.Devices.Select(d=>new{d.Id,d.Name,d.Added})});
 app.MapPost("/api/admin/pairing",()=>new{code=pairing.Open(),expiresIn=300,certificateCode=fingerprint[..24]});
-app.MapPost("/api/admin/revoke",(RevokeRequest req)=>{store.Revoke(req.Id);return Results.Ok(new{ok=true});});
+app.MapPost("/api/admin/revoke",(RevokeRequest req)=>{var owner=store.Devices.FirstOrDefault(device=>device.Id==req.Id)?.TokenHash;if(owner is not null)holds.ReleaseOwner(owner);store.Revoke(req.Id);return Results.Ok(new{ok=true});});
+app.MapGet("/api/admin/desktop",()=>new{settings=desktop.Get(),startWithWindows=DesktopPreferences.StartsWithWindows(),usbStatus=usb.Status,update=updates.Status});
+app.MapPost("/api/admin/desktop",(DesktopRequest req)=>{DesktopPreferences.Validate(req.Settings);if(req.StartWithWindows is not null)DesktopPreferences.SetStartup(req.StartWithWindows.Value);desktop.Save(req.Settings);return Results.Ok(new{ok=true});});
+app.MapPost("/api/admin/updates",async (HttpContext ctx)=>await updates.Check(true,ctx.RequestAborted));
+app.MapPost("/api/admin/soundpad/remap",async (RemapRequest req,HttpContext ctx)=>{if(req.LinkLegacy&&!req.Confirmed)throw new ArgumentException("Verify existing Soundpad indices before linking old buttons.");return SoundpadBindings.Remap(store,await SoundpadLibrary.Get(true,ctx.RequestAborted),req.LinkLegacy);});
 app.MapGet("/api/admin/config",()=>{
     var result=JsonSerializer.SerializeToNode(store.Config,DataStore.Json)!.AsObject();result["obsPassword"]="";result["passwordConfigured"]=store.Config.ObsPassword.Length>0;return result;
 });
 app.MapPost("/api/admin/config",(ConfigRequest req)=>{
     if(!req.ReplacePassword) req.Config.ObsPassword=store.Config.ObsPassword;
-    store.Save(req.Config);engine.Invalidate();return Results.Ok(new{ok=true});
+    DataStore.Validate(req.Config);holds.ReleaseAll();store.Save(req.Config);engine.Invalidate();return Results.Ok(new{ok=true});
 });
 app.MapPost("/api/admin/soundpad/import",async (SoundpadImportRequest req,HttpContext ctx)=>{
     if(req.Indices.Length is <1 or >120)throw new ArgumentException("Select between 1 and 120 sounds.");
@@ -126,10 +148,13 @@ var panel=$"http://127.0.0.1:{httpPort}/#admin={adminToken}";
 File.WriteAllText(Path.Combine(store.DirectoryPath,"admin-session.json"),JsonSerializer.Serialize(new{token=adminToken,httpPort,httpsPort},DataStore.Json));
 app.Lifetime.ApplicationStarted.Register(()=>{
     Console.WriteLine($"Tablet Deck Studio is running. PC editor: http://127.0.0.1:{httpPort}");
-    Console.WriteLine($"Tablet encrypted port: {httpsPort}. Keep this window open; Ctrl+C closes the companion.");
+    Console.WriteLine($"Tablet encrypted port: {httpsPort}. Tray menu > Exit, or Ctrl+C, closes the companion.");
+    if(!args.Contains("--no-tray")&&(args.Contains("--tray")||!args.Contains("--no-browser")))tray=new DesktopTray(panel,desktop,updates,()=>app.Lifetime.StopApplication());
+    usb.Start();
     if(!args.Contains("--no-browser")) Process.Start(new ProcessStartInfo(panel){UseShellExecute=true});
 });
-try {await app.RunAsync();} finally {WindowsActions.StopSounds();cert.Dispose();}
+var updateLoop=Task.Run(async()=>{while(!backgroundStop.IsCancellationRequested){try{if(desktop.Get().UpdateNotifications)await updates.Check(false,backgroundStop.Token);await Task.Delay(TimeSpan.FromMinutes(15),backgroundStop.Token);}catch(OperationCanceledException){break;}}});
+try {await app.RunAsync();} finally {backgroundStop.Cancel();await updateLoop;tray?.Dispose();holds.ReleaseAll();VoicemeeterClient.Shutdown();WindowsActions.StopSounds();cert.Dispose();}
 static FileStream? AcquireLock(string path) {try{return new FileStream(path,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None);}catch(IOException){return null;}}
 static bool SafeEqual(string a,string b)=>a.Length==b.Length&&CryptographicOperations.FixedTimeEquals(System.Text.Encoding.UTF8.GetBytes(a),System.Text.Encoding.UTF8.GetBytes(b));
 static string[] NetworkAddresses()=>System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces().Where(n=>n.OperationalStatus==System.Net.NetworkInformation.OperationalStatus.Up).SelectMany(n=>n.GetIPProperties().UnicastAddresses).Where(a=>a.Address.AddressFamily==AddressFamily.InterNetwork&&!IPAddress.IsLoopback(a.Address)).Select(a=>a.Address.ToString()).Distinct().ToArray();
@@ -141,8 +166,11 @@ record RevokeRequest(string Id);
 record ConfigRequest(DeckConfig Config,bool ReplacePassword=false);
 record AppAudioRequest(string Id,double? Percent=null,bool? Muted=null);
 record LayoutRequest(PageOrder[] Pages);
-record SoundpadPlayRequest(int Index,string Output="mic");
+record SoundpadPlayRequest(int Index,string Output="mic",string Key="");
 record SoundpadImportRequest(string PageId,int[] Indices,string Output="mic");
+record HoldRequest(string Operation,string Id="",string Lease="");
+record DesktopRequest(DesktopSettings Settings,bool? StartWithWindows=null);
+record RemapRequest(bool LinkLegacy=false,bool Confirmed=false);
 sealed class Pairing
 {
     private readonly object gate=new();private string code="";private DateTime expires=DateTime.MinValue;private int attempts;

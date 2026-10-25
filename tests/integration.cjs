@@ -109,6 +109,12 @@ async function run(){
  }
  config.pages[4].buttons=[macro];await request('/api/admin/config',{config,replacePassword:true});
  check((await request('/api/admin/import-scenes',{})).status===200,'import real OBS scenes');
+ if(process.env.TABLETDECK_HEADLESS==='1'){
+  const devices=(await request('/api/admin/info')).data.devices;const tablet=devices.filter(device=>device.name==='Test tablet').at(-1);
+  await request('/api/admin/revoke',{id:tablet.id});check((await remote('/api/board',undefined,token,info.fingerprint)).status===401,'revocation immediately blocks the tablet');
+  fs.writeFileSync(path.join(root,'integration-api-result.json'),JSON.stringify({passed:passes,obsRequests:calls.length,browserOpened:false,transport:'loopback TLS with certificate fingerprint verification'},null,2));
+  console.log(`${passes} API integration checks passed; browser section deliberately skipped.`);return;
+ }
  const browser=await chromium.launch({executablePath:process.env.TABLETDECK_CHROME||'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});activeBrowser=browser;
  const errors=[];
  const page=await browser.newPage({viewport:{width:1536,height:1024},deviceScaleFactor:1});

@@ -61,4 +61,15 @@ public static class WindowsActions
             throw new IOException("Windows blocked the shortcut. The target app may be running as administrator.");
         }
     }
+    public static void SetKeys(ushort[] keys,bool down)
+    {
+        var sequence=down?keys:keys.Reverse().ToArray();
+        var inputs=sequence.Select(key=>new INPUT{type=1,data=new InputUnion{keyboard=new KEYBDINPUT{key=key,flags=down?0u:2u}}}).ToArray();
+        if(SendInput((uint)inputs.Length,inputs,Marshal.SizeOf<INPUT>())==inputs.Length)return;
+        if(down) {
+            var release=keys.Reverse().Select(key=>new INPUT{type=1,data=new InputUnion{keyboard=new KEYBDINPUT{key=key,flags=2}}}).ToArray();
+            SendInput((uint)release.Length,release,Marshal.SizeOf<INPUT>());
+        }
+        throw new IOException("Windows blocked the hold shortcut. Use the same privilege level as the target app.");
+    }
 }

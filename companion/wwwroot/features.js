@@ -14,6 +14,7 @@ async function showSoundpadLibrary(){
   $('#library-refresh').onclick=()=>loadSoundpadLibrary(true);
   $('#library-more').onclick=()=>{libraryLimit+=80;renderSoundpadResults();};
   if($('#library-add'))$('#library-add').onclick=importSoundpadSelection;
+  if(!native){const row=document.createElement('div');row.className='row';for(const [text,link] of [['Refresh linked indices',false],['Link old buttons',true]]){const button=document.createElement('button');button.className='quiet';button.textContent=text;button.onclick=()=>remapSoundpad(link);row.appendChild(button);}$('#library-results').before(row);}
   await loadSoundpadLibrary(false);
 }
 async function loadSoundpadLibrary(force){
@@ -36,7 +37,7 @@ function renderSoundpadResults(){
   featureHtml($('#library-results'),matches.length?matches.slice(0,libraryLimit).map(s=>`<div class="library-row">${!native?`<input class="sound-select" type="checkbox" data-select-sound="${s.index}" aria-label="Select ${esc(s.name)}" ${librarySelection.has(s.index)?'checked':''}>`:''}<div class="library-name"><strong>${esc(s.name)}</strong><span>${esc([s.artist,...s.categories].filter(Boolean).join(' · '))||'All sounds'} <span class="badge">#${s.index}</span></span></div><button class="quiet" data-play-sound="${s.index}" aria-label="Play ${esc(s.name)}">Play</button></div>`).join(''):'<div class="feature-empty"><strong>No matching sounds</strong><p>Add sounds in Soundpad or try another search.</p></div>');
   $('#library-more').hidden=matches.length<=libraryLimit;
   document.querySelectorAll('[data-select-sound]').forEach(input=>input.onchange=()=>{const id=Number(input.dataset.selectSound);input.checked?librarySelection.add(id):librarySelection.delete(id);$('#library-add').disabled=librarySelection.size===0;$('#library-count').textContent=`${matches.length} sounds · ${librarySelection.size} selected`;});
-  document.querySelectorAll('[data-play-sound]').forEach(button=>button.onclick=async()=>{button.disabled=true;try{await api('/api/soundpad/play',{index:Number(button.dataset.playSound),output:$('#library-output').value});notice('Soundpad accepted playback.');}catch(error){notice(error.message,true);}finally{if(button.isConnected)button.disabled=false;}});
+  document.querySelectorAll('[data-play-sound]').forEach(button=>button.onclick=async()=>{button.disabled=true;try{const index=Number(button.dataset.playSound),sound=librarySounds.find(sound=>sound.index===index);await api('/api/soundpad/play',{index,key:sound?.key||'',output:$('#library-output').value});notice('Soundpad accepted playback.');}catch(error){notice(error.message,true);}finally{if(button.isConnected)button.disabled=false;}});
 }
 async function importSoundpadSelection(){
   const button=$('#library-add');button.disabled=true;
@@ -145,4 +146,5 @@ function attachEditorReorder(){
   const browse=document.createElement('button');browse.className='quiet';browse.textContent='Browse Soundpad';browse.onclick=showSoundpadLibrary;
   const arrange=document.createElement('button');arrange.className='quiet';arrange.textContent='Arrange board';arrange.onclick=startArrangement;
   toolbar.appendChild(browse);toolbar.appendChild(arrange);$('.editor-layout').before(toolbar);
+  const desktop=document.createElement('button');desktop.className='quiet';desktop.textContent='Desktop settings';desktop.onclick=showDesktopSettings;toolbar.appendChild(desktop);
 }

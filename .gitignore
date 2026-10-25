@@ -28,6 +28,8 @@ admin-session.json
 devices.json
 config.json
 runtime.lock
+desktop.json
+.tabletdeck-install.json
 
 # Local test sessions and diagnostics
 .test-output/

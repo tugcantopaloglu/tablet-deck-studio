@@ -40,7 +40,7 @@ import java.util.concurrent.Executors;
 public final class MainActivity extends Activity {
     private static final String UI_HOST="app.tabletdeck.local";
     private static final Set<String> GET_PATHS=new HashSet<>(Arrays.asList("/api/board","/api/state","/api/apps","/api/soundpad/library"));
-    private static final Set<String> POST_PATHS=new HashSet<>(Arrays.asList("/api/action","/api/audio","/api/mute","/api/apps","/api/layout","/api/soundpad/play","/api/soundpad/library"));
+    private static final Set<String> POST_PATHS=new HashSet<>(Arrays.asList("/api/hold","/api/action","/api/audio","/api/mute","/api/apps","/api/layout","/api/soundpad/play","/api/soundpad/library"));
     private WebView web;
     private SharedPreferences preferences;
     private final ExecutorService network=Executors.newFixedThreadPool(3);
@@ -70,7 +70,7 @@ public final class MainActivity extends Activity {
                 Uri url=request.getUrl();
                 if(!"https".equals(url.getScheme())||!UI_HOST.equals(url.getHost())||!"GET".equals(request.getMethod())) return blocked();
                 String path=url.getPath();if(path==null||path.equals("/"))path="/index.html";
-                if(!Arrays.asList("/index.html","/app.js","/features.js","/style.css","/fonts/Manrope.ttf","/vendor/purify.min.js").contains(path))return blocked();
+                if(!Arrays.asList("/index.html","/app.js","/features.js","/hardening.js","/style.css","/fonts/Manrope.ttf","/vendor/purify.min.js").contains(path))return blocked();
                 try {
                     String mime=path.endsWith(".html")?"text/html":path.endsWith(".js")?"application/javascript":path.endsWith(".css")?"text/css":"font/ttf";
                     Map<String,String> headers=new HashMap<>();
@@ -182,5 +182,7 @@ public final class MainActivity extends Activity {
         return ex.getMessage()==null?"Connection failed. Try pairing again.":ex.getMessage();
     }
     @Override public void onBackPressed(){web.evaluateJavascript("(function(){var d=document.querySelector('#confirm-dialog');if(d.open){d.close('cancel');return true;}if(document.querySelector('#panel').open){document.querySelector('#close-panel').click();return true;}return false;})()",result->{if("false".equals(result))finish();});}
+    @Override protected void onPause(){if(web!=null){web.evaluateJavascript("if(typeof releaseDeckHold===\'function\')releaseDeckHold();",null);web.onPause();}super.onPause();}
+    @Override protected void onResume(){super.onResume();if(web!=null)web.onResume();}
     @Override protected void onDestroy(){closed=true;network.shutdownNow();web.removeJavascriptInterface("DeckNative");web.destroy();super.onDestroy();}
 }

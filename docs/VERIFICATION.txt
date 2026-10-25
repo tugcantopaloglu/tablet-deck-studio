@@ -1,38 +1,32 @@
-Tablet Deck Studio 1.2.0 — verification
-
-Built for Windows10/11 x64 and Android8.0+ (minSDK26, targetSDK35).
+Tablet Deck Studio 1.3.0 — verification
 
 BUILD
-- Windows Release build: success, no compiler warnings or errors.
-- Windows package: .NET10 self-contained single-file executable with external UI/sound assets.
-- Android compilation and D8 dex conversion: success.
-- APK signing verification: APK Signature Scheme v2 and v3 valid.
-- Android package: app.tabletdeck.studio, versionCode3, signed with the same private key as 1.0.0 and 1.1.0.
-- Only Android INTERNET permission is requested. Backups are disabled. Cleartext network traffic is disabled.
+- Windows companion: .NET10 self-contained x64 Release build, no warnings/errors.
+- Windows installer: self-contained x64 console setup with an embedded, checksummed release ZIP.
+- Android: app.tabletdeck.studio, versionCode4, version1.3.0, minSDK26, targetSDK35.
+- APK Signature Schemes v2 and v3 verify. Same signing certificate as previous releases.
+- Only Android INTERNET permission. No backups or cleartext traffic.
 
-TESTS
--26 companion self-tests pass, including Soundpad routing, allowlisted commands, XML names/categories, unsafe XML rejection, fragmented responses, mixer validation, atomic layout updates and Soundpad import/deduplication/limits, plus the original companion checks.
--44 integration checks pass against the real companion and a mock OBS WebSocket v5 service. New checks cover Soundpad configuration, board delivery, command-injection rejection, and the editor output field.
--31 additional feature checks pass: authenticated library/app/layout endpoints, tablet import isolation, real Windows session enumeration, invalid/stale session rejection, atomic reorder, preserved targets, PC mouse drag, tablet touch drag/cancel, keyboard ordering, touch move across twelve-key groups, library search/categories/play/import payloads, escaped sound titles, volume/mute UI, overflow, and browser errors.
-- Total:101 automated checks. Both browser suites were rerun against the published Release executable.
-- Additional hardware smoke test passes against a real Windows Core Audio playback session: creates a silent session in the test process, changes its own volume/mute, verifies values, restores originals, and stops. It does not adjust other applications' audio.
-- Checks cover TLS pairing, one-use PINs, five-attempt lockout, revoked credentials, local editor isolation, OBS state/actions, scene buttons, input volumes/mute, source/filter/media controls, sequential macros, editor save, cancelled recording confirmation, truthful disconnect state, browser errors, overflow, and tablet touch targets.
-- Browser rendering inspected at1536x1024,1280x800,1024x600, and390x844. Android-native rendering was not captured.
-- Windows USB helper correctly reports that no authorized Android device is connected.
-- The new Soundpad and app-mixer UI was captured at1280x800 and390x844, plus board arrangement at1024x600. Soundpad and app-mixer UI fixtures are labeled test data. No physical Android capture was produced.
-- Independent design review identified cross-group touch ordering as a gap. Added a full-page position picker and verified moving button13 to position1 by touch and saving. Disposition ship applies to that scored browser-UI fix. The incumbent Studio design system remains unchanged.
+COMMAND-LINE TESTS (GUI KEPT CLOSED)
+-26 existing companion self-tests: validation, default board, Soundpad command/pipe/XML framing, app-mixer validation, layout/import atomicity, silent WAV playback/stop.
+-31 new safety self-tests: fake keyboard down/up, lease expiry/renewal, owner isolation, revocation, idempotent release, hold/macro restrictions, Soundpad stable identity/remapping/deduplication/legacy linking, missing/ambiguous sound refusal, Voicemeeter allowlist, USB selection/serial validation, quoted startup command, stable update checks through HTTP fixtures.
+-27 JavaScript/API checks: syntax, hold lifecycle without a browser, delayed begin response, renewal failure, keyboard release, headless TLS pairing, admin isolation, desktop preference validation, hold configuration, target hiding, and invalid/expired lease handling.
+-33 original OBS/API integration checks with a synthetic WebSocket v5 server. Scene, audio, broadcast, source/filter/media, macro, pairing, PIN lockout, confirmation, revocation, and editor boundaries pass. Browser section deliberately skipped.
+-6 installer checks: embedded hashes, isolated installation, managed update with retained backup, owned-file removal, untracked-file preservation/unmanaged-folder refusal, actual install location untouched.
+- Total:123 command-line, API, JavaScript logic, and installer checks.
+- Installer tests use a dedicated fixed temporary folder and no shortcuts/startup writes. Headless companion instances use isolated data/ports with --no-browser --no-tray. Keyboard tests use fake sinks, not actual key injection.
 
 SECURITY
-The requested snyk_code_scan tool was not exposed in this session. Snyk Code CLI was run and rescanned after fixes instead.
-- Dynamic HTML assembly now uses DOMPurify3.4.17 and Node-only DOM append operations.
-- Final report:0 error-level findings,0 warning-level findings,1 note: java/JavaScriptEnabled.
-- The note is intentional for the bundled WebView UI. External navigation, frames, file/content access, cleartext traffic, and arbitrary native endpoints are blocked; it is retained transparently, not suppressed.
-- npm dependency audit:0 vulnerabilities at build time.
-- NuGet vulnerability audit, including transitive NAudio dependencies: no vulnerable packages reported by configured sources at build time.
-- Secrets and pairing records are generated on the user's PC at runtime, not included in this ZIP.
+The requested snyk_code_scan tool was unavailable. Snyk Code CLI was run and rescanned after fixes.
+- Installer command-line destination findings were resolved by using a fixed application-owned per-user install location and a separate fixed test location.
+- Final scan:0 errors,0 warnings,1 pre-existing informational note: java/JavaScriptEnabled.
+- WebView JavaScript supports bundled local UI only. External navigation/frames, file access, cleartext, and arbitrary native endpoints remain blocked. Dynamic HTML is sanitized with DOMPurify.
+- npm and transitive NuGet audits report no known vulnerable packages at build time.
+- Windows startup, USB reconnection, and update notifications are opt-in. No startup preference was enabled on this PC during development.
+- Releases include no runtime credentials, device records, private certificates, or signing material.
 
-NOT YET VERIFIED ON HARDWARE
-Soundpad remote control is verified with an isolated named-pipe fixture, not a live Soundpad installation. Actual Soundpad playback, Discord keybind delivery, Discord screen sharing, and end-to-end audio routing require a rehearsal on the user's setup.
-No Android tablet was connected during creation. APK installation, Android WebView behavior, tablet audio/touch/rotation, actual Wi-Fi routing, and physical USB connection still require a test on your device. OBS protocol tests used fixture data, not a live broadcast. The USB helper uses official ADB reverse support; its full tablet-to-PC path was not exercised here.
-
-This app implements the documented streaming controls. It does not reproduce Elgato's proprietary plugin marketplace or every third-party integration.
+NOT VERIFIED IN THIS RELEASE
+No computer-use tools, browser, tray UI, streaming app, or Android app was opened during 1.3 development. GUI rendering and tray interaction were not inspected. Earlier browser captures/tests belong to the previous release and are not claimed as new 1.3 evidence.
+Startup after a real Windows login, physical USB reconnect, APK installation, Android touch/backgrounding/rotation, actual Wi-Fi, live OBS broadcasting, live Soundpad/Voicemeeter operation, Discord key delivery, and end-to-end audio routing remain unverified. Soundpad uses isolated pipe/XML fixtures; Voicemeeter tests cover validation without loading its DLL.
+The installer console interaction and Start menu shortcut/registry integration were not exercised; isolated installation/update/uninstallation and payload verification were exercised from the command line.
+Windows executables are unsigned. Download from the project repository and verify checksums. Rehearse on your setup before a live broadcast.

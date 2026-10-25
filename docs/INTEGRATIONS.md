@@ -44,7 +44,7 @@ Both the standalone and Steam editions use Soundpad's remote interface; actual a
 
 Version 1.2 adds a **Soundpad** library window on PC and tablet. Search names, artists, and categories, choose an output, then press Play. On PC, select sounds and choose **Add selected buttons** to import them into a page. See the [controls guide](CONTROLS.md) for steps and limits. Manual index entry remains available.
 
-Moving sounds within Soundpad's All sounds list can change their indices. Refresh the library and recheck affected saved buttons after reordering the list; existing buttons are not automatically remapped.
+Moving sounds within Soundpad's All sounds list can change their indices. Refresh the library and recheck affected saved buttons after reordering the list; new library imports resolve their current index before playback. Older/manual buttons need verified linking; see [Soundpad remapping](DESKTOP-AND-HOLD.md#soundpad-remapping).
 
 ### Playback controls and macros
 
@@ -74,7 +74,7 @@ Discord documents desktop [custom keybinds](https://discord.com/blog/how-to-use-
 
 Starting screen share may still require selecting an application/screen and confirming settings in Discord. The board's built-in **Start stream** and **Record** actions control OBS, not Discord. Name your Discord shortcut button accordingly, such as **Discord share**, to avoid confusion.
 
-The current shortcut action sends a tap (press then release). It is not a touch-and-hold push-to-talk control. Choose toggle actions for one-tap operation. Windows can block injected shortcuts into apps running at a different elevation level; ordinary user-level apps are the starting point for setup.
+The ordinary shortcut action sends a tap (press then release). For touch-and-hold push to talk, use **Hold keyboard shortcut / push to talk** with a matching Discord binding. See the [hold guide](DESKTOP-AND-HOLD.md#hold-to-talk-buttons). Windows can block injected shortcuts into apps running at a different elevation level; ordinary user-level apps are the starting point for setup.
 
 ### Make Discord hear Soundpad effects
 
@@ -109,3 +109,7 @@ Tools without usable shortcuts may need a separate native integration or an expl
 ## Verification limits
 
 Soundpad command construction, routing, command-injection rejection, pipe framing, fragmented responses, and error statuses are tested against an isolated named-pipe fixture. The local test machine did not have a running Soundpad/Discord streaming setup for an end-to-end audio or live-share test. Real Soundpad playback, Discord keybind delivery, audio routing, and Android Wi-Fi/USB still need a rehearsal on your setup.
+
+## Voicemeeter
+
+Version 1.3 adds direct Strip/Bus gain and mute through the installed x64 remote DLL. See the [native integration guide](DESKTOP-AND-HOLD.md#native-voicemeeter-actions) for parameters and live-test limits.

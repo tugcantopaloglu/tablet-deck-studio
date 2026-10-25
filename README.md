@@ -6,7 +6,7 @@ Turn an Android tablet into a customizable control board for a Windows streaming
 
 ![Studio layout with twelve action keys and two audio faders — illustrative design preview](docs/images/studio-preview.png)
 
-The Studio layout has twelve large buttons beside two audio faders and five page tabs. Version **1.2.0** adds a searchable Soundpad library, Windows app volume controls, and drag-and-drop button order on PC and tablet. See the [new controls guide](docs/CONTROLS.md). The screenshot shows illustrative state, not a live broadcast. The release passes **101 automated checks** plus a real Windows audio-session smoke test; physical tablet, Soundpad audio, Discord sharing, actual Wi-Fi, and USB still need a rehearsal on your setup.
+The Studio layout has twelve large buttons beside two audio faders and five page tabs. Version **1.3.0** adds a Windows tray, opt-in startup and USB reconnection, an installer, update notifications, hold-to-talk shortcuts, linked Soundpad remapping, and native Voicemeeter gain/mute actions. See the [desktop and integration guide](docs/DESKTOP-AND-HOLD.md). The screenshot shows illustrative state, not a live broadcast. The 1.3 checks use command-line tests and protocol fixtures without opening a browser or GUI. Physical tablet, tray/startup UI, live Soundpad/Voicemeeter, Discord sharing, actual Wi-Fi, and USB still need a rehearsal on your setup.
 
 ## Features
 
@@ -21,7 +21,10 @@ The Studio layout has twelve large buttons beside two audio faders and five page
 | Discord and other tools | Matching app keybinds; Discord mute/deafen/screen-share setup documented |
 | Macros | Multiple steps, delays, confirmation, stop on first error |
 | Customization | Labels, icons, colors, drag-and-drop ordering on PC/tablet, multiple pages, JSON import/export |
-| Connection | Encrypted local Wi-Fi or an ADB reverse tunnel over a USB data cable |
+| Connection | Encrypted Wi-Fi or USB, with opt-in automatic USB reconnection |
+| Desktop | Windows tray, opt-in startup, update notifications, per-user installer |
+| Hold-to-talk | Renewable key-down/key-up shortcuts with a three-second disconnect lease |
+| Voicemeeter | Native Strip/Bus gain and explicit mute/unmute through the installed remote DLL |
 
 ## Contents
 
@@ -47,7 +50,9 @@ The Studio layout has twelve large buttons beside two audio faders and five page
 
 ## First run
 
-Download `TabletDeck-Studio-1.2.zip` from [Releases](https://github.com/tugcantopaloglu/tablet-deck-studio/releases/latest) for the complete package, or download `TabletDeck-Studio.apk` separately if you only need the Android installer.
+For a managed Windows installation, download **TabletDeck-Setup.exe**, run it, and type `INSTALL` after reviewing its destination. It creates a Start menu shortcut without launching any apps. The ZIP remains available for portable use. See [installation and uninstalling](docs/DESKTOP-AND-HOLD.md#install-or-update-windows).
+
+Download `TabletDeck-Studio-1.3.zip` from [Releases](https://github.com/tugcantopaloglu/tablet-deck-studio/releases/latest) for the complete package, or download `TabletDeck-Studio.apk` separately if you only need the Android installer.
 
 ```text
 TabletDeck-Studio/
@@ -64,7 +69,7 @@ TabletDeck-Studio/
 ```
 
 1. Extract the whole ZIP. Keep the Windows folder together: the executable needs its wwwroot, Sounds, and platform-tools folders.
-2. Run Windows/TabletDeck-Companion.exe on your streaming PC. It opens the control panel in your default browser. Keep the companion window running; Ctrl+C or closing it stops tablet control.
+2. Run Windows/TabletDeck-Companion.exe on your streaming PC. It opens the control panel in your default browser. The companion stays in the Windows tray. Use its menu to reopen the panel or exit.
 3. In OBS, open Tools → WebSocket Server Settings. Enable the server and keep authentication enabled. The usual port is 4455. Copy the server password.
 4. In the companion’s browser panel, choose Edit. Enter the OBS password and port. Choose Save changes. Reopen Edit → Find OBS inputs to choose your exact microphone and desktop audio input names. Import OBS scenes to add real scene names to the Scenes page. The Main page starts with example scene names; change them to match your OBS scenes.
 5. Install TabletDeck-Studio.apk on the tablet. You can copy the APK to the tablet and allow installation from that file source, or enable USB debugging and run Windows/Install-APK.cmd.
@@ -72,7 +77,7 @@ TabletDeck-Studio/
 
 For Soundpad or Discord-only use, skip the OBS setup steps. An OBS disconnected indicator is expected while OBS is closed; Soundpad, app launches, and keyboard shortcuts remain available.
 
-The Android package has a personal signing certificate, not a Play Store identity. Windows binaries are unsigned and may trigger SmartScreen. The APK is signed with APK Signature Schemes v2 and v3. Verify the provided SHA256SUMS.txt if you transfer the files.
+The Android package has a personal signing certificate, not a Play Store identity. Windows binaries, including the installer, are unsigned and may trigger SmartScreen. The APK is signed with APK Signature Schemes v2 and v3. Verify the provided SHA256SUMS.txt if you transfer the files.
 
 Installing by file manager: copy the APK to the tablet, open it, and allow that file source to install apps if Android prompts. Installing from Windows: authorize USB debugging, then run `Install-APK.cmd` with exactly one Android device connected.
 
@@ -94,7 +99,7 @@ USB uses an ADB reverse tunnel and works with Wi-Fi off. It is not USB tethering
 2. Connect a USB data cable, unlock the tablet, and approve the PC’s USB debugging authorization prompt. Some tablets need their manufacturer’s Windows USB driver.
 3. Run Windows/USB-Connect.cmd. It creates the tablet-to-PC port tunnel. If no device is found, check authorization, cable, and driver. The included helper refuses to guess if multiple devices are attached; use USB-Connect.ps1 -Serial SERIAL in that case.
 4. In the tablet’s connection screen select USB. Enter the same certificate code and a fresh pairing PIN from the Windows panel. A PC Wi-Fi address is optional for initial USB-only pairing.
-5. Run USB-Connect.cmd again after unplugging the tablet or rebooting it.
+5. Run USB-Connect.cmd again after unplugging the tablet or rebooting it, or enable automatic USB reconnection under Edit > Desktop settings.
 
 Once paired, tap the tablet’s connection status to switch between Wi-Fi and USB. If you initially paired only over USB, enter the PC’s Wi-Fi address before selecting Switch to Wi-Fi. The certificate and device credential are reused. Revoke a tablet through Pair tablet on the PC if it should lose access.
 
@@ -176,7 +181,7 @@ Yes, the board can be used with **Discord desktop streams and calls**, as well a
 
 **Discord audio:** select the same microphone in Soundpad and Discord. If effects are filtered, follow [Soundpad's Discord FAQ](https://www.leppsoft.com/soundpad/help/faq). Normal PC playback alone does not send audio into Discord's microphone. Application-share audio and voice audio are separate paths; avoid capturing the same effect twice.
 
-**Other stream tools:** use a tool's supported global keybinds, foreground shortcuts, app launches, or macros. There is no automatic integration with every tool or plugin. The current shortcut action sends a tap, so use toggle actions rather than a hold-to-talk workflow.
+**Other stream tools:** use a tool's supported global keybinds, foreground shortcuts, app launches, or macros. There is no automatic integration with every tool or plugin. The ordinary shortcut action sends a tap. For push to talk, use the separate **Hold keyboard shortcut / push to talk** action with a matching app binding; see the [hold guide](docs/DESKTOP-AND-HOLD.md#hold-to-talk-buttons).
 
 ## Examples
 
@@ -211,7 +216,7 @@ A cyan outline and ACTIVE label mark the current OBS scene. Muted channels show 
 
 Use **Edit → Export** to download board JSON without the OBS password. Use **Import**, review the result, then **Save changes** to apply it. Exported boards reference absolute sound and app paths; transfer those files separately when moving PCs.
 
-For a Windows update, close the companion console, extract the full new package, and keep its executable, wwwroot, Sounds, and helpers together. Settings remain in `%LOCALAPPDATA%\TabletDeck`. If saved sound buttons point inside an old release folder, update those paths after moving the package.
+For a Windows update, exit the companion through its tray menu, extract the full new package, and keep its executable, wwwroot, Sounds, and helpers together. Settings remain in `%LOCALAPPDATA%\TabletDeck`. If saved sound buttons point inside an old release folder, update those paths after moving the package.
 
 An APK signed with the same key can update the existing installation. Install-APK.cmd uses adb install -r. A differently signed APK requires uninstalling the old app, which clears its saved pairing.
 
@@ -252,7 +257,7 @@ The PC editor is bound to loopback port 8740 and requires a random local session
 
 Settings, the OBS password, certificate private key, and device records live under %LOCALAPPDATA%/TabletDeck, protected by a directory ACL for the current Windows user and SYSTEM. The OBS password and PFX are not application-encrypted at rest; users with access to the account can read them. Android credentials are in app-private storage and Android backups are disabled. The app’s WebView loads only bundled assets, blocks external navigation and frames, sanitizes dynamic markup, and permits only the required control endpoints through its native bridge.
 
-If you close the PC browser tab, the companion keeps running. Restart the companion executable to reopen a newly authenticated control-panel tab. It does not install a service or add startup tasks. If already running, close the existing companion console first.
+If you close the PC browser tab, the companion keeps running. Choose Open control panel in the tray menu to reopen the authenticated editor. It does not install a service. Startup is opt-in through Desktop settings and uses the current account Run entry. Use the tray menu to open the panel or exit an existing instance.
 
 ## Verification and limits
 
@@ -268,6 +273,7 @@ companion/               C# ASP.NET Core companion
 companion/wwwroot/       Shared HTML, CSS, JavaScript, fonts, DOMPurify
 companion/Sounds/        Synthesized demo WAV files
 scripts/                 APK build and Windows USB/install helpers
+installer/               Per-user Windows setup executable source
 tests/                   Mock OBS service and browser/API checks
 docs/                    Build guide, screenshot, and verification
 ```

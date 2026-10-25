@@ -7,7 +7,7 @@ using System.Xml.Linq;
 
 namespace TabletDeck;
 
-public sealed record LibrarySound(int Index,string Name,string Artist,string Duration,string[] Categories);
+public sealed record LibrarySound(int Index,string Name,string Artist,string Duration,string[] Categories,string Key="");
 public sealed record SoundpadLibraryResult(IReadOnlyList<LibrarySound> Sounds,string? Warning);
 public static class SoundpadLibrary
 {
@@ -45,7 +45,8 @@ public static class SoundpadLibrary
             var title=((string?)entry.Attribute("title")??"").Trim();
             if(title.Length==0)title=Path.GetFileNameWithoutExtension(url.Replace('/',Path.DirectorySeparatorChar));
             if(title.Length==0)title="Sound "+index.ToString(CultureInfo.InvariantCulture);
-            result.Add(new(index,Limit(title,120),Limit((string?)entry.Attribute("artist")??"",80),Limit((string?)entry.Attribute("duration")??"",24),categories.TryGetValue(url,out var tags)?tags.OrderBy(x=>x).ToArray():[]));
+            var key=url.Length==0?"":Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(url.Replace('/','\\').ToUpperInvariant())));
+            result.Add(new(index,Limit(title,120),Limit((string?)entry.Attribute("artist")??"",80),Limit((string?)entry.Attribute("duration")??"",24),categories.TryGetValue(url,out var tags)?tags.OrderBy(x=>x).ToArray():[],key));
         }
         return new(result,warning);
     }

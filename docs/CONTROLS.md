@@ -24,7 +24,7 @@ Importing is available in the Windows browser panel:
 
 The tablet can browse and play sounds but cannot import new actions or change PC targets. Up to 120 sounds can be selected for one import, within the page's 120-button limit. Create another page on PC if needed.
 
-Soundpad indices follow its **All sounds** list. Moving or removing sounds there can change which sound an existing board button plays. Choose **Refresh library** after library changes, and update affected saved buttons in Edit. Importing does not keep names or indices synchronized automatically.
+Soundpad indices follow its **All sounds** list. Moving or removing sounds there can change which sound an existing board button plays. Choose **Refresh library** after library changes, and update affected saved buttons in Edit. In 1.3, new imports record a file-path hash and resolve the current index before playback. Older/manual buttons need verified linking. Names remain user-editable. See [remapping](DESKTOP-AND-HOLD.md#soundpad-remapping).
 
 Library metadata is cached for 30 seconds; Refresh library bypasses the cache. Up to 5,000 sounds are supported. If the installed Soundpad version cannot provide categories, all sounds remain searchable and the library displays a warning. A closed/unresponsive Soundpad produces an error and can be retried after starting it. Sound files remain on the PC; the tablet receives names and metadata, not the library's file-path fields or sound files.
 

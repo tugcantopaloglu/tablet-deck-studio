@@ -28,7 +28,7 @@ An additional real Windows audio smoke test creates a silent playback session, a
 .\dist\Windows\TabletDeck-Companion.exe --audio-smoke-test
 ```
 
-Run the companion without `--self-test` to open the PC editor. Developer options are `--no-browser`, `--data-dir PATH`, `--http-port NUMBER`, and `--https-port NUMBER`. The shipping Android app uses HTTPS port 8743; alternate ports are for isolated development tests.
+Run the companion without `--self-test` to open the editor and tray. Use `--no-browser --no-tray` for server-only tests. Developer options are `--no-browser`, `--data-dir PATH`, `--http-port NUMBER`, and `--https-port NUMBER`. The shipping Android app uses HTTPS port 8743; alternate ports are for isolated development tests.
 
 ## Prepare the Android toolchain
 
@@ -77,7 +77,7 @@ $output = Join-Path (Get-Location) 'dist'
 
 The script compiles resources and Java, converts classes to DEX, packages the bundled interface, aligns the APK, signs it, and verifies the result. Output: `dist/TabletDeck-Studio.apk`.
 
-App identity: `app.tabletdeck.studio`, version `1.2.0`, version code `3`, minimum SDK `26`, target SDK `35`. Increment version code for later releases.
+App identity: `app.tabletdeck.studio`, version `1.3.0`, version code `4`, minimum SDK `26`, target SDK `35`. Increment version code for later releases.
 
 On first build, the script generates `toolchain/signing/tabletdeck.jks` and a random password file. Keep these private and preserve them to update your own APK installation later. Git ignores them. The original release's private signing key is not in this repository; a newly generated key produces a different identity and cannot update the original APK without uninstalling it first.
 
@@ -135,3 +135,28 @@ Snyk authentication may be required. `.dcignore` excludes generated builds and s
 Android bundled UI → restricted Java bridge → certificate-pinned HTTPS → Windows ASP.NET Core companion → authenticated OBS v5 on loopback or a configured Windows action.
 
 USB adds an ADB reverse tunnel for the same HTTPS port. The PC editor uses a separate authenticated loopback endpoint. Tablet action requests contain configured action IDs; PC targets are edited locally. Paired tablets can also reorder the exact existing button set, play library indices validated against Soundpad, and adjust enumerated audio sessions by opaque IDs. Soundpad button import remains local-admin only. Preserve these boundaries when adding features.
+
+## Build the Windows installer
+
+Assemble the complete release ZIP with SHA256SUMS.txt listing every file except itself, then embed it:
+
+```powershell
+$payload = (Resolve-Path .\dist\TabletDeck-Studio-1.3.zip).Path
+dotnet publish .\installer\TabletDeck.Setup.csproj -c Release -o .\dist\Setup "-p:PayloadArchive=$payload"
+.\dist\Setup\TabletDeck-Setup.exe --verify-payload
+```
+
+The installer uses a fixed per-user destination. `--test-mode --quiet` installs only to the fixed temporary `TabletDeckStudioSetupTests/TabletDeckStudio` folder, without shortcuts or registry changes. `--test-mode --uninstall` removes its managed test files. It refuses an existing unrecognized folder. Keep test mode away from any user-created folder with that name. Payload verification does not install or launch the app.
+
+## Test without opening apps
+
+```powershell
+.\dist\Windows\TabletDeck-Companion.exe --self-test
+.\dist\Windows\TabletDeck-Companion.exe --hardening-self-test
+$env:TABLETDECK_COMPANION = (Resolve-Path .\dist\Windows\TabletDeck-Companion.exe).Path
+npm run test:headless --prefix .\tests
+```
+
+For the original OBS integration suite, start an isolated companion on ports 18740/18743 using `--no-browser --no-tray`, then set `$env:TABLETDECK_HEADLESS='1'` and run `node .\tests\integration.cjs`. That mode executes API/OBS fixtures and skips all browser launches. Default `npm test` still includes browser tests; do not use it when browser execution is disallowed.
+
+The safety tests use fake keyboard sinks and HTTP fixtures. They do not inject keys, write startup settings, open streaming apps, or control Voicemeeter. JavaScript logic tests run without a browser and do not verify layout or native Android touch behavior.

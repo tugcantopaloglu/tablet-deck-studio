@@ -43,7 +43,11 @@ public sealed class DeckEngine(DataStore store,ObsClient obs)
     private async Task Run(DeckAction a,CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        if(SoundpadClient.Supports(a.Kind)) {await SoundpadClient.Execute(a.Kind,a.Target,a.Value,ct);return;}
+        if(SoundpadClient.Supports(a.Kind)) {
+            var target=a.Target;
+            if(a.Kind=="soundpadPlay"&&a.SoundpadKey.Length>0)target=SoundpadBindings.Resolve(a,await SoundpadLibrary.Get(true,ct)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            await SoundpadClient.Execute(a.Kind,target,a.Value,ct);return;
+        }
         switch(a.Kind) {
             case "scene": await obs.Call("SetCurrentProgramScene",new{sceneName=a.Target});break;
             case "preview": await obs.Call("SetCurrentPreviewScene",new{sceneName=a.Target});break;
@@ -53,6 +57,8 @@ public sealed class DeckEngine(DataStore store,ObsClient obs)
             case "app": WindowsActions.OpenApp(a.Target);break;
             case "url": WindowsActions.OpenUrl(a.Target);break;
             case "hotkey": WindowsActions.Hotkey(a.Target);break;
+            case "holdHotkey": throw new ArgumentException("Press and hold this button on the board.");
+            case "voicemeeter": VoicemeeterClient.Execute(a.Target,a.Value);break;
             case "mute": await obs.Call("ToggleInputMute",new{inputName=a.Target});break;
             case "source": {
                 var id=await obs.Call("GetSceneItemId",new{sceneName=a.Target,sourceName=a.Value});

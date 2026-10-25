@@ -4,7 +4,9 @@
   "main": "index.js",
   "scripts": {
     "test": "node integration.cjs && node features.cjs",
-    "test:features": "node features.cjs"
+    "test:features": "node features.cjs",
+    "test:headless": "node headless.cjs",
+    "test:installer": "node installer.cjs"
   },
   "keywords": [],
   "author": "",
