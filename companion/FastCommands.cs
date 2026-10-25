@@ -5,22 +5,26 @@ namespace TabletDeck;
 // HTTP and persistent TLS commands share the same validation and execution.
 internal sealed class FastCommands(DataStore store,DeckEngine engine,HoldKeys holds,AppAudioMixer appMixer)
 {
+    private readonly object configurationGate=new();
+    public void ChangeBoard(System.Action change){lock(configurationGate){if(engine.Execution.Status.Active is not null)throw new InvalidOperationException("Finish or cancel the running action before changing boards.");holds.ReleaseAll();change();engine.Invalidate();}}
     internal sealed record HoldLease(string Lease,int ExpiresIn=3);
     public void Release(string principal,string lease)=>holds.Release(principal,lease);
     public async Task<object> Action(ActionRequest request)
     {
-        var action=store.Config.Pages.SelectMany(page=>page.Buttons).FirstOrDefault(action=>action.Id==request.Id)??throw new ArgumentException("This button no longer exists. Reload the board.");
-        if(DeckEngine.NeedsConfirm(action)&&!request.Confirmed)throw new InvalidOperationException("Confirm this action on the tablet.");
-        await engine.Execute(action);return new{ok=true};
+        Task running;
+        lock(configurationGate){
+            var action=store.Config.Pages.SelectMany(page=>page.Buttons).FirstOrDefault(action=>action.Id==request.Id)??throw new ArgumentException("This button no longer exists. Reload the board.");
+            if(DeckEngine.NeedsConfirm(action)&&!request.Confirmed)throw new InvalidOperationException("Confirm this action on the tablet.");
+            running=engine.Execute(action);
+        }
+        await running;return new{ok=true};
     }
     public object Hold(HoldRequest request,string principal)
     {
         if(request.Operation=="release"){holds.Release(principal,request.Lease);return new{ok=true};}
         if(request.Operation=="renew"){holds.Renew(principal,request.Lease);return new{ok=true};}
         if(request.Operation!="begin")throw new ArgumentException("Unknown hold operation.");
-        var action=store.Config.Pages.SelectMany(page=>page.Buttons).FirstOrDefault(action=>action.Id==request.Id);
-        if(action?.Kind!="holdHotkey")throw new ArgumentException("Choose a configured hold shortcut button.");
-        return new HoldLease(holds.Begin(principal,action.Target));
+        lock(configurationGate){var action=store.Config.Pages.SelectMany(page=>page.Buttons).FirstOrDefault(action=>action.Id==request.Id);if(action?.Kind!="holdHotkey")throw new ArgumentException("Choose a configured hold shortcut button.");return new HoldLease(holds.Begin(principal,action.Target));}
     }
     public static bool Supports(string path)=>path is "/api/action" or "/api/audio" or "/api/mute" or "/api/hold" or "/api/apps" or "/api/ping" or "/api/cancel";
     public async Task<object> Execute(string path,JsonElement body,string principal)

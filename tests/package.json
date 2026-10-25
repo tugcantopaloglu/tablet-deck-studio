@@ -9,6 +9,7 @@
     "test:installer": "node installer.cjs",
     "test:fast": "node fast.cjs",
     "test:execution": "node execution.cjs",
+    "test:boards": "node boards.cjs",
     "test:layout": "node layout.cjs",
     "benchmark:latency": "node latency.cjs"
   },

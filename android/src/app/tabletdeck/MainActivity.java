@@ -42,8 +42,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class MainActivity extends Activity {
     private static final String UI_HOST="app.tabletdeck.local";
-    private static final Set<String> GET_PATHS=new HashSet<>(Arrays.asList("/api/board","/api/state","/api/execution","/api/apps","/api/soundpad/library"));
-    private static final Set<String> POST_PATHS=new HashSet<>(Arrays.asList("/api/cancel","/api/hold","/api/action","/api/audio","/api/mute","/api/apps","/api/layout","/api/soundpad/play","/api/soundpad/library"));
+    private static final Set<String> GET_PATHS=new HashSet<>(Arrays.asList("/api/profiles","/api/soundpad/favourites","/api/board","/api/state","/api/execution","/api/apps","/api/soundpad/library"));
+    private static final Set<String> POST_PATHS=new HashSet<>(Arrays.asList("/api/profile","/api/soundpad/favourites","/api/cancel","/api/hold","/api/action","/api/audio","/api/mute","/api/apps","/api/layout","/api/soundpad/play","/api/soundpad/library"));
     private WebView web;
     private SharedPreferences preferences;
     private final ExecutorService network=Executors.newFixedThreadPool(2);

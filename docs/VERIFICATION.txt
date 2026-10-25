@@ -1,34 +1,37 @@
-Tablet Deck Studio 1.6.0 - verification (2026-10-26)
+Tablet Deck Studio 1.7.0 - verification (2026-10-26)
 
 BUILD
 - Self-contained .NET 10 Windows x64 companion and installer.
-- Android app.tabletdeck.studio, version 1.6.0/versionCode 9, minSDK 26/targetSDK 35.
-- APK v2/v3 signatures verify with the original signing certificate; original pairing can be preserved by updating both components.
-- Bundled assets are checked for missing files and Windows path separators before signing.
-- Permissions remain INTERNET and WAKE_LOCK; no microphone/location permission, Android backup, or cleartext traffic.
+- Android app.tabletdeck.studio, version 1.7.0/versionCode 10, minSDK 26/targetSDK 35.
+- APK v2/v3 signatures verify with the original signing certificate.
+- Required bundled assets include boards.js; missing files and Windows ZIP separators are rejected before signing.
+- Permissions remain INTERNET and WAKE_LOCK. No new runtime dependency, microphone/location permission, Android backup, or cleartext traffic.
 
-AUTOMATED CHECKS - 191 THIS PASS
+AUTOMATED CHECKS - 277 THIS PASS
 - 28 companion self-tests.
 - 32 safety/hardening tests.
-- 28 headless API/JavaScript tests.
-- 33 authenticated OBS/API integration checks against simulated OBS, browser section skipped.
-- 31 persistent-TLS/API/state/slider checks, including cancellation while the macro request is pending and preservation of the earlier scene without executing the later one.
+- 29 headless API/JavaScript checks, including syntax for boards.js.
+- 33 authenticated OBS/API integration checks against simulated OBS; browser section skipped.
+- 31 persistent TLS/API/state/slider checks, including in-flight macro cancellation.
 - 9 production Java FastLink transport checks on the desktop JDK.
-- 24 new execution API/UI-logic checks: authentication, nested progress, stale and repeated cancellation, interrupting delays, cleanup, preserved confirmation, safe text, cancelling state, lost connections, and stale-state handling. These also pass against the published companion.
-- 6 isolated installer checks: payload hashes, install/update/backup, owned-file uninstall, refusal/preservation, and unchanged actual install location.
-- No browser, CUA, or app window was opened for this development pass. No real OBS, Discord, Soundpad, startup setting, or live board configuration was changed by these fixtures.
+- 24 execution API/UI-logic checks.
+- 32 new board-storage checks: legacy migration, IDs, duplicate/empty profiles, names/counts, stale edits, shared credentials, stable favourites, missing/ambiguous identities, all-profile restore, private backups, retention, damaged-backup skipping, quarantine/recovery, and restart.
+- 53 new authenticated HTTPS/API and UI-controller checks: admin isolation, profile switching, stale action/editor refusal, macro guard, backup preview/restore, credential preservation, missing-library favourite removal, persistence, escaped names, navigation generations, and focus retention for original/other result controls and outside controls.
+- New storage/API suites also pass against the published companion.
+- 6 isolated installer checks: payload hashes, install/update/backup, owned-file uninstall, refusal/preservation, and unchanged actual installation location.
 
 SECURITY
-- The requested snyk_code_scan tool was unavailable. Snyk Code CLI scanned the full first-party source and rescanned the final changes.
-- Final scan: zero errors, zero warnings, only the existing informational java/JavaScriptEnabled note for the bundled WebView.
-- No new runtime dependencies. Existing NuGet/npm dependencies are unchanged.
-- New execution routes require existing authentication. Status includes action labels and run identity, not file paths or hotkeys. Cancellation is scoped to the displayed run ID.
-- No private runtime data, paired-device records, OBS passwords, certificate private keys, signing material, third-party meme audio, or device identifiers are shipped.
+- The requested snyk_code_scan tool was unavailable. Snyk Code CLI scanned first-party code and rescanned after changes.
+- Shipping scan: zero errors, zero warnings, only the existing informational java/JavaScriptEnabled note for the bundled WebView.
+- New tablet routes use existing authentication and a restricted Android allowlist. Profile management and backup access remain local-admin only.
+- Summaries exclude PC action targets and credentials. Backup filenames use validated run-independent GUIDs; restore validates snapshot content and preserves current credentials.
+- Private runtime data, backup/quarantine files, pairing credentials, OBS passwords, certificate private keys, signing material, third-party meme audio, and device identifiers are excluded from the release.
 
 REVIEW AND LIMITS
-- Scoped independent code/UX review passed the notification-placement and connection-warning fixes; documentation records the inherited Studio tokens and interaction states.
-- The new ribbon has NOT had rendered browser-layout, pixel-level, or physical-tablet touch verification. Earlier 1.5.x full-pad browser/layout tests were not rerun and are not included in the current count.
-- HTTPS and persistent TLS cancellation were tested using isolated processes; physical Wi-Fi/USB cancellation, long runs, and loss/reconnect remain rehearsal tasks. In-flight external commands may finish before cancellation takes effect. Earlier effects are not rolled back and playing sounds are not stopped automatically.
-- Previous physical tests verified USB/Wi-Fi pairing, audible bundled sounds, real OBS scenes/mute, Soundpad library/playback, and Discord's local microphone-test audio confirmed by the user. A remote Discord listener was not used. See LIVE-TEST.md for methods and historical qualifications.
-- Live broadcasting/recording/replay, Windows login startup, hold-key injection, Voicemeeter hardware, cable unplug/replug, and long-duration stability remain unverified. No almost-zero latency guarantee is made.
-- Windows executables remain unsigned. The APK and companion must both be updated for the new controls. The running 1.5.1 setup was not replaced during this pass.
+- Independent code/UX review scored the stale-response and keyboard-focus findings resolved. Documentation records inherited Studio tokens and the scoped extension; no new visual world was introduced.
+- No browser, CUA, or app window was opened during development. Rendered layout, physical tablet touch, assistive-technology behavior, and live Soundpad favourite add/play still need rehearsal. Earlier browser layout checks are not counted as rerun.
+- Tests used isolated data, synthetic sound libraries, and simulated OBS. They did not change the live board, Discord/Soundpad device routing, startup settings, or running 1.5.1 installation.
+- A normal backup restore retains the current OBS password/pairing/certificate. Exceptional recovery from a damaged config requires entering the OBS password again because snapshots exclude it; original damaged bytes are retained privately.
+- Backups keep 20 valid snapshots of board configuration/favourites and reference external files; they do not copy sound files/apps or Soundpad's native library.
+- Previous physical USB/Wi-Fi, real OBS scenes/mute, audible Soundpad playback, and user-confirmed Discord local microphone-test results are documented separately in LIVE-TEST.md. Remote Discord listener audio, live broadcast/record/replay, physical cable/reconnect stability, and Voicemeeter hardware remain unverified.
+- Windows executables remain unsigned. Update both APK and companion. Network heartbeat observations are not end-to-end latency guarantees.

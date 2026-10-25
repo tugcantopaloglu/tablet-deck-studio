@@ -12,6 +12,8 @@ The low-latency transport and Android packaging fix from 1.4.1 are retained. Phy
 
 **1.6.0 adds running-action progress and cancellation.** A ribbon shows the current macro step and a **Cancel action** button in Studio and full-pad layouts. Cancellation interrupts delays and skips later steps; completed steps stay applied. See [running and cancelling macros](docs/MACROS.md) and the [development roadmap](docs/ROADMAP.md).
 
+**1.7.0 adds board profiles, automatic backups, and Soundpad favourites.** Use **Profiles** in the bottom navigation to switch boards. The PC panel can create, duplicate, rename, or delete profiles and preview/restore the latest 20 backups. Star a sound in the Soundpad library, then choose **Favourites**. See the [complete profiles, backups, and favourites guide](docs/PROFILES-AND-BACKUPS.md).
+
 ## Features
 
 | Area | Controls |
@@ -21,10 +23,11 @@ The low-latency transport and Android packaging fix from 1.4.1 are retained. Phy
 | Broadcast | Streaming, recording, replay-buffer save, virtual camera, Studio Mode |
 | Sources | Scene-source visibility, source-filter toggle, media restart/stop |
 | Windows | App/shortcut launching, websites, keyboard shortcuts, volume/media keys |
-| Soundpad | Search sounds and categories, play to mic/speakers/both, import selected sounds as buttons on PC, stop, pause/resume, next, previous |
+| Soundpad | Search/categories, persistent favourites with stable sound identities, play to mic/speakers/both, import selected sounds as buttons on PC, stop/pause/next/previous |
 | Discord and other tools | Matching app keybinds; Discord mute/deafen/screen-share setup documented |
 | Macros | Multiple steps, delays, confirmation, live step progress, cancellation, stop on first error |
-| Customization | Labels, icons, colors, drag-and-drop ordering on PC/tablet, multiple pages, JSON import/export, full-pad 24/40-button layouts |
+| Customization | Labels/icons/colors, ordering, multiple pages, up to 10 board profiles, current-profile JSON import/export, full-pad 24/40-button layouts |
+| Backups | Latest 20 automatic snapshots, manual backup, restore preview and confirmation, damaged-config recovery, current credentials retained on restore |
 | Connection | Persistent pinned TLS over Wi-Fi/USB, pushed state, HTTPS fallback, optional automatic USB reconnection |
 | Desktop | Windows tray, opt-in startup, update notifications, per-user installer |
 | Hold-to-talk | Renewable key-down/key-up shortcuts with a three-second disconnect lease |
@@ -56,7 +59,7 @@ The low-latency transport and Android packaging fix from 1.4.1 are retained. Phy
 
 For a managed Windows installation, download **TabletDeck-Setup.exe**, run it, and type `INSTALL` after reviewing its destination. It creates a Start menu shortcut without launching any apps. The ZIP remains available for portable use. See [installation and uninstalling](docs/DESKTOP-AND-HOLD.md#install-or-update-windows).
 
-Download `TabletDeck-Studio-1.6.0.zip` from [Releases](https://github.com/tugcantopaloglu/tablet-deck-studio/releases/latest) for the complete package, or download `TabletDeck-Studio.apk` separately if you only need the Android installer. Update both the APK and companion for progress and cancellation. The APK keeps the original signing certificate, so installing it over an older version preserves pairing. Third-party meme collections are user content and are not included in the public release.
+Download `TabletDeck-Studio-1.7.0.zip` from [Releases](https://github.com/tugcantopaloglu/tablet-deck-studio/releases/latest) for the complete package, or download `TabletDeck-Studio.apk` separately if you only need the Android installer. Update both the APK and companion for profiles, backups, favourites, progress, and cancellation. The APK keeps the original signing certificate, so installing it over an older version preserves pairing. Third-party meme collections are user content and are not included in the public release.
 
 ```text
 TabletDeck-Studio/
@@ -146,7 +149,7 @@ For sound effects to reach viewers, capture the PC’s playback output in OBS De
 
 Record and replay controls require those features to be configured in OBS. An unconfigured replay buffer or invalid scene/source/input returns the OBS error on the tablet. Defaults are examples, not a claim about your PC’s current setup. OBS and Discord launch paths can be adjusted in Edit; Discord is detected on first run when installed in its usual user folder.
 
-Export/Import saves board JSON without the OBS password. Sound files and applications are referenced by absolute PC paths; they are not copied into an export. The app does not include Elgato’s proprietary plugin marketplace or automatic support for every third-party plugin.
+Export/Import saves the current profile's board JSON without the OBS password, inactive profiles, or favourites. Import replaces only the current profile after review and Save changes; imported page/button identities are regenerated. Sound files and applications are referenced by absolute PC paths; they are not copied into an export. The app does not include Elgato’s proprietary plugin marketplace or automatic support for every third-party plugin.
 
 ## Action reference
 
@@ -221,7 +224,11 @@ A cyan outline and ACTIVE label mark the current OBS scene. Muted channels show 
 
 ## Backups and updates
 
-Use **Edit → Export** to download board JSON without the OBS password. Use **Import**, review the result, then **Save changes** to apply it. Exported boards reference absolute sound and app paths; transfer those files separately when moving PCs.
+Choose **Profiles** in the bottom navigation to switch boards on either PC or tablet. On PC, create an empty profile or duplicate the current board, then switch when ready. OBS credentials, mixer input names, tablet pairing, and favourites are shared. Switching or editing profiles is blocked during a running macro; held shortcuts are released server-side when a board change is applied. See [profiles and recovery](docs/PROFILES-AND-BACKUPS.md).
+
+Automatic backups keep the latest **20 snapshots** before board edits, profile changes, favourite changes, and restores. Profile switching and unchanged saves do not consume history. On PC choose **Profiles → Backups and restore** for a manual snapshot or a preview of all profiles in a backup. Restore requires confirmation and keeps the current OBS password, certificate, and pairing. Backups contain board targets and paths but no OBS password or tablet credentials; sound files and apps are not copied. A damaged main config is retained privately, and the newest valid snapshot is recovered; re-enter the OBS password after this exceptional recovery.
+
+Use **Edit → Export** to download the current profile's board without the OBS password. Use **Import**, review the result, then **Save changes** to apply it to that profile. Exported boards reference absolute sound and app paths; transfer those files separately when moving PCs.
 
 For a Windows update, exit the companion through its tray menu, extract the full new package, and keep its executable, wwwroot, Sounds, and helpers together. Settings remain in `%LOCALAPPDATA%\TabletDeck`. If saved sound buttons point inside an old release folder, update those paths after moving the package.
 
@@ -268,7 +275,7 @@ If you close the PC browser tab, the companion keeps running. Choose Open contro
 
 ## Verification and limits
 
-See [Verification results](docs/VERIFICATION.txt) for build, test, and security scan results, and [the hardware report](docs/LIVE-TEST.md) for completed physical USB/Wi-Fi, OBS, and Soundpad tests. Version 1.6.0 cancellation is covered by isolated HTTPS, persistent-TLS, and JavaScript logic tests; its new ribbon has not yet been visually or physically verified. Mocked OBS tests verify protocol behavior, not a live stream. Run a rehearsal before relying on it in a broadcast.
+See [Verification results](docs/VERIFICATION.txt) for build, test, and security scan results, and [the hardware report](docs/LIVE-TEST.md) for completed physical USB/Wi-Fi, OBS, and Soundpad tests. Version 1.7.0 profiles, backups, favourites, and cancellation have isolated storage/API/logic coverage, including migration, restore, corrupted files, stale responses, and keyboard-focus preservation. The new interfaces have not had rendered-layout or physical-tablet touch verification. Mocked OBS tests verify protocol behavior, not a live stream. Run a rehearsal before relying on it in a broadcast.
 
 ## Build and contribute
 

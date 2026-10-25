@@ -38,6 +38,7 @@ const paths={
  expand:'M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5',
  collapse:'M3 8h5V3M21 8h-5V3M8 21v-5H3M16 21v-5h5'
 };
+paths.star='m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8-6.2-3.2L5.8 21 7 14.2 2 9.3l6.9-1z';
 function icon(name){const filled=['obs','discord','homeFilled'].includes(name);return `<svg viewBox="-2 -2 28 28" aria-hidden="true"${filled?' class="filled-icon"':''}><path d="${paths[name]||paths.grid}"/></svg>`;}
 const native=typeof window.DeckNative!=='undefined';
 const preview=new URLSearchParams(location.search).get('preview')==='1'&&!native;
@@ -55,6 +56,7 @@ async function api(path,body){
   if(!response.ok)throw new Error(data.error||`Request failed (${response.status}).`);return data;
 }
 let boardSignature='',boardRevision=0,lastGrid='',pages=[],pageId='',slice=0,state={},connection={},busy=false,refreshing=false,lastBoard=0,editing=false,dirty=false,toastTimer;
+let activeProfileId='',activeProfileName='Default';
 let executionStatus=null,executionPending='',executionReachable=true,cancelPending=false;
 function acceptExecution(next,fresh=false){
   if(!next||typeof next.session!=='string'||!Number.isFinite(next.revision))return;
@@ -103,7 +105,8 @@ function changePadView(full,size=padSize){
 function notice(message,error=false){const n=$('#notice');n.textContent=message;n.classList.toggle('error',error);n.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>n.hidden=true,error?12000:3000);}
 $('#notice').onclick=()=>$('#notice').hidden=true;
 const panel=$('#panel');
-function openPanel(title,html){$('#panel-title').textContent=title;$('#panel-body').innerHTML=DOMPurify.sanitize(html);if(!panel.open)panel.showModal();}
+let panelGeneration=0;
+function openPanel(title,html){panelGeneration++;$('#panel-title').textContent=title;$('#panel-body').innerHTML=DOMPurify.sanitize(html);if(!panel.open)panel.showModal();}
 async function closePanel(){if(dirty&&!await confirmAction('Discard changes?','Your unsaved changes will be lost.'))return;dirty=false;editing=false;panel.close();}
 $('#close-panel').onclick=closePanel;
 panel.addEventListener('cancel',event=>{if(dirty){event.preventDefault();closePanel();}else editing=false;});
@@ -124,7 +127,9 @@ function renderBoard(){
   if(page.buttons.length===0){const empty=document.createElement('div');empty.className='empty-key';empty.innerHTML=DOMPurify.sanitize(icon(page.icon)+'<strong>No buttons yet</strong><span>Add actions using Edit in the Windows companion.</span>');keys.appendChild(empty);}
   const pagination=$('#pagination');pagination.hidden=total<=1;pagination.innerHTML=DOMPurify.sanitize(`<button id="prev-keys" class="quiet" ${slice===0?'disabled':''}>Previous</button><span>Page ${slice+1} of ${total}</span><button id="next-keys" class="quiet" ${slice===total-1?'disabled':''}>Next</button>`);
   $('#prev-keys').onclick=()=>{slice--;renderBoard();};$('#next-keys').onclick=()=>{slice++;renderBoard();};
-  const nav=$('#pages');nav.replaceChildren();for(const p of pages){const button=document.createElement('button');button.className='page-tab'+(p.id===pageId?' selected':'');button.setAttribute('aria-current',p.id===pageId?'page':'false');button.innerHTML=DOMPurify.sanitize(icon(p.icon==='home'&&p.id===pageId?'homeFilled':p.icon)+`<span>${esc(p.name)}</span>`);button.onclick=()=>{pageId=p.id;slice=0;renderBoard();};nav.appendChild(button);}
+  const nav=$('#pages');nav.replaceChildren();
+  const profileButton=document.createElement('button');profileButton.className='page-tab profile-launch';profileButton.id='profiles-button';profileButton.title='Profiles · '+activeProfileName;profileButton.setAttribute('aria-label','Profiles · '+activeProfileName);profileButton.innerHTML=DOMPurify.sanitize(icon('grid')+'<span>Profiles</span>');profileButton.onclick=()=>showProfiles();nav.appendChild(profileButton);
+  for(const p of pages){const button=document.createElement('button');button.className='page-tab'+(p.id===pageId?' selected':'');button.setAttribute('aria-current',p.id===pageId?'page':'false');button.innerHTML=DOMPurify.sanitize(icon(p.icon==='home'&&p.id===pageId?'homeFilled':p.icon)+`<span>${esc(p.name)}</span>`);button.onclick=()=>{pageId=p.id;slice=0;renderBoard();};nav.appendChild(button);}
   if(typeof attachBoardReorder==='function')attachBoardReorder();
   if(typeof attachHoldButtons==='function')attachHoldButtons();
 }
@@ -146,6 +151,7 @@ function buildMixer(){
   }
 }
 function updateState(){
+  if(state.profileId&&activeProfileId!==state.profileId)lastBoard=0;
   if(state.execution)acceptExecution(state.execution);
   $('#obs-dot').classList.toggle('connected',!!state.obsConnected);$('#obs-status').textContent=state.pcConnected===false?'PC disconnected':state.obsConnected?'OBS connected':'OBS disconnected';
   $('#connection').title=state.error||'Connection settings';$('#transport').textContent=preview?'Preview':native?(connection.mode==='usb'?'USB':'Wi-Fi'):'PC editor';
@@ -172,7 +178,7 @@ function updateState(){
 async function refresh(force=false){
   if(refreshing||preview||(!force&&(document.hidden||panel.open)))return;refreshing=true;
   try{
-    if((typeof arranging==='undefined'||!arranging)&&(force||Date.now()-lastBoard>10000)){const board=await api('/api/board');const signature=JSON.stringify(board.pages);if(signature!==boardSignature){pages=board.pages;boardSignature=signature;boardRevision++;}lastBoard=Date.now();}
+    if((typeof arranging==='undefined'||!arranging)&&(force||Date.now()-lastBoard>10000)){const board=await api('/api/board');const signature=JSON.stringify([board.profileId,board.profileName,board.pages]);if(signature!==boardSignature){if(activeProfileId!==board.profileId){pageId='';slice=0;}activeProfileId=board.profileId||'';activeProfileName=board.profileName||'Default';pages=board.pages;boardSignature=signature;boardRevision++;if(typeof hasActiveHold!=='function'||!hasActiveHold())renderBoard();}lastBoard=Date.now();}
     if(force||typeof hasLiveState!=='function'||!hasLiveState()){const next=await api('/api/state');if(typeof acceptDeckState==='function')acceptDeckState(next);else state=next;}state.pcConnected=true;updateState();
   }catch(error){state={pcConnected:false,obsConnected:false,inputs:{},error:error.message};updateState();if(force)notice(error.message,true);}
   finally{refreshing=false;}
@@ -216,8 +222,8 @@ function renderEditor(){
   $('#load-obs').onclick=async()=>{try{await saveConfig(false);const data=await api('/api/admin/obs');$('#obs-inputs').innerHTML=DOMPurify.sanitize(data.inputs.inputs.map(i=>`<option value="${esc(i.inputName)}"></option>`).join(''));notice('OBS connected. Input names are available in the audio fields.');}catch(error){notice(error.message,true);}};
   $('#import-scenes').onclick=async()=>{try{await saveConfig(false);await api('/api/admin/import-scenes',{});config=await api('/api/admin/config');dirty=false;renderEditor();notice('OBS scenes added to the Scenes page.');}catch(error){notice(error.message,true);}};
   $('#save-config').onclick=()=>saveConfig(true).catch(error=>notice(error.message,true));
-  $('#export-config').onclick=()=>{const copy=structuredClone(config);copy.obsPassword='';delete copy.passwordConfigured;const url=URL.createObjectURL(new Blob([JSON.stringify(copy,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='TabletDeck-board.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);notice('Board exported. OBS password is excluded.');};
-  $('#import-config').onclick=()=>$('#config-file').click();$('#config-file').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;if(file.size>1024*1024)throw new Error('Choose a board smaller than 1 MB.');const imported=JSON.parse(await file.text());if(!Array.isArray(imported.pages)||!imported.pages.length)throw new Error('This is not a Tablet Deck board.');config={...config,...imported,obsPassword:''};selectedPage=0;selectedButton=0;dirty=true;renderEditor();notice('Board imported. Review it, then Save changes.');}catch(error){notice(error.message,true);}};
+  $('#export-config').onclick=()=>{const copy=structuredClone(config);copy.obsPassword='';delete copy.passwordConfigured;delete copy.profileId;delete copy.profileName;delete copy.profiles;delete copy.favourites;const url=URL.createObjectURL(new Blob([JSON.stringify(copy,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='TabletDeck-board.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);notice('Current board exported. Password, other profiles, and favourites are excluded.');};
+  $('#import-config').onclick=()=>$('#config-file').click();$('#config-file').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;if(file.size>1024*1024)throw new Error('Choose a board smaller than 1 MB.');const imported=JSON.parse(await file.text());if(!Array.isArray(imported.pages)||!imported.pages.length)throw new Error('This is not a Tablet Deck board.');const profileId=config.profileId,profileName=config.profileName;config={...config,...imported,profileId,profileName,obsPassword:''};for(const page of config.pages){page.id=crypto.randomUUID();const newIds=a=>{a.id=crypto.randomUUID();for(const step of a.steps||[])newIds(step);};for(const action of page.buttons||[])newIds(action);}selectedPage=0;selectedButton=0;dirty=true;renderEditor();notice('Board imported into this profile. Review it, then Save changes.');}catch(error){notice(error.message,true);}};
 }
 function markDirty(){dirty=true;if($('#save-status'))$('#save-status').textContent='Unsaved changes';}
 async function saveConfig(close){

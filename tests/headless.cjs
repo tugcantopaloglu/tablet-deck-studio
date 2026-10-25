@@ -13,7 +13,7 @@ let passed=0;const check=(value,label)=>{assert.ok(value,label);passed++;console
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 let server;
 async function run(){
- for(const file of ['app.js','features.js','hardening.js','latency.js']){acorn.parse(fs.readFileSync(path.join(root,'companion/wwwroot',file),'utf8'),{ecmaVersion:'latest'});check(true,file+' syntax');}
+ for(const file of ['app.js','features.js','boards.js','hardening.js','latency.js']){acorn.parse(fs.readFileSync(path.join(root,'companion/wwwroot',file),'utf8'),{ecmaVersion:'latest'});check(true,file+' syntax');}
  const events={},timers=new Map(),requests=[],notices=[];let nextTimer=0,mode='normal',resolveBegin;
  const classes=new Set();const button={dataset:{id:'hold'},classList:{add:c=>classes.add(c),remove:c=>classes.delete(c)},setAttribute(){},setPointerCapture(){}};
  const context=vm.createContext({kinds:{},targetHints:{},pages:[{id:'main',buttons:[{id:'hold',kind:'holdHotkey'}]}],pageId:'main',preview:false,arranging:false,console,window:{addEventListener:(event,handler)=>events[event]=handler},document:{hidden:false,querySelectorAll:()=>[button],addEventListener:(event,handler)=>events[event]=handler},setInterval:callback=>{timers.set(++nextTimer,callback);return nextTimer;},clearInterval:id=>timers.delete(id),notice:text=>notices.push(text),api:async(route,body)=>{requests.push(body);if(body.operation==='begin'&&mode==='delay')return new Promise(resolve=>resolveBegin=resolve);if(body.operation==='renew'&&mode==='fail')throw new Error('Lease ended');return {lease:'lease-123'};},button});

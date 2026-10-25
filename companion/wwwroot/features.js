@@ -1,6 +1,11 @@
 'use strict';
 let featureView='',arranging=false;
 let librarySounds=[],librarySelection=new Set(),libraryLimit=80;
+let libraryFavourites=[],libraryOnlyFavourites=false;
+function favouriteView(sounds,favourites,only){
+  if(!only)return sounds;
+  return favourites.map(f=>{const found=sounds.filter(s=>s.key===f.key);return found.length===1?found[0]:{index:0,key:f.key,name:f.name,artist:'',categories:[],unavailable:true,reason:found.length?'Duplicated identity':'Not in the current library'};});
+}
 let appSessions=[],appMixerLoading=false,appMixerDragging=false;
 const featureHtml=(element,html)=>{element.innerHTML=DOMPurify.sanitize(html);};
 panel.addEventListener('close',()=>{featureView='';appMixerDragging=false;});
@@ -11,6 +16,7 @@ async function showSoundpadLibrary(){
   featureView='library';editing=false;librarySelection=new Set();libraryLimit=80;
   openPanel('Soundpad library',`<p class="help">Search your running Soundpad library by sound name, artist, or category. Nothing plays until you press Play.</p><div class="form-grid"><label>Search sounds<input id="library-search" type="search" placeholder="Search your sounds" autocomplete="off"></label><label>Category<select id="library-category" aria-label="Category"><option value="">All sounds</option></select></label><label>Playback output<select id="library-output" aria-label="Playback output">${options({mic:'Microphone',speakers:'Speakers',both:'Speakers + microphone',default:'Soundpad default'},'mic')}</select></label>${!native?`<label>Add selected sounds to<select id="library-page" aria-label="Add selected sounds to">${pages.map(p=>`<option value="${esc(p.id)}" ${p.id===pageId?'selected':''}>${esc(p.name)}</option>`).join('')}</select></label>`:''}</div><div class="row"><button id="library-refresh" class="quiet">Refresh library</button>${!native?'<button id="library-add" class="primary" disabled>Add selected buttons</button>':''}<span id="library-count" class="help" role="status">Loading…</span></div><p id="library-status" class="help" role="status"></p><div id="library-results" class="library-results"></div><button id="library-more" class="quiet" hidden>Show more sounds</button>`);
   $('#library-search').oninput=()=>{libraryLimit=80;renderSoundpadResults();};$('#library-category').onchange=()=>{libraryLimit=80;renderSoundpadResults();};
+  const filter=document.createElement('button');filter.id='library-favourites';filter.className='quiet favourites-filter';filter.textContent='Favourites';filter.setAttribute('aria-pressed',String(libraryOnlyFavourites));$('#library-refresh').after(filter);filter.onclick=()=>{libraryOnlyFavourites=!libraryOnlyFavourites;filter.setAttribute('aria-pressed',String(libraryOnlyFavourites));libraryLimit=80;renderSoundpadResults();};
   $('#library-refresh').onclick=()=>loadSoundpadLibrary(true);
   $('#library-more').onclick=()=>{libraryLimit+=80;renderSoundpadResults();};
   if($('#library-add'))$('#library-add').onclick=importSoundpadSelection;
@@ -18,26 +24,62 @@ async function showSoundpadLibrary(){
   await loadSoundpadLibrary(false);
 }
 async function loadSoundpadLibrary(force){
+  const generation=panelGeneration;
   const button=$('#library-refresh');if(!button)return;button.disabled=true;$('#library-status').textContent='Reading Soundpad…';
   try {
-    const result=await api('/api/soundpad/library',force?{}:undefined);if(featureView!=='library')return;
+    const results=await Promise.allSettled([api('/api/soundpad/library',force?{}:undefined),api('/api/soundpad/favourites')]);if(featureView!=='library'||panelGeneration!==generation||!panel.open)return;
+    if(results[1].status==='fulfilled')libraryFavourites=results[1].value.favourites;
+    if(results[0].status==='rejected'){librarySounds=[];renderSoundpadResults();throw results[0].reason;}
+    const result=results[0].value;
     librarySounds=result.sounds;const available=new Set(librarySounds.map(s=>s.index));librarySelection=new Set([...librarySelection].filter(id=>available.has(id)));
     const categories=[...new Set(librarySounds.flatMap(s=>s.categories))].sort((a,b)=>a.localeCompare(b));
     const category=$('#library-category').value;featureHtml($('#library-category'),'<option value="">All sounds</option>'+categories.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join(''));if(categories.includes(category))$('#library-category').value=category;
-    $('#library-status').textContent=result.warning||'Indices follow Soundpad’s All sounds list. Refresh after changing that list.';renderSoundpadResults();
-  }catch(error){if(featureView==='library'){$('#library-status').textContent=error.message;$('#library-count').textContent='Library unavailable';$('#library-results').replaceChildren();}}
-  finally{if(featureView==='library')$('#library-refresh').disabled=false;}
+    $('#library-status').textContent=results[1].status==='rejected'?'Favourites could not be loaded. Refresh to retry.':result.warning||'Star a sound to keep it in Favourites. Saved identities follow index changes; missing or duplicated sounds cannot play from Favourites.';renderSoundpadResults();
+  }catch(error){if(featureView==='library'&&panelGeneration===generation&&panel.open){$('#library-status').textContent=error.message;renderSoundpadResults();}}
+  finally{if(featureView==='library'&&panelGeneration===generation&&panel.open)$('#library-refresh').disabled=false;}
 }
 function renderSoundpadResults(){
   if(featureView!=='library')return;
   const query=$('#library-search').value.trim().toLocaleLowerCase(),category=$('#library-category').value;
-  const matches=librarySounds.filter(s=>(!category||s.categories.includes(category))&&(!query||[s.name,s.artist,...s.categories].join(' ').toLocaleLowerCase().includes(query)));
+  const matches=favouriteView(librarySounds,libraryFavourites,libraryOnlyFavourites).filter(s=>(!category||s.categories.includes(category))&&(!query||[s.name,s.artist,...s.categories].join(' ').toLocaleLowerCase().includes(query)));
   $('#library-count').textContent=`${matches.length} sound${matches.length===1?'':'s'} · ${librarySelection.size} selected`;
   if($('#library-add'))$('#library-add').disabled=librarySelection.size===0;
-  featureHtml($('#library-results'),matches.length?matches.slice(0,libraryLimit).map(s=>`<div class="library-row">${!native?`<input class="sound-select" type="checkbox" data-select-sound="${s.index}" aria-label="Select ${esc(s.name)}" ${librarySelection.has(s.index)?'checked':''}>`:''}<div class="library-name"><strong>${esc(s.name)}</strong><span>${esc([s.artist,...s.categories].filter(Boolean).join(' · '))||'All sounds'} <span class="badge">#${s.index}</span></span></div><button class="quiet" data-play-sound="${s.index}" aria-label="Play ${esc(s.name)}">Play</button></div>`).join(''):'<div class="feature-empty"><strong>No matching sounds</strong><p>Add sounds in Soundpad or try another search.</p></div>');
+  const favourites=new Set(libraryFavourites.map(f=>f.key));
+  featureHtml($('#library-results'),matches.length?matches.slice(0,libraryLimit).map(s=>`<div class="library-row">${!native&&!s.unavailable?`<input class="sound-select" type="checkbox" data-select-sound="${s.index}" aria-label="Select ${esc(s.name)}" ${librarySelection.has(s.index)?'checked':''}>`:''}<div class="library-name"><strong>${esc(s.name)}</strong><span>${esc(s.unavailable?s.reason:[s.artist,...s.categories].filter(Boolean).join(' · '))||'All sounds'} ${s.unavailable?'':`<span class="badge">#${s.index}</span>`}</span></div>${s.key?`<button class="quiet favourite-toggle ${favourites.has(s.key)?'is-favourite':''}" data-favourite-key="${esc(s.key)}" aria-pressed="${favourites.has(s.key)}" aria-label="${favourites.has(s.key)?'Remove':'Add'} favourite ${esc(s.name)}">${icon('star')}</button>`:''}<button class="quiet" data-play-sound="${s.index}" ${s.unavailable?'disabled':''} aria-label="Play ${esc(s.name)}">Play</button></div>`).join(''):`<div class="feature-empty"><strong>${libraryOnlyFavourites&&!libraryFavourites.length?'No favourites yet':'No matching sounds'}</strong><p>${libraryOnlyFavourites?'Star sounds in the full library, or try another search.':'Add sounds in Soundpad or try another search.'}</p></div>`);
   $('#library-more').hidden=matches.length<=libraryLimit;
   document.querySelectorAll('[data-select-sound]').forEach(input=>input.onchange=()=>{const id=Number(input.dataset.selectSound);input.checked?librarySelection.add(id):librarySelection.delete(id);$('#library-add').disabled=librarySelection.size===0;$('#library-count').textContent=`${matches.length} sounds · ${librarySelection.size} selected`;});
   document.querySelectorAll('[data-play-sound]').forEach(button=>button.onclick=async()=>{button.disabled=true;try{const index=Number(button.dataset.playSound),sound=librarySounds.find(sound=>sound.index===index);await api('/api/soundpad/play',{index,key:sound?.key||'',output:$('#library-output').value});notice('Soundpad accepted playback.');}catch(error){notice(error.message,true);}finally{if(button.isConnected)button.disabled=false;}});
+  document.querySelectorAll('[data-favourite-key]').forEach(button=>button.onclick=()=>toggleSoundpadFavourite(button));
+}
+async function toggleSoundpadFavourite(button){
+  const key=button.dataset.favouriteKey,generation=panelGeneration,hadFocus=document.activeElement===button;
+  button.disabled=true;
+  try{
+    await api('/api/soundpad/favourites',{key,selected:!libraryFavourites.some(f=>f.key===key)});const result=await api('/api/soundpad/favourites');
+    if(featureView!=='library'||panelGeneration!==generation||!panel.open)return;
+    const focusTarget=captureLibraryFocus(button,hadFocus);
+    libraryFavourites=result.favourites;renderSoundpadResults();
+    restoreLibraryFocus(focusTarget);
+  }catch(error){if(featureView==='library'&&panelGeneration===generation&&panel.open)$('#library-status').textContent=error.message;}
+  finally{if(button.isConnected)button.disabled=false;}
+}
+function captureLibraryFocus(button,hadFocus){
+  const node=document.activeElement;
+  if($('#library-results')?.contains(node)){
+    for(const [attribute,property] of [['data-favourite-key','favouriteKey'],['data-play-sound','playSound'],['data-select-sound','selectSound']]){
+      if(node.dataset?.[property]===undefined)continue;
+      const value=node.dataset[property],sound=librarySounds.find(s=>s.index===Number(value));
+      return{attribute,property,value,key:property==='favouriteKey'?value:sound?.key||''};
+    }
+  }
+  return hadFocus&&(node===button||node===document.body)?{attribute:'data-favourite-key',property:'favouriteKey',value:button.dataset.favouriteKey,key:button.dataset.favouriteKey}:null;
+}
+function restoreLibraryFocus(target){
+  if(!target)return;
+  const candidates=[...document.querySelectorAll('['+target.attribute+']')];
+  const exact=candidates.find(node=>node.dataset[target.property]===target.value);
+  const linked=target.key&&candidates.find(node=>target.property==='favouriteKey'?node.dataset.favouriteKey===target.key:librarySounds.some(s=>s.index===Number(node.dataset[target.property])&&s.key===target.key));
+  ((target.key?linked:exact)||$('#library-favourites'))?.focus();
 }
 async function importSoundpadSelection(){
   const button=$('#library-add');button.disabled=true;

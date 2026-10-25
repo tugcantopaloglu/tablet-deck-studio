@@ -79,7 +79,7 @@ $output = Join-Path (Get-Location) 'dist'
 
 The script compiles resources and Java, converts classes to DEX, packages the bundled interface, aligns the APK, signs it, and verifies the result. Output: `dist/TabletDeck-Studio.apk`.
 
-App identity: `app.tabletdeck.studio`, version `1.6.0`, version code `9`, minimum SDK `26`, target SDK `35`. Increment version code for later releases.
+App identity: `app.tabletdeck.studio`, version `1.7.0`, version code `10`, minimum SDK `26`, target SDK `35`. Increment version code for later releases. The asset checks include `boards.js` for profile and recovery controls.
 
 On first build, the script generates `toolchain/signing/tabletdeck.jks` and a random password file. Keep these private and preserve them to update your own APK installation later. Git ignores them. The original release's private signing key is not in this repository; a newly generated key produces a different identity and cannot update the original APK without uninstalling it first.
 
@@ -143,7 +143,7 @@ USB adds ADB reverse tunnels for ports 8743 and 8744. The PC editor uses a separ
 Assemble the complete release ZIP with SHA256SUMS.txt listing every file except itself, then embed it:
 
 ```powershell
-$payload = (Resolve-Path .\dist\TabletDeck-Studio-1.6.0.zip).Path
+$payload = (Resolve-Path .\dist\TabletDeck-Studio-1.7.0.zip).Path
 dotnet publish .\installer\TabletDeck.Setup.csproj -c Release -o .\dist\Setup "-p:PayloadArchive=$payload"
 .\dist\Setup\TabletDeck-Setup.exe --verify-payload
 ```
@@ -155,10 +155,12 @@ The installer uses a fixed per-user destination. `--test-mode --quiet` installs 
 ```powershell
 .\dist\Windows\TabletDeck-Companion.exe --self-test
 .\dist\Windows\TabletDeck-Companion.exe --hardening-self-test
+.\dist\Windows\TabletDeck-Companion.exe --boards-self-test
 $env:TABLETDECK_COMPANION = (Resolve-Path .\dist\Windows\TabletDeck-Companion.exe).Path
 npm run test:headless --prefix .\tests
 npm run test:fast --prefix .\tests
 npm run test:execution --prefix .\tests
+npm run test:boards --prefix .\tests
 ```
 
 For the original OBS integration suite, start an isolated companion on ports 18740/18743 using `--no-browser --no-tray`, then set `$env:TABLETDECK_HEADLESS='1'` and run `node .\tests\integration.cjs`. That mode executes API/OBS fixtures and skips all browser launches. Default `npm test` still includes browser tests; do not use it when browser execution is disallowed.

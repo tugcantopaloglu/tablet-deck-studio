@@ -28,6 +28,10 @@ public sealed class DeckPage
 }
 public sealed class DeckConfig
 {
+    public string ProfileId {get;set;}="";
+    public string ProfileName {get;set;}="Default";
+    public List<BoardProfile> Profiles {get;set;}=[];
+    public List<FavouriteSound> Favourites {get;set;}=[];
     public int ObsPort { get; set; } = 4455;
     public string ObsPassword { get; set; } = "";
     public string MicInput { get; set; } = "Mic/Aux";
@@ -66,11 +70,11 @@ public sealed class DeckConfig
     }
 }
 public sealed record PairedDevice(string Id, string Name, string TokenHash, DateTimeOffset Added);
-public sealed class DataStore
+public sealed partial class DataStore
 {
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { WriteIndented = true, MaxDepth = 24 };
     public string DirectoryPath { get; }
-    public DeckConfig Config { get; private set; }
+    public DeckConfig Config { get; private set; }=null!;
     public List<PairedDevice> Devices { get; private set; }
     private readonly object gate = new();
     public DataStore(string path)
@@ -84,7 +88,7 @@ public sealed class DataStore
         acl.AddAccessRule(new FileSystemAccessRule(user, FileSystemRights.FullControl, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
         acl.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null), FileSystemRights.FullControl, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
         new DirectoryInfo(DirectoryPath).SetAccessControl(acl);
-        Config = Read<DeckConfig>("config.json") ?? DeckConfig.Defaults();
+        InitializeConfig();
         Devices = Read<List<PairedDevice>>("devices.json") ?? [];
     }
     private T? Read<T>(string file) => File.Exists(Path.Combine(DirectoryPath,file)) ? JsonSerializer.Deserialize<T>(File.ReadAllText(Path.Combine(DirectoryPath,file)), Json) : default;
@@ -93,7 +97,7 @@ public sealed class DataStore
         var dest=Path.Combine(DirectoryPath,file); var temp=dest+".tmp";
         File.WriteAllText(temp,JsonSerializer.Serialize(value,Json)); File.Move(temp,dest,true);
     }
-    public void Save(DeckConfig config) { lock(gate) { Validate(config); Write("config.json",config); Config=config; } }
+    public void Save(DeckConfig config)=>SaveBoard(config,"Before board edit");
     public void Modify(Action<DeckConfig> change)
     {
         lock(gate) {
@@ -136,20 +140,37 @@ public sealed class DataStore
     }
     public static void Validate(DeckConfig c)
     {
+        if(c is null||c.Pages is null||c.Profiles is null||c.Favourites is null||c.ProfileId is null||c.ObsPassword is null||c.MicInput is null||c.DesktopInput is null)throw new ArgumentException("Invalid board settings.");
         if(c.ObsPort is <1 or >65535 || c.Pages.Count is <1 or >30 || c.ObsPassword.Length>1024) throw new ArgumentException("Invalid settings or page count (1–30).");
+        if(c.Profiles.Count>9||c.Favourites.Count>200||string.IsNullOrWhiteSpace(c.ProfileName)||c.ProfileName.Length>30)throw new ArgumentException("Keep at most 10 profiles and 200 favourites; profile names need 1–30 characters.");
+        var profileIds=new HashSet<string>(StringComparer.Ordinal){c.ProfileId};
+        if(c.ProfileId.Length>0&&!Guid.TryParseExact(c.ProfileId,"N",out _))throw new ArgumentException("Invalid profile identity.");
         var ids = new HashSet<string>(StringComparer.Ordinal);
-        foreach(var page in c.Pages)
+        var pageIds=new HashSet<string>(StringComparer.Ordinal);
+        ValidatePages(c.Pages,ids,pageIds);
+        foreach(var profile in c.Profiles){
+            if(profile is null||!Guid.TryParseExact(profile.Id,"N",out _)||!profileIds.Add(profile.Id)||string.IsNullOrWhiteSpace(profile.Name)||profile.Name.Length>30)throw new ArgumentException("Invalid or duplicate profile.");
+            ValidatePages(profile.Pages,ids,pageIds);
+        }
+        var keys=new HashSet<string>(StringComparer.Ordinal);
+        foreach(var favourite in c.Favourites)if(favourite is null||!ValidSoundKey(favourite.Key)||!keys.Add(favourite.Key)||string.IsNullOrWhiteSpace(favourite.Name)||favourite.Name.Length>120)throw new ArgumentException("Invalid or duplicate favourite.");
+    }
+    private static void ValidatePages(List<DeckPage> pages,HashSet<string> ids,HashSet<string> pageIds)
+    {
+        if(pages is null||pages.Count is <1 or >30)throw new ArgumentException("Each profile needs 1–30 pages.");
+        foreach(var page in pages)
         {
-            if(string.IsNullOrWhiteSpace(page.Name)||page.Name.Length>30||page.Buttons.Count>120) throw new ArgumentException("Each page needs a name and at most 120 buttons.");
+            if(page is null||string.IsNullOrWhiteSpace(page.Id)||!pageIds.Add(page.Id)||string.IsNullOrWhiteSpace(page.Name)||page.Name.Length>30||page.Buttons is null||page.Buttons.Count>120) throw new ArgumentException("Each page needs a unique identity, name, and at most 120 buttons.");
             foreach(var action in page.Buttons)
             {
-                if(string.IsNullOrWhiteSpace(action.Id)||!ids.Add(action.Id)) throw new ArgumentException("Button IDs must be unique.");
+                if(action is null||string.IsNullOrWhiteSpace(action.Id)||!ids.Add(action.Id)) throw new ArgumentException("Button IDs must be unique across profiles.");
                 ValidateAction(action,0);
             }
         }
     }
     private static void ValidateAction(DeckAction a,int depth)
     {
+        if(a is null||a.Kind is null||a.Label is null||a.Target is null||a.Value is null||a.SoundpadKey is null||a.Steps is null)throw new ArgumentException("Invalid button fields.");
         string[] kinds=["scene","preview","transition","sound","stopSounds","app","url","hotkey","holdHotkey","mute","source","filter","media","record","stream","replay","virtualCamera","studioMode","macro","delay","voicemeeter"];
         if(depth>3||(!kinds.Contains(a.Kind)&&!SoundpadClient.Supports(a.Kind))||a.Label.Length is <1 or >60||a.Target.Length>2048||a.Value.Length>1024||a.Steps.Count>30) throw new ArgumentException("Invalid button or macro (maximum 30 steps, 3 nesting levels).");
         if(SoundpadClient.Supports(a.Kind)&&!(a.Kind=="soundpadPlay"&&a.Target.Length==0)) SoundpadClient.BuildCommand(a.Kind,a.Target,a.Value);

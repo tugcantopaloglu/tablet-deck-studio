@@ -11,6 +11,7 @@ if(!$OutputDirectory){$OutputDirectory=Join-Path $taskRoot 'dist'}
 New-Item -ItemType Directory -Force -Path $taskBuild,(Join-Path $taskBuild 'classes'),(Join-Path $taskBuild 'dex'),(Join-Path $taskBuild 'assets\www'),$OutputDirectory | Out-Null
 Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\index.html'),(Join-Path $taskRoot 'companion\wwwroot\app.js'),(Join-Path $taskRoot 'companion\wwwroot\style.css') -Destination (Join-Path $taskBuild 'assets\www')
 Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\features.js') -Destination (Join-Path $taskBuild 'assets\www')
+Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\boards.js') -Destination (Join-Path $taskBuild 'assets\www')
 Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\hardening.js') -Destination (Join-Path $taskBuild 'assets\www')
 Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\latency.js') -Destination (Join-Path $taskBuild 'assets\www')
 Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\fonts') -Destination (Join-Path $taskBuild 'assets\www') -Recurse -Force
@@ -25,7 +26,7 @@ $taskArchive=[System.IO.Compression.ZipFile]::OpenRead((Join-Path $taskBuild 'un
 try {
  $taskEntries=@($taskArchive.Entries | ForEach-Object FullName)
  if(@($taskEntries | Where-Object { $_.Contains('\') }).Count){throw 'APK contains Windows path separators.'}
- foreach($taskAsset in @('index.html','app.js','features.js','hardening.js','latency.js','style.css','fonts/Manrope.ttf','vendor/purify.min.js')){
+ foreach($taskAsset in @('index.html','app.js','features.js','boards.js','hardening.js','latency.js','style.css','fonts/Manrope.ttf','vendor/purify.min.js')){
   if($taskEntries -notcontains ('assets/www/'+$taskAsset)){throw "APK asset is missing: $taskAsset"}
  }
 } finally {$taskArchive.Dispose()}

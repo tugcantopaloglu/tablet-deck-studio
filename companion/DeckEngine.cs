@@ -45,7 +45,7 @@ public sealed class DeckEngine
             state["revision"]=Interlocked.Increment(ref snapshots);cachedState=state;cacheTime=version==Volatile.Read(ref generation)?DateTime.UtcNow:DateTime.MinValue;return WithExecution(state);
         } finally {stateGate.Release();}
     }
-    private JsonObject WithExecution(JsonObject state){var copy=state.DeepClone().AsObject();copy["execution"]=JsonSerializer.SerializeToNode(Execution.Status,DataStore.Json);return copy;}
+    private JsonObject WithExecution(JsonObject state){var copy=state.DeepClone().AsObject();copy["execution"]=JsonSerializer.SerializeToNode(Execution.Status,DataStore.Json);copy["profileId"]=store.Config.ProfileId;return copy;}
     public static bool NeedsConfirm(DeckAction a)=>a.Confirm||a.Kind is "stream" or "record"||a.Steps.Any(NeedsConfirm);
     public Task Execute(DeckAction action)=>Execution.Run(action,ct=>Run(action,ct));
     private async Task Run(DeckAction a,CancellationToken ct)

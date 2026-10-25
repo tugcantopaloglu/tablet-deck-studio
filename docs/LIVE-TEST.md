@@ -1,5 +1,9 @@
 # Physical Android test — 2026-10-25
 
+## Version 1.7.0 development — 2026-10-26
+
+Profiles, automatic backups/recovery, and Soundpad favourites were implemented using isolated storage/API/UI-logic fixtures. Tests include legacy migration without changing existing action IDs, new IDs for duplicated boards, stale editor/action rejection, authenticated switch/admin boundaries, all-profile restore preserving current credentials, twenty-snapshot retention, damaged-file recovery/quarantine, favourite index/rename changes, missing/ambiguous identity rejection, async view ownership, and keyboard-focus retention across rerenders. Existing OBS and transport regressions use simulated OBS. These tests did not change the user's live installation or audio setup, and no browser, CUA, or app window was opened. Rendered UI, physical tablet touch, and actual favourite-add/play flows with live Soundpad still need rehearsal.
+
 ## Discord microphone follow-up — 2026-10-26
 
 The user authorized live configuration of Soundpad's devices and Discord Voice & Video settings. Both selected the same NVIDIA Broadcast microphone; Soundpad's enabled recording endpoint reported Good. Discord retained Custom input, Noise Suppression None, and Echo Cancellation off; Automatic Gain Control and Bypass System Audio Input Processing were disabled following Soundpad's Discord guide. All 76 local collection buttons were set to both microphone and speaker/headphone output.
