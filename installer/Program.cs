@@ -17,7 +17,7 @@ try {
     var entries=Verify(archive);
     if(args.Contains("--verify-payload")){Console.WriteLine("PASS embedded payload paths and SHA-256 checksums ("+entries.Count+" files).");return;}
     if(!args.Contains("--quiet")) {
-        Console.WriteLine("Tablet Deck Studio 1.3 installer\nInstall to: "+install+"\nClose the companion before updating. No apps are launched by this installer.\nType INSTALL to continue, or close this window:");
+        Console.WriteLine("Tablet Deck Studio 1.4 installer\nInstall to: "+install+"\nClose the companion before updating. No apps are launched by this installer.\nType INSTALL to continue, or close this window:");
         if(Console.ReadLine()!="INSTALL")return;
     }
     var parent=Directory.GetParent(install)?.FullName??throw new IOException("Choose an application folder, not a drive root.");

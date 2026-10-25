@@ -51,6 +51,7 @@ public static class SoundpadLibrary
         return new(result,warning);
     }
     private static string Limit(string value,int length)=>value.Length<=length?value:value[..length];
+    public static async Task<SoundpadLibraryResult> CurrentSounds(CancellationToken ct=default)=>Parse(await Query("GetSoundlist()","sp_remote_control",ct),null);
     public static async Task<SoundpadLibraryResult> Get(bool refresh=false,CancellationToken ct=default)
     {
         await cacheGate.WaitAsync(ct);

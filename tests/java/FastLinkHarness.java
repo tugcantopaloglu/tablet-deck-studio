@@ -1,0 +1,52 @@
+import app.tabletdeck.FastLink;
+import javax.net.ssl.*;
+import java.security.MessageDigest;
+import java.security.cert.X509Certificate;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+public final class FastLinkHarness {
+    private static int passed;
+    private static void check(boolean value,String label){if(!value)throw new AssertionError(label);passed++;System.out.println("PASS "+label);}
+    public static void main(String[] args) throws Exception {
+        final String pin=System.getenv("DECK_TEST_PIN"),token=System.getenv("DECK_TEST_TOKEN"),action=System.getenv("DECK_TEST_ACTION");
+        final int port=Integer.parseInt(System.getenv("DECK_TEST_PORT"));
+        SSLContext context=SSLContext.getInstance("TLS");
+        context.init(null,new TrustManager[]{new X509TrustManager(){
+            public X509Certificate[] getAcceptedIssuers(){return new X509Certificate[0];}
+            public void checkClientTrusted(X509Certificate[] chain,String auth) throws java.security.cert.CertificateException{throw new java.security.cert.CertificateException("No client certificates");}
+            public void checkServerTrusted(X509Certificate[] chain,String auth) throws java.security.cert.CertificateException{
+                try{chain[0].checkValidity();StringBuilder found=new StringBuilder();for(byte value:MessageDigest.getInstance("SHA-256").digest(chain[0].getEncoded()))found.append(String.format("%02X",value));if(!found.toString().equals(pin))throw new java.security.cert.CertificateException("Wrong fixture certificate");}
+                catch(java.security.cert.CertificateException ex){throw ex;}catch(Exception ex){throw new java.security.cert.CertificateException(ex);}
+            }
+        }},null);
+        CountDownLatch ready=new CountDownLatch(1),result=new CountDownLatch(1),state=new CountDownLatch(1),reconnected=new CountDownLatch(2),pong=new CountDownLatch(1);
+        FastLink link=new FastLink(new FastLink.Listener(){
+            public FastLink.Settings settings(){return new FastLink.Settings("127.0.0.1",port,token,pin,context.getSocketFactory());}
+            public boolean packet(String json){
+                if(json.matches("(?s).*\"type\"\\s*:\\s*\"ready\".*")){ready.countDown();reconnected.countDown();return true;}
+                if(json.matches("(?s).*\"id\"\\s*:\\s*9[,\\s].*")&&json.matches("(?s).*\"ok\"\\s*:\\s*true.*"))result.countDown();
+                if(json.matches("(?s).*\"type\"\\s*:\\s*\"state\".*"))state.countDown();
+                if(json.matches("(?s).*\"id\"\\s*:\\s*11[,\\s].*"))pong.countDown();return false;
+            }
+            public void disconnected(){}
+        });
+        try {
+            link.start();check(ready.await(4,TimeUnit.SECONDS),"native Java TLS handshake and authenticated ready");
+            for(int i=0;i<100&&!link.connected();i++)Thread.sleep(5);
+            check(link.send("{\"id\":9,\"path\":\"/api/action\",\"body\":{\"id\":\""+action+"\"}}"),"native Java sends a configured action");
+            check(result.await(3,TimeUnit.SECONDS),"native Java receives action acknowledgement");
+            check(state.await(3,TimeUnit.SECONDS),"native Java receives pushed state");
+            link.pause();check(!link.connected(),"native pause closes the fast link");
+            check(!link.send("{\"id\":10,\"path\":\"/api/ping\",\"body\":{}}"),"native disconnected send is not queued");
+            link.resume();check(reconnected.await(4,TimeUnit.SECONDS),"native resume reconnects without replaying controls");
+            for(int i=0;i<100&&!link.connected();i++)Thread.sleep(5);
+            check(link.send("{\"id\":11,\"path\":\"/api/ping\",\"body\":{}}")&&pong.await(3,TimeUnit.SECONDS),"native reconnected link exchanges new requests");
+        }finally{link.close();}
+        AtomicBoolean accepted=new AtomicBoolean(false);
+        FastLink wrong=new FastLink(new FastLink.Listener(){public FastLink.Settings settings(){return new FastLink.Settings("127.0.0.1",port,token,new String(new char[64]).replace('\0','0'),context.getSocketFactory());}public boolean packet(String json){accepted.set(true);return true;}public void disconnected(){}});
+        try{wrong.start();Thread.sleep(1200);check(!accepted.get()&&!wrong.connected()&&!wrong.send("{}"),"native extra certificate-pin check rejects mismatch");}finally{wrong.close();}
+        System.out.println(passed+" native Java fast-link checks passed; no Android app or GUI opened.");
+    }
+}

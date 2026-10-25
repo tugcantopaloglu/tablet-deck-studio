@@ -1,6 +1,6 @@
 # Desktop, push to talk, updates, and integrations
 
-Version 1.3.0 adds the following controls. Update both the Windows companion and APK.
+Version 1.3.0 introduced the following controls. Version 1.4 adds the [low-latency transport and Wi-Fi/USB guide](PERFORMANCE.md). Update both the Windows companion and APK.
 
 ## Install or update Windows
 
@@ -40,7 +40,7 @@ For command-line/server tests that must not open a browser or tray UI:
 
 ## Automatic USB reconnection
 
-Enable **Reconnect USB automatically** in Desktop settings or the tray menu. Keep the bundled platform-tools folder beside the companion. The companion checks authorized USB devices and restores the ADB reverse tunnel for its encrypted control port, approximately every five seconds.
+Enable **Reconnect USB automatically** in Desktop settings or the tray menu. Keep the bundled platform-tools folder beside the companion. The companion checks authorized USB devices and restores ADB reverse tunnels for its HTTPS and fast control ports, approximately every five seconds.
 
 USB debugging and the tablet's PC authorization remain required. It never opens an Android app. With multiple physical USB tablets, enter the intended serial in Desktop settings. Find it with `platform-tools\adb.exe devices`. Emulators and network ADB endpoints are excluded from automatic selection. Unauthorized or missing tablets produce a status message rather than choosing another device.
 

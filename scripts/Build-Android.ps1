@@ -12,6 +12,7 @@ New-Item -ItemType Directory -Force -Path $taskBuild,(Join-Path $taskBuild 'clas
 Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\index.html'),(Join-Path $taskRoot 'companion\wwwroot\app.js'),(Join-Path $taskRoot 'companion\wwwroot\style.css') -Destination (Join-Path $taskBuild 'assets\www')
 Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\features.js') -Destination (Join-Path $taskBuild 'assets\www')
 Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\hardening.js') -Destination (Join-Path $taskBuild 'assets\www')
+Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\latency.js') -Destination (Join-Path $taskBuild 'assets\www')
 Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\fonts') -Destination (Join-Path $taskBuild 'assets\www') -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\vendor') -Destination (Join-Path $taskBuild 'assets\www') -Recurse -Force
 function Invoke-Checked([string]$Exe,[string[]]$Arguments){& $Exe @Arguments;if($LASTEXITCODE -ne 0){throw "Build command failed: $Exe"}}

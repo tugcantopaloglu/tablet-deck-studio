@@ -12,6 +12,8 @@ try {
  else {throw 'No authorized Android device. Use a USB data cable, enable USB debugging in Developer options, unlock the tablet, and approve the PC. You may also need the tablet manufacturer USB driver.'}
  & $taskAdb -s $taskDevice reverse tcp:8743 tcp:8743
  if($LASTEXITCODE -ne 0){throw 'Could not create the USB connection.'}
+ & $taskAdb -s $taskDevice reverse tcp:8744 tcp:8744
+ if($LASTEXITCODE -ne 0){throw 'HTTPS is available, but the fast USB tunnel failed. Reconnect the cable and retry.'}
  Write-Host 'USB connection is ready. Keep the Windows companion running.' -ForegroundColor Cyan
  Write-Host 'On the tablet choose USB. Pair using the certificate code and PIN shown in the Windows companion.'
  Write-Host 'Run this helper again after unplugging the cable or restarting the tablet.'

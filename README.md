@@ -6,7 +6,7 @@ Turn an Android tablet into a customizable control board for a Windows streaming
 
 ![Studio layout with twelve action keys and two audio faders — illustrative design preview](docs/images/studio-preview.png)
 
-The Studio layout has twelve large buttons beside two audio faders and five page tabs. Version **1.3.0** adds a Windows tray, opt-in startup and USB reconnection, an installer, update notifications, hold-to-talk shortcuts, linked Soundpad remapping, and native Voicemeeter gain/mute actions. See the [desktop and integration guide](docs/DESKTOP-AND-HOLD.md). The screenshot shows illustrative state, not a live broadcast. The 1.3 checks use command-line tests and protocol fixtures without opening a browser or GUI. Physical tablet, tray/startup UI, live Soundpad/Voicemeeter, Discord sharing, actual Wi-Fi, and USB still need a rehearsal on your setup.
+The Studio layout has twelve large buttons beside two audio faders and five page tabs. Version **1.4.0** adds persistent encrypted control over Wi-Fi/USB, pushed state, parallel OBS reads, and live sliders that keep the newest value. The local fixture measured median command round-trip at **0.582 ms**, down from **7.468 ms** with a fresh TLS connection per command. These are PC loopback results, not physical tablet/network/audio measurements. See the [performance guide and setup](docs/PERFORMANCE.md). The screenshot is an illustrative design preview. GUI apps stayed closed during verification; actual Android, Wi-Fi/USB, tray/startup, and live streaming/audio still need a rehearsal on your setup.
 
 ## Features
 
@@ -21,7 +21,7 @@ The Studio layout has twelve large buttons beside two audio faders and five page
 | Discord and other tools | Matching app keybinds; Discord mute/deafen/screen-share setup documented |
 | Macros | Multiple steps, delays, confirmation, stop on first error |
 | Customization | Labels, icons, colors, drag-and-drop ordering on PC/tablet, multiple pages, JSON import/export |
-| Connection | Encrypted Wi-Fi or USB, with opt-in automatic USB reconnection |
+| Connection | Persistent pinned TLS over Wi-Fi/USB, pushed state, HTTPS fallback, optional automatic USB reconnection |
 | Desktop | Windows tray, opt-in startup, update notifications, per-user installer |
 | Hold-to-talk | Renewable key-down/key-up shortcuts with a three-second disconnect lease |
 | Voicemeeter | Native Strip/Bus gain and explicit mute/unmute through the installed remote DLL |
@@ -52,7 +52,7 @@ The Studio layout has twelve large buttons beside two audio faders and five page
 
 For a managed Windows installation, download **TabletDeck-Setup.exe**, run it, and type `INSTALL` after reviewing its destination. It creates a Start menu shortcut without launching any apps. The ZIP remains available for portable use. See [installation and uninstalling](docs/DESKTOP-AND-HOLD.md#install-or-update-windows).
 
-Download `TabletDeck-Studio-1.3.zip` from [Releases](https://github.com/tugcantopaloglu/tablet-deck-studio/releases/latest) for the complete package, or download `TabletDeck-Studio.apk` separately if you only need the Android installer.
+Download `TabletDeck-Studio-1.4.zip` from [Releases](https://github.com/tugcantopaloglu/tablet-deck-studio/releases/latest) for the complete package, or download `TabletDeck-Studio.apk` separately if you only need the Android installer.
 
 ```text
 TabletDeck-Studio/
@@ -81,15 +81,15 @@ The Android package has a personal signing certificate, not a Play Store identit
 
 Installing by file manager: copy the APK to the tablet, open it, and allow that file source to install apps if Android prompts. Installing from Windows: authorize USB debugging, then run `Install-APK.cmd` with exactly one Android device connected.
 
-OBS includes WebSocket support in version 28 and later. See the [official OBS remote-control guide](https://obsproject.com/kb/remote-control-guide). The tablet reaches the companion on port 8743; the companion reaches OBS locally, normally on port 4455. You do not normally need to expose OBS's port to the tablet.
+OBS includes WebSocket support in version 28 and later. See the [official OBS remote-control guide](https://obsproject.com/kb/remote-control-guide). The tablet uses HTTPS port 8743 and persistent control port 8744; the companion reaches OBS locally, normally on port 4455. You do not normally need to expose OBS's port to the tablet.
 
 ## Wi-Fi
 
 Connect the PC and tablet to the same private network. Avoid guest Wi-Fi, which often isolates devices. Allow the companion through Windows Firewall on the private network when Windows asks.
 
-On the tablet select Wi-Fi, enter the PC address listed in Pair tablet, then enter the 24-character certificate code (hyphens and spaces are optional) and the six-digit PIN. The PIN expires in five minutes, is single-use, and locks after five wrong attempts. Generate a new PIN on the PC if it expires. The certificate code must match the intended PC before the tablet sends the PIN.
+Update both components and allow the fast control port 8744 as described in the [performance guide](docs/PERFORMANCE.md). On the tablet select Wi-Fi, enter the PC address listed in Pair tablet, then enter the 24-character certificate code (hyphens and spaces are optional) and the six-digit PIN. The PIN expires in five minutes, is single-use, and locks after five wrong attempts. Generate a new PIN on the PC if it expires. The certificate code must match the intended PC before the tablet sends the PIN.
 
-If Windows does not show a firewall prompt, allow TabletDeck-Companion.exe inbound on TCP port 8743 for the private network only. Do not forward this port on your router. No cloud account or subscription is needed.
+If Windows does not show a firewall prompt, allow TabletDeck-Companion.exe inbound on TCP ports 8743 and 8744 for the private network only. Do not forward this port on your router. No cloud account or subscription is needed.
 
 ## USB
 
@@ -108,6 +108,7 @@ The helper creates the equivalent of this tunnel:
 ```powershell
 # Run from the extracted Windows folder:
 .\platform-tools\adb.exe -s YOUR_DEVICE_SERIAL reverse tcp:8743 tcp:8743
+.\platform-tools\adb.exe -s YOUR_DEVICE_SERIAL reverse tcp:8744 tcp:8744
 ```
 
 With multiple devices connected, select a serial explicitly:
@@ -226,7 +227,7 @@ To remove access, use **Revoke** in the PC's Pair tablet panel. To clear the tab
 
 | Problem | What to check |
 | --- | --- |
-| PC disconnected over Wi-Fi | Companion running, correct local PC address, private-network TCP 8743 allowed, no guest/client isolation |
+| PC disconnected over Wi-Fi | Companion running, correct local PC address, private-network TCP 8743/8744 allowed, no guest/client isolation |
 | OBS disconnected | OBS running, WebSocket enabled, correct companion port/password; normally port 4455 |
 | Pairing PIN rejected | Generate a fresh PIN; it is single-use, expires after five minutes, and locks after five wrong attempts |
 | Certificate mismatch | Use the certificate code from the intended PC's current companion; deleting its data changes its identity |

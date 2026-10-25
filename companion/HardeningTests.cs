@@ -21,6 +21,7 @@ public static class HardeningTests
             Reject(()=>holds.Renew("tablet-a",lease),"expired hold cannot be revived");
             lease=holds.Begin("tablet-a","CTRL+M");holds.ReleaseOwner("tablet-a");Check(events.Count==4&&!events[^1],"revocation releases owner keys");
             lease=holds.Begin("tablet-a","CTRL+M");holds.Release("tablet-a",lease);holds.Release("tablet-a",lease);Check(events.Count==6,"release is idempotent");
+            var previous=lease;lease=holds.Begin("tablet-a","CTRL+M");holds.Release("tablet-a",previous);Check(events[^1],"old connection lease cannot release a newer hold");holds.Release("tablet-a",lease);
         }
         var config=DeckConfig.Defaults();var action=config.Pages[0].Buttons[0];action.Kind="holdHotkey";action.Target="F13";DataStore.Validate(config);Check(true,"standalone hold button validates");
         action.Confirm=true;Reject(()=>DataStore.Validate(config),"hold confirmation is rejected");action.Confirm=false;action.Kind="macro";action.Steps=[new(){Kind="holdHotkey",Target="F13"}];Reject(()=>DataStore.Validate(config),"hold macro step is rejected");

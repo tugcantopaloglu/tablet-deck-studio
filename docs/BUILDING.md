@@ -77,7 +77,7 @@ $output = Join-Path (Get-Location) 'dist'
 
 The script compiles resources and Java, converts classes to DEX, packages the bundled interface, aligns the APK, signs it, and verifies the result. Output: `dist/TabletDeck-Studio.apk`.
 
-App identity: `app.tabletdeck.studio`, version `1.3.0`, version code `4`, minimum SDK `26`, target SDK `35`. Increment version code for later releases.
+App identity: `app.tabletdeck.studio`, version `1.4.0`, version code `5`, minimum SDK `26`, target SDK `35`. Increment version code for later releases.
 
 On first build, the script generates `toolchain/signing/tabletdeck.jks` and a random password file. Keep these private and preserve them to update your own APK installation later. Git ignores them. The original release's private signing key is not in this repository; a newly generated key produces a different identity and cannot update the original APK without uninstalling it first.
 
@@ -132,16 +132,16 @@ Snyk authentication may be required. `.dcignore` excludes generated builds and s
 
 ## Architecture
 
-Android bundled UI → restricted Java bridge → certificate-pinned HTTPS → Windows ASP.NET Core companion → authenticated OBS v5 on loopback or a configured Windows action.
+Android bundled UI → restricted Java bridge → pinned persistent TLS control (8744) or pinned HTTPS fallback/metadata (8743) → Windows companion → authenticated OBS v5 or a configured Windows action. PC panels receive authenticated state events.
 
-USB adds an ADB reverse tunnel for the same HTTPS port. The PC editor uses a separate authenticated loopback endpoint. Tablet action requests contain configured action IDs; PC targets are edited locally. Paired tablets can also reorder the exact existing button set, play library indices validated against Soundpad, and adjust enumerated audio sessions by opaque IDs. Soundpad button import remains local-admin only. Preserve these boundaries when adding features.
+USB adds ADB reverse tunnels for ports 8743 and 8744. The PC editor uses a separate authenticated loopback endpoint. Tablet action requests contain configured action IDs; PC targets are edited locally. Paired tablets can also reorder the exact existing button set, play library indices validated against Soundpad, and adjust enumerated audio sessions by opaque IDs. Soundpad button import remains local-admin only. Preserve these boundaries when adding features.
 
 ## Build the Windows installer
 
 Assemble the complete release ZIP with SHA256SUMS.txt listing every file except itself, then embed it:
 
 ```powershell
-$payload = (Resolve-Path .\dist\TabletDeck-Studio-1.3.zip).Path
+$payload = (Resolve-Path .\dist\TabletDeck-Studio-1.4.zip).Path
 dotnet publish .\installer\TabletDeck.Setup.csproj -c Release -o .\dist\Setup "-p:PayloadArchive=$payload"
 .\dist\Setup\TabletDeck-Setup.exe --verify-payload
 ```
@@ -155,8 +155,11 @@ The installer uses a fixed per-user destination. `--test-mode --quiet` installs 
 .\dist\Windows\TabletDeck-Companion.exe --hardening-self-test
 $env:TABLETDECK_COMPANION = (Resolve-Path .\dist\Windows\TabletDeck-Companion.exe).Path
 npm run test:headless --prefix .\tests
+npm run test:fast --prefix .\tests
 ```
 
 For the original OBS integration suite, start an isolated companion on ports 18740/18743 using `--no-browser --no-tray`, then set `$env:TABLETDECK_HEADLESS='1'` and run `node .\tests\integration.cjs`. That mode executes API/OBS fixtures and skips all browser launches. Default `npm test` still includes browser tests; do not use it when browser execution is disallowed.
 
 The safety tests use fake keyboard sinks and HTTP fixtures. They do not inject keys, write startup settings, open streaming apps, or control Voicemeeter. JavaScript logic tests run without a browser and do not verify layout or native Android touch behavior.
+
+The platform-only Java fast-link test needs JDK17 via JAVA_HOME or the documented toolchain. See [performance measurements and benchmark commands](PERFORMANCE.md). Alternate --https-port also shifts the default fast port to the next integer; --control-port overrides it. Android release clients use the shipping 8743/8744 ports.

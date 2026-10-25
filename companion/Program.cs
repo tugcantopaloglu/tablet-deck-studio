@@ -16,6 +16,7 @@ var dataDir=Option("--data-dir",Path.Combine(Environment.GetFolderPath(Environme
 var store=new DataStore(dataDir);
 var httpPort=int.Parse(Option("--http-port","8740"),CultureInfo.InvariantCulture);
 var httpsPort=int.Parse(Option("--https-port","8743"),CultureInfo.InvariantCulture);
+var controlPort=int.Parse(Option("--control-port",(httpsPort+1).ToString(CultureInfo.InvariantCulture)),CultureInfo.InvariantCulture);
 var certPath=Path.Combine(store.DirectoryPath,"companion.pfx");
 X509Certificate2 cert;
 if(File.Exists(certPath)) cert=X509CertificateLoader.LoadPkcs12FromFile(certPath,null,X509KeyStorageFlags.UserKeySet);
@@ -42,8 +43,11 @@ await using var obs=new ObsClient(()=>store.Config);
 var engine=new DeckEngine(store,obs);
 using var appMixer=new AppAudioMixer();
 using var holds=new HoldKeys();
+var fastCommands=new FastCommands(store,engine,holds,appMixer);
+await using var stateUpdates=new StateUpdates(engine);
+await using var fastControl=new FastControlServer(store,fastCommands,stateUpdates,cert,controlPort);
 var desktop=new DesktopPreferences(store.DirectoryPath);
-using var usb=new UsbReconnect(desktop,httpsPort);
+using var usb=new UsbReconnect(desktop,httpsPort,controlPort);
 using var updates=new ReleaseUpdates();
 using var backgroundStop=new CancellationTokenSource();
 DesktopTray? tray=null;
@@ -75,14 +79,14 @@ app.Use(async (ctx,next)=>{
 app.UseDefaultFiles();app.UseStaticFiles();
 app.MapGet("/api/board",()=>new {pages=store.Config.Pages.Select(p=>new {p.Id,p.Name,p.Icon,buttons=p.Buttons.Select(a=>new{a.Id,a.Label,a.Kind,a.Icon,a.Color,confirm=DeckEngine.NeedsConfirm(a),target=a.Kind is "scene" or "preview"?a.Target:"",configured=!(a.Kind is "app" or "sound" or "url" or "hotkey" or "soundpadPlay")||a.Target.Length>0})})});
 app.MapGet("/api/state",()=>engine.State());
-app.MapPost("/api/hold",(HoldRequest req,HttpContext ctx)=>{
-    var principal=Principal(ctx);
-    if(req.Operation=="release"){holds.Release(principal,req.Lease);return Results.Ok(new{ok=true});}
-    if(req.Operation=="renew"){holds.Renew(principal,req.Lease);return Results.Ok(new{ok=true});}
-    if(req.Operation!="begin")throw new ArgumentException("Unknown hold operation.");
-    var action=store.Config.Pages.SelectMany(page=>page.Buttons).FirstOrDefault(action=>action.Id==req.Id);
-    if(action?.Kind!="holdHotkey")throw new ArgumentException("Choose a configured hold shortcut button.");
-    return Results.Ok(new{lease=holds.Begin(principal,action.Target),expiresIn=3});
+app.MapPost("/api/hold",(HoldRequest req,HttpContext ctx)=>fastCommands.Hold(req,Principal(ctx)));
+app.MapGet("/api/events",async (HttpContext ctx)=>{
+    ctx.Response.ContentType="text/event-stream";ctx.Response.Headers["X-Accel-Buffering"]="no";
+    ctx.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpResponseBodyFeature>()?.DisableBuffering();
+    var subscription=stateUpdates.Subscribe();
+    try{await foreach(var bytes in subscription.Reader.ReadAllAsync(ctx.RequestAborted)){if(!IsAuthorized(ctx))break;await ctx.Response.WriteAsync("data: "+System.Text.Encoding.UTF8.GetString(bytes)+"\n\n",ctx.RequestAborted);await ctx.Response.Body.FlushAsync(ctx.RequestAborted);}}
+    catch(OperationCanceledException) when(ctx.RequestAborted.IsCancellationRequested){}
+    finally{stateUpdates.Unsubscribe(subscription.Id);}
 });
 app.MapGet("/api/apps",async ()=>new {apps=await appMixer.List()});
 app.MapPost("/api/apps",async (AppAudioRequest req)=>{await appMixer.Set(req.Id,req.Percent,req.Muted);return Results.Ok(new{ok=true});});
@@ -96,11 +100,7 @@ app.MapPost("/api/soundpad/play",async (SoundpadPlayRequest req,HttpContext ctx)
     await engine.Execute(new DeckAction{Kind="soundpadPlay",Target=req.Index.ToString(CultureInfo.InvariantCulture),Value=req.Output});
     return Results.Ok(new{ok=true});
 });
-app.MapPost("/api/action",async (ActionRequest req)=>{
-    var action=store.Config.Pages.SelectMany(p=>p.Buttons).FirstOrDefault(a=>a.Id==req.Id)??throw new ArgumentException("This button no longer exists. Reload the board.");
-    if(DeckEngine.NeedsConfirm(action)&&!req.Confirmed) return Results.Json(new{error="Confirm this action on the tablet."},statusCode:409);
-    await engine.Execute(action);return Results.Ok(new{ok=true});
-});
+app.MapPost("/api/action",(ActionRequest req)=>fastCommands.Action(req));
 app.MapPost("/api/audio",async (AudioRequest req)=>{await engine.Volume(req.Channel,req.Db);return Results.Ok(new{ok=true});});
 app.MapPost("/api/mute",async (MuteRequest req)=>{await engine.Mute(req.Channel);return Results.Ok(new{ok=true});});
 app.MapPost("/api/pair",(PairRequest req)=>{
@@ -110,9 +110,9 @@ app.MapPost("/api/pair",(PairRequest req)=>{
     store.AddDevice(new(Guid.NewGuid().ToString("N"),name,Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token))),DateTimeOffset.UtcNow));
     return Results.Ok(new{token,fingerprint,name});
 });
-app.MapGet("/api/admin/info",()=>new {httpPort,httpsPort,fingerprint,certificateCode=fingerprint[..24],addresses=NetworkAddresses(),dataDirectory=store.DirectoryPath,devices=store.Devices.Select(d=>new{d.Id,d.Name,d.Added})});
+app.MapGet("/api/admin/info",()=>new {httpPort,httpsPort,controlPort,fingerprint,certificateCode=fingerprint[..24],addresses=NetworkAddresses(),dataDirectory=store.DirectoryPath,devices=store.Devices.Select(d=>new{d.Id,d.Name,d.Added})});
 app.MapPost("/api/admin/pairing",()=>new{code=pairing.Open(),expiresIn=300,certificateCode=fingerprint[..24]});
-app.MapPost("/api/admin/revoke",(RevokeRequest req)=>{var owner=store.Devices.FirstOrDefault(device=>device.Id==req.Id)?.TokenHash;if(owner is not null)holds.ReleaseOwner(owner);store.Revoke(req.Id);return Results.Ok(new{ok=true});});
+app.MapPost("/api/admin/revoke",(RevokeRequest req)=>{var owner=store.Devices.FirstOrDefault(device=>device.Id==req.Id)?.TokenHash;store.Revoke(req.Id);if(owner is not null){holds.ReleaseOwner(owner);fastControl.Revoke(owner);}return Results.Ok(new{ok=true});});
 app.MapGet("/api/admin/desktop",()=>new{settings=desktop.Get(),startWithWindows=DesktopPreferences.StartsWithWindows(),usbStatus=usb.Status,update=updates.Status});
 app.MapPost("/api/admin/desktop",(DesktopRequest req)=>{DesktopPreferences.Validate(req.Settings);if(req.StartWithWindows is not null)DesktopPreferences.SetStartup(req.StartWithWindows.Value);desktop.Save(req.Settings);return Results.Ok(new{ok=true});});
 app.MapPost("/api/admin/updates",async (HttpContext ctx)=>await updates.Check(true,ctx.RequestAborted));
@@ -147,6 +147,7 @@ app.MapPost("/api/admin/shutdown",(IHostApplicationLifetime lifetime)=>{lifetime
 var panel=$"http://127.0.0.1:{httpPort}/#admin={adminToken}";
 File.WriteAllText(Path.Combine(store.DirectoryPath,"admin-session.json"),JsonSerializer.Serialize(new{token=adminToken,httpPort,httpsPort},DataStore.Json));
 app.Lifetime.ApplicationStarted.Register(()=>{
+    try{fastControl.Start();}catch(SocketException){Console.Error.WriteLine("Fast control port is unavailable. HTTPS fallback remains active.");}
     Console.WriteLine($"Tablet Deck Studio is running. PC editor: http://127.0.0.1:{httpPort}");
     Console.WriteLine($"Tablet encrypted port: {httpsPort}. Tray menu > Exit, or Ctrl+C, closes the companion.");
     if(!args.Contains("--no-tray")&&(args.Contains("--tray")||!args.Contains("--no-browser")))tray=new DesktopTray(panel,desktop,updates,()=>app.Lifetime.StopApplication());

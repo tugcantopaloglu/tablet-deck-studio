@@ -2,35 +2,45 @@ using System.Text.Json.Nodes;
 
 namespace TabletDeck;
 
-public sealed class DeckEngine(DataStore store,ObsClient obs)
+public sealed class DeckEngine
 {
+    private readonly DataStore store;
+    private readonly ObsClient obs;
+    public event Action? Invalidated;
+    private int generation;
+    private long snapshots;
+    private readonly string session=Guid.NewGuid().ToString("N");
+    public DeckEngine(DataStore store,ObsClient obs){this.store=store;this.obs=obs;obs.Changed+=Invalidate;}
     private readonly SemaphoreSlim stateGate=new(1,1), actionGate=new(1,1);
     private JsonObject? cachedState;
     private DateTime cacheTime=DateTime.MinValue;
-    public void Invalidate() { cacheTime=DateTime.MinValue; }
+    public void Invalidate() {Interlocked.Increment(ref generation);cacheTime=DateTime.MinValue;Invalidated?.Invoke();}
     public async Task<JsonObject> State()
     {
         await stateGate.WaitAsync();
         try {
             if(cachedState!=null&&(DateTime.UtcNow-cacheTime).TotalMilliseconds<900) return cachedState.DeepClone().AsObject();
-            var state=new JsonObject { ["obsConnected"]=false,["scene"]="",["streaming"]=false,["recording"]=false,["inputs"]=new JsonObject() };
+            var version=Volatile.Read(ref generation);
+            var state=new JsonObject { ["session"]=session,["revision"]=version,["obsConnected"]=false,["scene"]="",["streaming"]=false,["recording"]=false,["inputs"]=new JsonObject() };
             try {
-                var scenes=await obs.Call("GetSceneList");
-                var stream=await obs.Call("GetStreamStatus");
-                var record=await obs.Call("GetRecordStatus");
+                var sceneTask=obs.Call("GetSceneList");var streamTask=obs.Call("GetStreamStatus");var recordTask=obs.Call("GetRecordStatus");
+                async Task<(string Channel,JsonObject Value)> InputState(string channel,string name) {
+                    try {
+                        if(string.IsNullOrWhiteSpace(name))throw new ArgumentException("Choose an OBS input in Edit.");
+                        var volume=obs.Call("GetInputVolume",new{inputName=name});var mute=obs.Call("GetInputMute",new{inputName=name});
+                        await Task.WhenAll(volume,mute);
+                        return(channel,new JsonObject{["name"]=name,["db"]=(await volume)["inputVolumeDb"]?.DeepClone(),["muted"]=(await mute)["inputMuted"]?.DeepClone(),["available"]=true});
+                    }catch(Exception ex){return(channel,new JsonObject{["name"]=name,["available"]=false,["error"]=ex.Message});}
+                }
+                var mic=InputState("mic",store.Config.MicInput);var desktop=InputState("desktop",store.Config.DesktopInput);
+                await Task.WhenAll(sceneTask,streamTask,recordTask,mic,desktop);
+                var scenes=await sceneTask;var stream=await streamTask;var record=await recordTask;
                 state["obsConnected"]=true;state["scene"]=scenes["currentProgramSceneName"]?.DeepClone();
                 state["streaming"]=stream["outputActive"]?.DeepClone();state["recording"]=record["outputActive"]?.DeepClone();
                 state["scenes"]=scenes["scenes"]?.DeepClone();
-                foreach(var pair in new[]{("mic",store.Config.MicInput),("desktop",store.Config.DesktopInput)}) {
-                    try {
-                        if(string.IsNullOrWhiteSpace(pair.Item2)) throw new ArgumentException("Choose an OBS input in Edit.");
-                        var vol=await obs.Call("GetInputVolume",new{inputName=pair.Item2});
-                        var mute=await obs.Call("GetInputMute",new{inputName=pair.Item2});
-                        state["inputs"]![pair.Item1]=new JsonObject { ["name"]=pair.Item2,["db"]=vol["inputVolumeDb"]?.DeepClone(),["muted"]=mute["inputMuted"]?.DeepClone(),["available"]=true };
-                    } catch(Exception ex) { state["inputs"]![pair.Item1]=new JsonObject{["name"]=pair.Item2,["available"]=false,["error"]=ex.Message}; }
-                }
+                foreach(var input in new[]{await mic,await desktop})state["inputs"]![input.Channel]=input.Value;
             } catch(Exception ex) {state["error"]="OBS unavailable. Enable Tools > WebSocket Server Settings, then check the password in Edit. "+ex.Message;}
-            cachedState=state;cacheTime=DateTime.UtcNow;return state.DeepClone().AsObject();
+            state["revision"]=Interlocked.Increment(ref snapshots);cachedState=state;cacheTime=version==Volatile.Read(ref generation)?DateTime.UtcNow:DateTime.MinValue;return state.DeepClone().AsObject();
         } finally {stateGate.Release();}
     }
     public static bool NeedsConfirm(DeckAction a)=>a.Confirm||a.Kind is "stream" or "record"||a.Steps.Any(NeedsConfirm);
@@ -45,7 +55,7 @@ public sealed class DeckEngine(DataStore store,ObsClient obs)
         ct.ThrowIfCancellationRequested();
         if(SoundpadClient.Supports(a.Kind)) {
             var target=a.Target;
-            if(a.Kind=="soundpadPlay"&&a.SoundpadKey.Length>0)target=SoundpadBindings.Resolve(a,await SoundpadLibrary.Get(true,ct)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            if(a.Kind=="soundpadPlay"&&a.SoundpadKey.Length>0)target=SoundpadBindings.Resolve(a,await SoundpadLibrary.CurrentSounds(ct)).ToString(System.Globalization.CultureInfo.InvariantCulture);
             await SoundpadClient.Execute(a.Kind,target,a.Value,ct);return;
         }
         switch(a.Kind) {

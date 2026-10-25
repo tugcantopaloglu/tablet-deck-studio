@@ -52,7 +52,7 @@ async function api(path,body){
   let data;try{data=await response.json();}catch{throw new Error(`Request failed (${response.status}). Reopen the companion to unlock the PC editor.`);}
   if(!response.ok)throw new Error(data.error||`Request failed (${response.status}).`);return data;
 }
-let pages=[],pageId='',slice=0,state={},connection={},busy=false,refreshing=false,lastBoard=0,editing=false,dirty=false,toastTimer;
+let boardSignature='',boardRevision=0,lastGrid='',pages=[],pageId='',slice=0,state={},connection={},busy=false,refreshing=false,lastBoard=0,editing=false,dirty=false,toastTimer;
 function notice(message,error=false){const n=$('#notice');n.textContent=message;n.classList.toggle('error',error);n.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>n.hidden=true,error?12000:3000);}
 $('#notice').onclick=()=>$('#notice').hidden=true;
 const panel=$('#panel');
@@ -87,14 +87,14 @@ async function trigger(a,button){
   if(a.configured===false){notice('Set this button’s file, app, or shortcut using Edit on the PC.',true);return;}
   let confirmed=false;if(a.confirm){confirmed=await confirmAction(labelFor(a)+'?',a.kind==='stream'?'This changes the stream broadcast in OBS.':'Run this action on your streaming PC?');if(!confirmed)return;}
   busy=true;button.disabled=true;button.classList.add('pressed');
-  try{await api('/api/action',{id:a.id,confirmed});notice(labelFor(a)+' — done');await refresh(true);}catch(error){notice(error.message,true);}finally{busy=false;button.disabled=false;button.classList.remove('pressed');}
+  try{await api('/api/action',{id:a.id,confirmed});notice(labelFor(a)+' — done');if(typeof afterControl==='function')afterControl();else await refresh(true);}catch(error){notice(error.message,true);}finally{busy=false;button.disabled=false;button.classList.remove('pressed');}
 }
 function buildMixer(){
   $('#channels').innerHTML=DOMPurify.sanitize(['mic','desktop'].map(ch=>`<section class="channel" data-channel="${ch}"><div class="channel-title">${icon(ch==='mic'?'mic':'monitor')}<span>${ch==='mic'?'Mic':'Desktop'}</span></div><output class="db" id="db-${ch}">— dB</output><div class="slider-wrap"><input class="fader" id="fader-${ch}" type="range" min="-60" max="0" step="1" value="-12" aria-label="${ch==='mic'?'Microphone':'Desktop audio'} volume in decibels" disabled><div class="scale" aria-hidden="true"><span>0</span><span>−12</span><span>−24</span><span>−36</span><span>−48</span><span>−60</span></div></div><span class="input-error" id="input-error-${ch}" hidden>Set input on PC</span><button class="mute" id="mute-${ch}" disabled>${icon('micOff')}<span>Mute</span></button></section>`).join(''));
   for(const ch of ['mic','desktop']){
-    const fader=$('#fader-'+ch);fader.addEventListener('input',()=>{$('#db-'+ch).textContent=fader.value+' dB';fader.style.setProperty('--level',((Number(fader.value)+60)/60*100)+'%');fader.dataset.dragging='true';});
-    fader.addEventListener('change',async()=>{if(preview){delete fader.dataset.dragging;return;}try{await api('/api/audio',{channel:ch,db:Number(fader.value)});}catch(error){notice(error.message,true);}finally{delete fader.dataset.dragging;await refresh(true);}});
-    $('#mute-'+ch).onclick=async()=>{if(preview)return;try{await api('/api/mute',{channel:ch});await refresh(true);}catch(error){notice(error.message,true);}};
+    const fader=$('#fader-'+ch);fader.addEventListener('input',()=>{$('#db-'+ch).textContent=fader.value+' dB';fader.style.setProperty('--level',((Number(fader.value)+60)/60*100)+'%');fader.dataset.dragging='true';if(!preview&&typeof queueDeckVolume==='function')queueDeckVolume(ch,Number(fader.value)).catch(()=>{});});
+    fader.addEventListener('change',async()=>{if(preview){delete fader.dataset.dragging;return;}try{if(typeof queueDeckVolume==='function')await queueDeckVolume(ch,Number(fader.value));else await api('/api/audio',{channel:ch,db:Number(fader.value)});}catch(error){notice(error.message,true);}finally{delete fader.dataset.dragging;if(typeof afterControl==='function')afterControl();else await refresh(true);}});
+    $('#mute-'+ch).onclick=async()=>{if(preview)return;try{await api('/api/mute',{channel:ch});if(typeof afterControl==='function')afterControl();else await refresh(true);}catch(error){notice(error.message,true);}};
   }
 }
 function updateState(){
@@ -107,18 +107,30 @@ function updateState(){
     $('#input-error-'+ch).hidden=available||!state.obsConnected;$('#input-error-'+ch).title=input?.error||'';
     const mute=$('#mute-'+ch);mute.classList.toggle('is-muted',!!input?.muted);mute.setAttribute('aria-pressed',String(!!input?.muted));mute.innerHTML=DOMPurify.sanitize(icon(input?.muted?'micOff':ch==='mic'?'mic':'speaker')+`<span>${input?.muted?'Unmute':'Mute'}</span>`);
   }
-  if(typeof arranging==='undefined'||!arranging)renderBoard();
+  if(typeof arranging==='undefined'||!arranging){
+    const grid=boardRevision+'|'+pageId+'|'+slice;
+    if(lastGrid!==grid&&(typeof hasActiveHold!=='function'||!hasActiveHold())){lastGrid=grid;renderBoard();}
+    const page=pages.find(page=>page.id===pageId);
+    for(const button of $('#keys').querySelectorAll('.key')){
+      const action=page?.buttons.find(action=>action.id===button.dataset.id);if(!action)continue;
+      const active=action.kind==='scene'&&state.obsConnected&&action.target===state.scene;
+      button.classList.toggle('active',!!active);button.setAttribute('aria-label',labelFor(action)+(active?', active':''));
+      const label=button.querySelector('.key-label');if(label)label.textContent=labelFor(action);
+      let tag=button.querySelector('.active-tag');if(active&&!tag){tag=document.createElement('span');tag.className='active-tag';tag.textContent='ACTIVE';button.appendChild(tag);}else if(!active)tag?.remove();
+    }
+  }
 }
 async function refresh(force=false){
   if(refreshing||preview||(!force&&(document.hidden||panel.open)))return;refreshing=true;
   try{
-    if((typeof arranging==='undefined'||!arranging)&&(force||Date.now()-lastBoard>10000)){const board=await api('/api/board');pages=board.pages;lastBoard=Date.now();}
-    state=await api('/api/state');state.pcConnected=true;updateState();
+    if((typeof arranging==='undefined'||!arranging)&&(force||Date.now()-lastBoard>10000)){const board=await api('/api/board');const signature=JSON.stringify(board.pages);if(signature!==boardSignature){pages=board.pages;boardSignature=signature;boardRevision++;}lastBoard=Date.now();}
+    if(force||typeof hasLiveState!=='function'||!hasLiveState()){const next=await api('/api/state');if(typeof acceptDeckState==='function')acceptDeckState(next);else state=next;}state.pcConnected=true;updateState();
   }catch(error){state={pcConnected:false,obsConnected:false,inputs:{},error:error.message};updateState();if(force)notice(error.message,true);}
   finally{refreshing=false;}
 }
-function connectionForm(){
-  openPanel('Connect your tablet',`<section class="setup"><h3>Your studio, one tap away.</h3><p>Run TabletDeck-Companion.exe on your Windows PC, then choose <strong>Pair tablet</strong>. Enter the address, certificate code, and pairing PIN shown there.</p><div class="form-grid"><label>Connection<select id="pair-mode"><option value="wifi">Wi-Fi — same local network</option><option value="usb">USB — connected with USB-Connect.cmd</option></select></label><label>PC Wi-Fi address<input id="pair-host" placeholder="192.168.1.100" inputmode="decimal" value="${esc(connection.host||'')}"></label><label class="wide">Certificate code from your PC<input id="pair-cert" placeholder="6 groups of 4 letters and numbers" autocomplete="off" autocapitalize="characters" spellcheck="false"></label><label>Six-digit pairing PIN<input id="pair-code" placeholder="123456" inputmode="numeric" maxlength="6" autocomplete="off"></label></div><p class="help">Wi-Fi uses encrypted local-network control. For USB, enable USB debugging on the tablet and run USB-Connect.cmd in the Windows package. Keep the companion running.</p><div class="row"><button id="pair-submit" class="primary">Pair and connect</button>${connection.paired?'<button id="forget-pc" class="danger">Forget this PC</button>':''}</div>${connection.paired?'<div class="row"><button id="switch-transport" class="quiet">Switch to '+(connection.mode==='usb'?'Wi-Fi':'USB')+'</button></div>':''}<p id="pair-error" role="alert" class="help"></p></section>`);
+async function connectionForm(){
+  if(native){try{connection=await nativeRequest('/native/connection',{});}catch{}}
+  openPanel('Connect your tablet',`<section class="setup"><h3>Your studio, one tap away.</h3><p class="help">${connection.fastConnected?'Persistent encrypted control link connected'+(connection.roundTripMs>=0?' · last network round-trip '+Number(connection.roundTripMs).toFixed(1)+' ms':''):'HTTPS fallback · fast control uses TCP 8744; USB needs both tunnel ports'}</p><p>Run TabletDeck-Companion.exe on your Windows PC, then choose <strong>Pair tablet</strong>. Enter the address, certificate code, and pairing PIN shown there.</p><div class="form-grid"><label>Connection<select id="pair-mode"><option value="wifi">Wi-Fi — same local network</option><option value="usb">USB — connected with USB-Connect.cmd</option></select></label><label>PC Wi-Fi address<input id="pair-host" placeholder="192.168.1.100" inputmode="decimal" value="${esc(connection.host||'')}"></label><label class="wide">Certificate code from your PC<input id="pair-cert" placeholder="6 groups of 4 letters and numbers" autocomplete="off" autocapitalize="characters" spellcheck="false"></label><label>Six-digit pairing PIN<input id="pair-code" placeholder="123456" inputmode="numeric" maxlength="6" autocomplete="off"></label></div><p class="help">Wi-Fi uses encrypted local-network control. For USB, enable USB debugging on the tablet and run USB-Connect.cmd in the Windows package. Keep the companion running.</p><div class="row"><button id="pair-submit" class="primary">Pair and connect</button>${connection.paired?'<button id="forget-pc" class="danger">Forget this PC</button>':''}</div>${connection.paired?'<div class="row"><button id="switch-transport" class="quiet">Switch to '+(connection.mode==='usb'?'Wi-Fi':'USB')+'</button></div>':''}<p id="pair-error" role="alert" class="help"></p></section>`);
   $('#pair-mode').value=connection.mode||'wifi';$('#pair-mode').onchange=()=>$('#pair-host').disabled=$('#pair-mode').value==='usb'&&!connection.paired;$('#pair-mode').onchange();
   $('#pair-submit').onclick=async()=>{const button=$('#pair-submit');button.disabled=true;$('#pair-error').textContent='Connecting securely…';try{connection=await nativeRequest('/native/pair',{host:$('#pair-host').value.trim(),mode:$('#pair-mode').value,certificate:$('#pair-cert').value.trim(),code:$('#pair-code').value.trim()});panel.close();await refresh(true);notice('Tablet paired. Your board is ready.');}catch(error){$('#pair-error').textContent=error.message;}finally{button.disabled=false;}};
   if($('#forget-pc'))$('#forget-pc').onclick=async()=>{if(!await confirmAction('Forget this PC?','You will need a new pairing code to reconnect.'))return;connection=await nativeRequest('/native/forget',{});connectionForm();};

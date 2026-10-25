@@ -1,0 +1,43 @@
+{
+  "baselineVersion": "1.3.0",
+  "optimizedVersion": "1.4.0",
+  "qualification": "Loopback Windows fixture; cold HTTPS creates a new TLS connection for each action; state fixture adds 12ms per OBS response. Not Wi-Fi, USB, Android touch, audio output, or a live stream.",
+  "baseline": {
+    "label": "baseline",
+    "qualification": "Loopback Windows fixture; cold HTTPS creates a new TLS connection for each action; state fixture adds 12ms per OBS response. Not Wi-Fi, USB, Android touch, audio output, or a live stream.",
+    "coldTlsAction": {
+      "samples": 100,
+      "p50ms": 7.468,
+      "p95ms": 10.606,
+      "maxms": 15.054
+    },
+    "stateWith12msObsResponse": {
+      "samples": 25,
+      "p50ms": 100.851,
+      "p95ms": 105.498,
+      "maxms": 107.01
+    }
+  },
+  "optimized": {
+    "label": "optimized-1.4",
+    "qualification": "Loopback Windows fixture; cold HTTPS creates a new TLS connection for each action; state fixture adds 12ms per OBS response. Not Wi-Fi, USB, Android touch, audio output, or a live stream.",
+    "coldTlsAction": {
+      "samples": 100,
+      "p50ms": 7.714,
+      "p95ms": 8.976,
+      "maxms": 10.375
+    },
+    "stateWith12msObsResponse": {
+      "samples": 25,
+      "p50ms": 14.969,
+      "p95ms": 21.072,
+      "maxms": 23.49
+    },
+    "persistentTlsAction": {
+      "samples": 100,
+      "p50ms": 0.582,
+      "p95ms": 1.646,
+      "maxms": 3.387
+    }
+  }
+}

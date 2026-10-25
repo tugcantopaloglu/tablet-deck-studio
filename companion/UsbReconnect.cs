@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace TabletDeck;
 
-public sealed class UsbReconnect(DesktopPreferences preferences,int port) : IDisposable
+public sealed class UsbReconnect(DesktopPreferences preferences,int port,int controlPort=8744) : IDisposable
 {
     private readonly CancellationTokenSource stop=new();
     private Task? loop;
@@ -27,7 +27,7 @@ public sealed class UsbReconnect(DesktopPreferences preferences,int port) : IDis
         if(!File.Exists(adb))throw new IOException("ADB is missing; extract the complete Windows package.");
         var selected=SelectDevice(await Run(adb,["devices"]),preferences.Get().UsbSerial);
         var tunnels=await Run(adb,["-s",selected,"reverse","--list"]);
-        if(!tunnels.Split('\n').Any(line=>line.Split((char[]?)null,StringSplitOptions.RemoveEmptyEntries) is var parts&&parts.Length>=3&&parts[^2]=="tcp:"+port&&parts[^1]=="tcp:"+port))await Run(adb,["-s",selected,"reverse","tcp:"+port,"tcp:"+port]);
+        foreach(var target in new[]{port,controlPort})if(!tunnels.Split('\n').Any(line=>line.Split((char[]?)null,StringSplitOptions.RemoveEmptyEntries) is var parts&&parts.Length>=3&&parts[^2]=="tcp:"+target&&parts[^1]=="tcp:"+target))await Run(adb,["-s",selected,"reverse","tcp:"+target,"tcp:"+target]);
         Volatile.Write(ref status,"USB tunnel ready for "+selected+". Rechecked every 5 seconds.");
     }
     private async Task<string> Run(string executable,string[] arguments)
