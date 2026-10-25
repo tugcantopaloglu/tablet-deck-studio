@@ -34,9 +34,11 @@ const paths={
  keyboard:'M2 5h20v14H2zM5 9h1M9 9h1M13 9h1M17 9h1M5 13h1M9 13h1M13 13h1M17 13h1M6 16h12',
  link:'M10 14l4-4M8 16l-2 2a4 4 0 0 1-5-5l5-5a4 4 0 0 1 5 0M13 8l2-2a4 4 0 0 1 6 6l-4 4a4 4 0 0 1-5 0',
  filter:'M3 4h18l-7 9v7l-4 2V13z',
- clock:'M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20M12 6v6l4 2'
+ clock:'M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20M12 6v6l4 2',
+ expand:'M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5',
+ collapse:'M3 8h5V3M21 8h-5V3M8 21v-5H3M16 21v-5h5'
 };
-function icon(name){const filled=['obs','discord','homeFilled'].includes(name);return `<svg viewBox="0 0 24 24" aria-hidden="true"${filled?' class="filled-icon"':''}><path d="${paths[name]||paths.grid}"/></svg>`;}
+function icon(name){const filled=['obs','discord','homeFilled'].includes(name);return `<svg viewBox="-2 -2 28 28" aria-hidden="true"${filled?' class="filled-icon"':''}><path d="${paths[name]||paths.grid}"/></svg>`;}
 const native=typeof window.DeckNative!=='undefined';
 const preview=new URLSearchParams(location.search).get('preview')==='1'&&!native;
 let adminToken=new URLSearchParams(location.hash.slice(1)).get('admin')||sessionStorage.getItem('deckAdmin')||'';
@@ -53,6 +55,23 @@ async function api(path,body){
   if(!response.ok)throw new Error(data.error||`Request failed (${response.status}).`);return data;
 }
 let boardSignature='',boardRevision=0,lastGrid='',pages=[],pageId='',slice=0,state={},connection={},busy=false,refreshing=false,lastBoard=0,editing=false,dirty=false,toastTimer;
+let padFull=false,padSize=24;
+try{const saved=JSON.parse(localStorage.getItem('deckPadView')||'{}');padFull=saved.full===true;padSize=saved.size===40?40:24;}catch{}
+function boardCapacity(){return padFull?padSize:12;}
+function boardColumns(){return getComputedStyle($('#keys')).gridTemplateColumns.split(/\s+/).length;}
+function applyPadView(){
+  document.body.classList.toggle('full-pad',padFull);document.body.classList.toggle('pad-40',padFull&&padSize===40);
+  const toggle=$('#pad-toggle');toggle.setAttribute('aria-pressed',String(padFull));toggle.setAttribute('aria-label',padFull?'Exit full pad':'Full pad');
+  toggle.innerHTML=DOMPurify.sanitize(icon(padFull?'collapse':'expand')+'<span>'+(padFull?'Exit full pad':'Full pad')+'</span>');
+  $('#pad-density').hidden=!padFull;$('#pad-density').value=String(padSize);
+}
+function changePadView(full,size=padSize){
+  if(typeof hasActiveHold==='function'&&hasActiveHold()){applyPadView();notice('Release the held key before changing the layout.');return;}
+  if(typeof arranging!=='undefined'&&arranging){applyPadView();notice('Save or cancel your button order before changing the layout.');return;}
+  const first=slice*boardCapacity();padFull=full;padSize=size===40?40:24;slice=Math.floor(first/boardCapacity());
+  try{localStorage.setItem('deckPadView',JSON.stringify({full:padFull,size:padSize}));}catch{}
+  applyPadView();lastGrid='';renderBoard();
+}
 function notice(message,error=false){const n=$('#notice');n.textContent=message;n.classList.toggle('error',error);n.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>n.hidden=true,error?12000:3000);}
 $('#notice').onclick=()=>$('#notice').hidden=true;
 const panel=$('#panel');
@@ -65,12 +84,12 @@ function labelFor(a){if(a.kind==='stream')return !state.obsConnected?'Stream con
 function renderBoard(){
   if(typeof hasActiveHold==='function'&&hasActiveHold())return;
   const page=pages.find(p=>p.id===pageId)||pages[0];if(!page)return;pageId=page.id;
-  const total=Math.max(1,Math.ceil(page.buttons.length/12));if(slice>=total)slice=total-1;
+  const capacity=boardCapacity(),total=Math.max(1,Math.ceil(page.buttons.length/capacity));if(slice>=total)slice=total-1;
   const keys=$('#keys');keys.replaceChildren();
-  for(const a of page.buttons.slice(slice*12,slice*12+12)){
+  for(const a of page.buttons.slice(slice*capacity,slice*capacity+capacity)){
     const button=document.createElement('button');button.className='key '+(['violet','amber','red','blue'].includes(a.color)?a.color:'blue');button.dataset.id=a.id;
     const active=a.kind==='scene'&&state.obsConnected&&a.target===state.scene;
-    button.classList.toggle('active',active);button.setAttribute('aria-label',labelFor(a)+(active?', active':''));
+    button.classList.toggle('active',active);button.setAttribute('aria-label',labelFor(a)+(active?', active':''));button.title=labelFor(a);
     button.innerHTML=DOMPurify.sanitize(icon(a.icon)+`<span class="key-label">${esc(labelFor(a))}</span>`+(active?'<span class="active-tag">ACTIVE</span>':a.configured===false?'<small>Set up on PC</small>':''));
     button.onclick=()=>trigger(a,button);keys.appendChild(button);
   }
@@ -108,7 +127,7 @@ function updateState(){
     const mute=$('#mute-'+ch);mute.classList.toggle('is-muted',!!input?.muted);mute.setAttribute('aria-pressed',String(!!input?.muted));mute.innerHTML=DOMPurify.sanitize(icon(input?.muted?'micOff':ch==='mic'?'mic':'speaker')+`<span>${input?.muted?'Unmute':'Mute'}</span>`);
   }
   if(typeof arranging==='undefined'||!arranging){
-    const grid=boardRevision+'|'+pageId+'|'+slice;
+    const grid=boardRevision+'|'+pageId+'|'+slice+'|'+boardCapacity();
     if(lastGrid!==grid&&(typeof hasActiveHold!=='function'||!hasActiveHold())){lastGrid=grid;renderBoard();}
     const page=pages.find(page=>page.id===pageId);
     for(const button of $('#keys').querySelectorAll('.key')){
@@ -208,6 +227,7 @@ function previewData(){
   state={obsConnected:true,scene:'Gameplay',streaming:false,recording:false,inputs:{mic:{available:true,db:-6,muted:false},desktop:{available:true,db:-12,muted:false}}};$('#preview-label').hidden=false;updateState();
 }
 async function init(){
+  applyPadView();$('#pad-toggle').onclick=()=>changePadView(!padFull);$('#pad-density').onchange=()=>changePadView(padFull,Number($('#pad-density').value));
   buildMixer();$('#edit-button').innerHTML=DOMPurify.sanitize(icon('settings')+'<span>Edit</span>');$('#edit-button').onclick=()=>typeof arranging!=='undefined'&&arranging?saveArrangement():showEditor();
   $('#pair-button').hidden=native||preview;$('#pair-button').onclick=showPairing;
   $('#connection').onclick=()=>native?connectionForm():state.error?notice(state.error,true):notice('The PC editor controls OBS through its local WebSocket server.');

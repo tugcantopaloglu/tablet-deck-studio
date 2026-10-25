@@ -1,46 +1,38 @@
-Tablet Deck Studio 1.4.1 — verification
-
-PHYSICAL PATCH VERIFICATION
--1.4.1 fixes Windows-style APK asset entries; the build now checks forward-slash names and all required UI assets before signing.
--APK versionCode6/version1.4.1, original signing key, signatures v2/v3 verified.
--Installed and launched on a physical Android16 tablet: bundled UI, USB pairing, twelve-button board, Wi-Fi/USB switching, Windows app-session listing, successful Applause and Stop sounds responses, and background/resume reconnection verified.
--Native heartbeat samples: USB3.9ms/10.5ms, Wi-Fi6.5ms. Individual observations only; no end-to-end latency claim.
--Snyk Code CLI:0 errors,0 warnings, same existing JavaScriptEnabled informational note. Requested snyk_code_scan tool remains unavailable.
--See docs/LIVE-TEST.md for scope, the packaging defect, and remaining hardware/integration checks.
-
-The sections below preserve the 1.4.0 baseline results. They were not all rerun for this packaging-only patch.
+Tablet Deck Studio 1.5.0 — verification
 
 BUILD
-- Windows companion: .NET10 self-contained x64 Release, zero compiler warnings/errors.
-- Windows installer: self-contained x64 console setup with a checksummed embedded ZIP.
-- Android: app.tabletdeck.studio, versionCode5, version1.4.0, minSDK26, targetSDK35.
-- APK Signature Schemes v2/v3 verify; original signing certificate retained.
-- Android permissions: INTERNET and WAKE_LOCK. The latter supports a foreground Wi-Fi radio lock, released on pause/USB/unpair. No microphone/location permission; no backups or cleartext traffic.
+- Windows companion and setup: self-contained .NET10 x64 Release builds.
+- Android: app.tabletdeck.studio, versionCode7, version1.5.0, minSDK26/targetSDK35.
+- APK signatures v2/v3 verify with the original signing certificate.
+- Bundled asset paths are checked for Windows separators and missing UI files before signing.
+- Android permissions remain INTERNET and WAKE_LOCK; no microphone/location permission, backup, or cleartext network traffic.
 
-TESTS — COMMAND LINE ONLY
--26 existing companion self-tests pass.
--32 safety self-tests pass, including hold ownership/expiry and rejection of an old lease releasing a newer hold, Soundpad binding/remapping, volume/input validation, USB selection, startup quoting, and update fixtures.
--28 JavaScript/API checks pass, including all shipped script syntax, hold lifecycle logic, delayed responses, desktop/admin boundaries, and configuration validation.
--33 OBS/API integration checks pass with a synthetic OBS WebSocket v5 server. Browser tests deliberately skipped.
--27 fast-link/API/logic checks pass: paired-device-only TLS, rejection of admin credentials/routes and arbitrary action IDs, stream confirmation, safe OBS/app volume, hold validation, duplicate-ID refusal, fragmented frames, non-meter event subscriptions, immediate external scene updates, authenticated PC event stream, slow-request isolation, oversized-frame rejection, native no-replay behavior, offline OBS state, revocation, stale-state rejection, and latest-value slider coalescing.
--9 tests execute the production platform-only Java FastLink class on the desktop JDK: pinned TLS, action ACK, pushed state, pause, disconnected send refusal, resume/reconnect, new requests after reconnect, and pin mismatch refusal. Android Activity/WebView/radio code was not executed on a device.
--6 isolated installer checks pass: payload hashes, install, update/backups, owned-file uninstall, untracked-file preservation/unmanaged-folder refusal, and unchanged actual install location.
-- Total:161 checks. No browser, tray UI, streaming app, or Android app was opened. Fake keyboard sinks/protocol fixtures were used; no real shortcut injection.
+AUTOMATED CHECKS — 229 TOTAL
+-26 companion self-tests.
+-32 safety checks for hold leases/ownership, Soundpad identities/remapping, native gain validation, USB device selection, desktop defaults, startup quoting, and update fixtures.
+-28 command-line JavaScript/API checks.
+-44 original OBS/API/browser integration checks, using synthetic authenticated OBS. The browser portion deliberately disables SSE to exercise HTTPS polling fallback; the fast suite separately covers pushed state.
+-31 library, app-mixer, layout/reordering, safe rendering, and Soundpad browser checks with fixtures.
+-27 persistent TLS/API/state/slider checks.
+-9 production Java FastLink transport checks running on the desktop JDK.
+-26 full-pad checks: 12/24/40 groups, exact pagination, locally persisted view, arrangement/hold guards, keyboard and cross-group movement, all authored icon bounds, icon/label/badge fit, active-badge separation, exit visibility, and touch targets at four viewport sizes.
+-6 isolated installer checks: payload hashes, install/update/backup, owned-file uninstall, preservation/refusal, and unchanged actual installation location.
 
-PERFORMANCE FIXTURE
--1.3 cold TLS action:100 samples, median7.468ms, p9510.606ms.
--1.4 persistent TLS action:100 samples, median0.582ms, p951.646ms.
-- State fetch with nominal12ms per synthetic OBS response: median100.851ms before,14.969ms after;25 samples each.
-- These are single-PC loopback/software measurements, not physical Wi-Fi, USB, Android touch, audible playback, or broadcast latency. Latency-Results.json and docs/PERFORMANCE.md include method/qualification.
+PHYSICAL REHEARSAL
+- APK installed/updated and paired with a physical Android16 tablet over USB.
+- USB/Wi-Fi switching, persistent pinned connections, foreground Wi-Fi lock, background/resume reconnection, and sound-action responses verified. The user confirmed audible bundled applause playback.
+- Real OBS: existing authenticated WebSocket connected; real scenes imported; tablet scene switch and restoration passed; microphone mute/unmute passed and original state restored. Desktop input matched its actual OBS name. No stream or recording was started.
+- Real Discord: configured app launch succeeded; Windows playback-session mute changed and restored. Microphone mute/deafen keybinds, voice listener audio, and screen sharing were not exercised.
+- Full-pad controls loaded on the tablet, selected the 40-key layout, retained twelve configured actions in eight columns, hid the mixer, and retained the preference across reopening. Full 40-action coverage uses the isolated synthetic browser fixture.
+- Soundpad4.0.35: real named-pipe library query returned a valid empty list; real Stop Soundpad command succeeded. A Stop Soundpad key was added to the user's Sounds page. Playback awaits a sound being added to the empty Soundpad library.
 
 SECURITY
-The requested snyk_code_scan tool was unavailable. Snyk Code CLI was run and rescanned.
-- Final:0 error findings,0 warning findings,1 existing informational java/JavaScriptEnabled note.
-- Persistent control uses TLS1.2+ and the same full certificate pin/device credential. No admin routes or arbitrary PC targets are allowed. Bounded frames, authentication limits, command concurrency, duplicate-ID rejection, and revocation checks are enforced.
-- Lost commands are not automatically replayed. Hold leases retain their disconnect safeguard.
-- No additional Android dependencies. npm/transitive NuGet audits report no known vulnerable packages at build time.
-- No runtime credentials, device records, private certificates, or signing material are included in releases.
+- The requested snyk_code_scan tool was unavailable; Snyk Code CLI was used and rescanned after changes.
+- Final scan:0 errors,0 warnings, same existing informational JavaScriptEnabled note. Initial fixture-only HTTP/XSS notes were removed by replacing its local web server with browser-intercepted, preloaded static assets; it opens no network listener or certificate exception.
+- No new runtime dependencies. Existing npm/NuGet dependencies are unchanged.
+- No runtime configuration, OBS passwords, paired-device records, private certificates, signing keys, personal device identifiers, or local test credentials are shipped.
 
-NOT VERIFIED ON HARDWARE / GUI
-Actual Android touch/rendering/backgrounding and Wi-Fi lock behavior, router/radio jitter, physical USB/ADB reconnection, Windows tray/login startup, live OBS/Soundpad/Voicemeeter/Discord operation, app launch duration, audio device buffering, and end-to-end streams remain unverified. Prior browser captures are design references from earlier releases, not new 1.4 rendering evidence.
-Windows executables are unsigned. Update both components and USB helpers; Wi-Fi fast control also needs private-network TCP8744. Zero total latency cannot be guaranteed. Rehearse on your devices before broadcasting.
+LIMITS
+Sparse physical heartbeat samples from 1.4.1 were USB3.9–10.5ms and Wi-Fi6.5ms; they are individual connection observations, not medians, percentiles, touch-to-sound/scene results, or guarantees. The earlier PC fixture benchmark remains separately qualified in docs/PERFORMANCE.md.
+Windows tray/login startup, physical cable unplug/replug, long-duration radio stability, hold shortcut injection, Voicemeeter hardware, real broadcast/record/replay, Soundpad microphone routing, and Discord listener/screen-share audio require further rehearsal. Android checks use the accessibility hierarchy; the secure-window flag remains enabled, so fixture screenshots do not claim to be tablet pixel captures. Windows executables remain unsigned.
+See docs/FULL-PAD.md and docs/LIVE-TEST.md for methods and setup.

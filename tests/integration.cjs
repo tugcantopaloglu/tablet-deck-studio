@@ -119,6 +119,9 @@ async function run(){
  const errors=[];
  const page=await browser.newPage({viewport:{width:1536,height:1024},deviceScaleFactor:1});
  page.on('pageerror',error=>errors.push(error.message));
+ // This baseline UI suite exercises the polling fallback. The fast suite covers
+ // authenticated pushed state; disable SSE here so a poll failure is meaningful.
+ await page.route('**/api/events',route=>route.abort());
  await page.goto(base+'/#admin='+session.token);await page.locator('.key').first().waitFor();
  check(await page.locator('.key').count()===12,'Studio UI renders 12 real buttons');
  await page.getByRole('button',{name:'Just chatting',exact:true}).click();await page.waitForTimeout(300);check(scene==='Just chatting','UI click reaches OBS through companion');
@@ -141,12 +144,12 @@ async function run(){
  for(const [name,width,height] of [['desktop',1536,1024],['tablet',1280,800],['small',1024,600],['mobile',390,844]]){await page.setViewportSize({width,height});await page.screenshot({path:path.join(screenshotDir,'actual-connected-'+name+'.png'),fullPage:true});}
  await page.setViewportSize({width:1280,height:800});await page.screenshot({path:path.join(screenshotDir,'connected-test.png'),fullPage:true});
  await page.getByRole('button',{name:'Record',exact:true}).click();await page.getByRole('button',{name:'Cancel',exact:true}).click();check(!recording,'UI cancellation does not change recording state');
- await page.context().route('**/api/state',route=>route.abort());await page.waitForFunction(()=>document.querySelector('#obs-status').textContent==='PC disconnected');
+ await page.route('**/api/state',route=>route.abort());await page.waitForFunction(()=>document.querySelector('#obs-status').textContent==='PC disconnected');
  check(await page.locator('.key.active').count()===0&&await page.locator('#stream-status').innerText()==='Stream unknown','connection loss clears active scene and stream state');
  await page.locator('#notice').evaluate(e=>e.hidden=true);
  for(const [name,width,height] of [['desktop',1536,1024],['tablet',1280,800],['small',1024,600],['mobile',390,844]]){await page.setViewportSize({width,height});await page.screenshot({path:path.join(screenshotDir,'actual-disconnected-'+name+'.png'),fullPage:true});}
  await page.setViewportSize({width:1280,height:800});await page.screenshot({path:path.join(screenshotDir,'disconnected-test.png'),fullPage:true});
- await page.context().unroute('**/api/state');
+ await page.unroute('**/api/state');
  check(errors.length===0,'no browser JavaScript errors');
  await browser.close();
  const devices=(await request('/api/admin/info')).data.devices;const tablet=devices.filter(d=>d.name==='Test tablet').at(-1);

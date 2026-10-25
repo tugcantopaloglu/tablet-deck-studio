@@ -1,5 +1,16 @@
 # Physical Android test — 2026-10-25
 
+## Version 1.5 follow-up
+
+- The user confirmed audible output after the tablet triggered the bundled applause sound over USB.
+- Real OBS was launched minimized and authenticated with its existing local WebSocket configuration. The PC was offline for broadcasting: neither streaming nor recording. The existing three scenes were imported into the board, and the desktop input was matched to its actual OBS name.
+- Tapping scene keys on the physical tablet switched to another real OBS scene and restored the original. Mic mute and unmute both changed the real OBS input, restoring its original unmuted state.
+- The configured Discord app-launch action succeeded. The Windows audio API changed a real Discord playback session's mute state and restored its original value. This does not verify Discord microphone mute/deafen shortcuts, voice transmission, or screen sharing.
+- APK 1.5.0/versionCode7 installed as an update and preserved pairing. Full pad entered on the physical tablet, selected the 40-button layout, displayed the existing twelve actions across eight columns, and hid the mixer. An isolated browser fixture supplies actual 24/40-action coverage.
+- After Soundpad's first-run setup, the real 4.0.35 named-pipe library query succeeded with an empty list, and the Stop Soundpad command succeeded. A Stop Soundpad key was added to the user's Sounds page. Playback awaits a sound in the empty library; automatic demo import was rejected by Soundpad as “File does not exist.” No microphone routing was enabled for this test.
+
+The historical 1.4.1 report below records the state before this follow-up; its earlier OBS launch restriction was resolved by the user's explicit request to continue those tests.
+
 Version 1.4.1 was installed on a physical Android 16 tablet (model 25079RPDCG). The Windows PC used Ethernet to the same local router for the Wi-Fi test. Testing used ADB and Android's accessibility hierarchy, without remote WebView debugging or disabling the secure-window flag. Device serials, local addresses, pairing credentials, and runtime files are excluded from this report.
 
 ## Results

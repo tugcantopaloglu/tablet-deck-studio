@@ -8,6 +8,7 @@
     "test:headless": "node headless.cjs",
     "test:installer": "node installer.cjs",
     "test:fast": "node fast.cjs",
+    "test:layout": "node layout.cjs",
     "benchmark:latency": "node latency.cjs"
   },
   "keywords": [],
