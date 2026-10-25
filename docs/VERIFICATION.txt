@@ -1,4 +1,4 @@
-Tablet Deck Studio 1.0.0 — verification
+Tablet Deck Studio 1.1.0 — verification
 
 Built for Windows10/11 x64 and Android8.0+ (minSDK26, targetSDK35).
 
@@ -7,12 +7,12 @@ BUILD
 - Windows package: .NET10 self-contained single-file executable with external UI/sound assets.
 - Android compilation and D8 dex conversion: success.
 - APK signing verification: APK Signature Scheme v2 and v3 valid.
-- Android package: app.tabletdeck.studio, versionCode1.
+- Android package: app.tabletdeck.studio, versionCode2, signed with the same private key as 1.0.0.
 - Only Android INTERNET permission is requested. Backups are disabled. Cleartext network traffic is disabled.
 
 TESTS
--11 companion self-tests pass, including shipped sound-asset presence, configuration validation, hotkey parsing, OBS authentication, confirmation propagation, and Windows WAV play/stop using silence.
--40 integration checks pass against the real companion and a mock OBS WebSocket v5 service.
+-20 companion self-tests pass, including Soundpad routing, allowlisted commands, input rejection, named-pipe status framing, fragmented responses, and rejection statuses, plus the original companion checks.
+-44 integration checks pass against the real companion and a mock OBS WebSocket v5 service. New checks cover Soundpad configuration, board delivery, command-injection rejection, and the editor output field.
 - Checks cover TLS pairing, one-use PINs, five-attempt lockout, revoked credentials, local editor isolation, OBS state/actions, scene buttons, input volumes/mute, source/filter/media controls, sequential macros, editor save, cancelled recording confirmation, truthful disconnect state, browser errors, overflow, and tablet touch targets.
 - Browser rendering inspected at1536x1024,1280x800,1024x600, and390x844. Android-native rendering was not captured.
 - Windows USB helper correctly reports that no authorized Android device is connected.
@@ -27,6 +27,7 @@ The requested snyk_code_scan tool was not exposed in this session. Snyk Code CLI
 - Secrets and pairing records are generated on the user's PC at runtime, not included in this ZIP.
 
 NOT YET VERIFIED ON HARDWARE
+Soundpad remote control is verified with an isolated named-pipe fixture, not a live Soundpad installation. Actual Soundpad playback, Discord keybind delivery, Discord screen sharing, and end-to-end audio routing require a rehearsal on the user's setup.
 No Android tablet was connected during creation. APK installation, Android WebView behavior, tablet audio/touch/rotation, actual Wi-Fi routing, and physical USB connection still require a test on your device. OBS protocol tests used fixture data, not a live broadcast. The USB helper uses official ADB reverse support; its full tablet-to-PC path was not exercised here.
 
 This app implements the documented streaming controls. It does not reproduce Elgato's proprietary plugin marketplace or every third-party integration.

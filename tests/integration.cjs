@@ -65,6 +65,13 @@ async function run(){
  check((await request('/api/admin/config',{config,replacePassword:true})).status===200,'local configuration saves');
  const invalid=structuredClone(config);invalid.pages[0].buttons[8].target='cmd.exe';
  check((await request('/api/admin/config',{config:invalid,replacePassword:true})).status===400,'server rejects relative executable paths');
+ const soundpadConfig=structuredClone(config);soundpadConfig.pages[4].buttons=[{id:'soundpad-test',label:'Soundpad mic',kind:'soundpadPlay',target:'3',value:'mic',icon:'speaker',color:'amber',confirm:false,steps:[]}];
+ check((await request('/api/admin/config',{config:soundpadConfig,replacePassword:true})).status===200,'Soundpad action configuration saves');
+ const soundpadBoard=(await request('/api/board')).data;
+ check(soundpadBoard.pages[4].buttons[0].kind==='soundpadPlay'&&soundpadBoard.pages[4].buttons[0].configured,'Soundpad control reaches the tablet board');
+ soundpadConfig.pages[4].buttons[0].target='3);DoStopSound()';
+ check((await request('/api/admin/config',{config:soundpadConfig,replacePassword:true})).status===400,'Soundpad command text rejected at API boundary');
+ await request('/api/admin/config',{config,replacePassword:true});
  let pairing=(await request('/api/admin/pairing',{})).data;
  for(let i=0;i<5;i++)await remote('/api/pair',{code:'000000',name:'attacker'},'',info.fingerprint);
  check((await remote('/api/pair',{code:pairing.code,name:'locked-out'},'',info.fingerprint)).status===403,'pairing locks after five failed attempts');
@@ -112,6 +119,9 @@ async function run(){
  await page.getByRole('button',{name:'Scenes',exact:true}).click();check(await page.locator('.key').count()===4,'page navigation changes buttons');
  await page.getByRole('button',{name:'Main',exact:true}).click();
  await page.getByRole('button',{name:'Edit',exact:true}).click();await page.getByLabel('Mic input name').fill('Mic/Aux');await page.getByRole('button',{name:'Save changes',exact:true}).click();await page.waitForTimeout(250);check(!(await page.locator('#panel').isVisible()),'PC editor saves and closes');
+ await page.getByRole('button',{name:'Edit',exact:true}).click();await page.locator('#action-kind').selectOption('soundpadPlay');
+ check(await page.getByLabel('Soundpad output (default, both, mic, speakers)',{exact:true}).isVisible(),'Soundpad output control is editable');
+ await page.locator('#action-kind').selectOption('scene');await page.getByRole('button',{name:'Save changes',exact:true}).click();
  const screenshotDir=path.join(root,'screenshots');fs.mkdirSync(screenshotDir,{recursive:true});
  const previewPage=await browser.newPage({viewport:{width:1536,height:1024},deviceScaleFactor:1});previewPage.on('pageerror',error=>errors.push(error.message));await previewPage.goto(base+'/?preview=1');await previewPage.evaluate(()=>document.fonts.ready);
  await previewPage.screenshot({path:path.join(screenshotDir,'hero-repro.png'),fullPage:true});

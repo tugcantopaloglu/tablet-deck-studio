@@ -63,7 +63,7 @@ app.Use(async (ctx,next)=>{
     }
 });
 app.UseDefaultFiles();app.UseStaticFiles();
-app.MapGet("/api/board",()=>new {pages=store.Config.Pages.Select(p=>new {p.Id,p.Name,p.Icon,buttons=p.Buttons.Select(a=>new{a.Id,a.Label,a.Kind,a.Icon,a.Color,confirm=DeckEngine.NeedsConfirm(a),target=a.Kind is "scene" or "preview"?a.Target:"",configured=!(a.Kind is "app" or "sound" or "url" or "hotkey")||a.Target.Length>0})})});
+app.MapGet("/api/board",()=>new {pages=store.Config.Pages.Select(p=>new {p.Id,p.Name,p.Icon,buttons=p.Buttons.Select(a=>new{a.Id,a.Label,a.Kind,a.Icon,a.Color,confirm=DeckEngine.NeedsConfirm(a),target=a.Kind is "scene" or "preview"?a.Target:"",configured=!(a.Kind is "app" or "sound" or "url" or "hotkey" or "soundpadPlay")||a.Target.Length>0})})});
 app.MapGet("/api/state",()=>engine.State());
 app.MapPost("/api/action",async (ActionRequest req)=>{
     var action=store.Config.Pages.SelectMany(p=>p.Buttons).FirstOrDefault(a=>a.Id==req.Id)??throw new ArgumentException("This button no longer exists. Reload the board.");

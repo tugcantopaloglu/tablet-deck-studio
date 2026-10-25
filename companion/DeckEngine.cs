@@ -43,6 +43,7 @@ public sealed class DeckEngine(DataStore store,ObsClient obs)
     private async Task Run(DeckAction a,CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
+        if(SoundpadClient.Supports(a.Kind)) {await SoundpadClient.Execute(a.Kind,a.Target,a.Value,ct);return;}
         switch(a.Kind) {
             case "scene": await obs.Call("SetCurrentProgramScene",new{sceneName=a.Target});break;
             case "preview": await obs.Call("SetCurrentPreviewScene",new{sceneName=a.Target});break;

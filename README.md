@@ -6,7 +6,7 @@ Turn an Android tablet into a customizable control board for a Windows streaming
 
 ![Studio layout with twelve action keys and two audio faders — illustrative design preview](docs/images/studio-preview.png)
 
-The Studio layout has twelve large buttons beside two audio faders and five page tabs. The screenshot shows illustrative state, not a live broadcast. The initial release passes **51 automated checks**; physical tablet installation, on-device WebView behavior, actual Wi-Fi routing, and USB transport still need a hardware rehearsal.
+The Studio layout has twelve large buttons beside two audio faders and five page tabs. Version **1.1.0** adds direct Soundpad control and a Discord setup guide. The screenshot shows illustrative state, not a live broadcast. The release passes **64 automated checks**; physical tablet, Soundpad audio, Discord sharing, actual Wi-Fi, and USB still need a rehearsal on your setup.
 
 ## Features
 
@@ -17,6 +17,8 @@ The Studio layout has twelve large buttons beside two audio faders and five page
 | Broadcast | Streaming, recording, replay-buffer save, virtual camera, Studio Mode |
 | Sources | Scene-source visibility, source-filter toggle, media restart/stop |
 | Windows | App/shortcut launching, websites, keyboard shortcuts, volume/media keys |
+| Soundpad | Play by index to mic/speakers/both, stop, pause/resume, next, previous |
+| Discord and other tools | Matching app keybinds; Discord mute/deafen/screen-share setup documented |
 | Macros | Multiple steps, delays, confirmation, stop on first error |
 | Customization | Labels, icons, colors, button order, multiple pages, JSON import/export |
 | Connection | Encrypted local Wi-Fi or an ADB reverse tunnel over a USB data cable |
@@ -29,6 +31,7 @@ The Studio layout has twelve large buttons beside two audio faders and five page
 - [USB](#usb)
 - [Customize the board](#customize-the-board)
 - [Action reference](#action-reference)
+- [Soundpad and Discord](#soundpad-and-discord)
 - [Examples](#examples)
 - [Backups and updates](#backups-and-updates)
 - [Troubleshooting](#troubleshooting)
@@ -39,11 +42,12 @@ The Studio layout has twelve large buttons beside two audio faders and five page
 
 - Android 8.0 or newer, with an up-to-date Android System WebView / Chrome. Landscape tablet is the primary layout.
 - Windows 10 or 11, x64. The companion includes its .NET runtime; Node, Python, Android Studio, and .NET installation are not required to use it.
-- OBS Studio 28 or newer with WebSocket server enabled. Earlier OBS versions require a compatible WebSocket v5 plugin.
+- For OBS controls: OBS Studio 28 or newer with WebSocket server enabled. Soundpad and other non-OBS actions also work with OBS closed.
+- For Soundpad actions: Soundpad installed and running on the Windows PC under the same account as the companion.
 
 ## First run
 
-Download `TabletDeck-Studio-1.0.zip` from [Releases](https://github.com/tugcantopaloglu/tablet-deck-studio/releases/latest) for the complete package, or download `TabletDeck-Studio.apk` separately if you only need the Android installer.
+Download `TabletDeck-Studio-1.1.zip` from [Releases](https://github.com/tugcantopaloglu/tablet-deck-studio/releases/latest) for the complete package, or download `TabletDeck-Studio.apk` separately if you only need the Android installer.
 
 ```text
 TabletDeck-Studio/
@@ -65,6 +69,8 @@ TabletDeck-Studio/
 4. In the companion’s browser panel, choose Edit. Enter the OBS password and port. Choose Save changes. Reopen Edit → Find OBS inputs to choose your exact microphone and desktop audio input names. Import OBS scenes to add real scene names to the Scenes page. The Main page starts with example scene names; change them to match your OBS scenes.
 5. Install TabletDeck-Studio.apk on the tablet. You can copy the APK to the tablet and allow installation from that file source, or enable USB debugging and run Windows/Install-APK.cmd.
 6. In the Windows panel choose Pair tablet, then follow either Wi-Fi or USB below.
+
+For Soundpad or Discord-only use, skip the OBS setup steps. An OBS disconnected indicator is expected while OBS is closed; Soundpad, app launches, and keyboard shortcuts remain available.
 
 The Android package has a personal signing certificate, not a Play Store identity. Windows binaries are unsigned and may trigger SmartScreen. The APK is signed with APK Signature Schemes v2 and v3. Verify the provided SHA256SUMS.txt if you transfer the files.
 
@@ -117,7 +123,7 @@ Actions:
 - Switch OBS scene or set a Studio Mode preview scene; take the preview transition.
 - Play WAV, MP3, or WMA on the PC; stop all sounds started by the deck. Two original synthesized demo sounds are included.
 - Launch an existing Windows .exe or .lnk using an absolute path, or open an HTTP/HTTPS website. There is no arbitrary remote shell command facility.
-- Send hotkeys such as CTRL+SHIFT+M, ALT+TAB, F13, PLAYPAUSE, NEXTTRACK, PREVTRACK, VOLUMEUP, VOLUMEDOWN, or VOLUMEMUTE. Keyboard shortcuts go to the foreground application; Windows can block injection into elevated apps.
+- Send hotkeys such as CTRL+SHIFT+M, ALT+TAB, F13, PLAYPAUSE, NEXTTRACK, PREVTRACK, VOLUMEUP, VOLUMEDOWN, or VOLUMEMUTE. Keyboard shortcuts reach the foreground application or a configured global keybind in a running app; Windows can block injection into elevated apps.
 - Mute an OBS input; toggle a scene source or source filter; restart or stop an OBS media input.
 - Toggle recording, streaming, Studio Mode, or the virtual camera; save an enabled OBS replay buffer. Streaming and recording always ask for confirmation, including inside macros.
 - Run multiple steps in sequence. Each macro step has an action, target, and optional source/filter/media value. Delay steps use milliseconds (0–10000). Steps stop at the first error. Execution has a 45-second budget; changes already made are not rolled back.
@@ -153,8 +159,22 @@ Scene, input, source, and filter names must match OBS exactly.
 | Toggle virtual camera / Studio Mode | None | Feature must be available in OBS |
 | Run multiple actions | Steps in the editor | Executes in order |
 | Delay | Milliseconds, 0–10000 | Usually a macro step |
+| Soundpad · play sound | Positive index from All sounds | Output: mic, speakers, both, or default |
+| Soundpad · stop / pause / next / previous | None | Keep Soundpad running |
 
 Supported shortcuts include letters, digits, F1–F24, CTRL, SHIFT, ALT, WIN, ENTER, TAB, ESC, SPACE, BACKSPACE, DELETE, arrow keys, and the volume/media keys listed above. Join simultaneous keys with +.
+
+## Soundpad and Discord
+
+Yes, the board can be used with **Discord desktop streams and calls**, as well as OBS. See the detailed [integration guide](docs/INTEGRATIONS.md).
+
+**Soundpad:** keep it running on the PC, add a **Soundpad · play sound** button, and enter the index from its All sounds category. Use output **mic** to send an effect through Soundpad's configured microphone, **both** to hear it locally as well, or **speakers** for local-only playback. Dedicated stop, pause/resume, next, and previous controls do not need keyboard focus or an executable path.
+
+**Discord controls:** configure Toggle Mute, Toggle Deafen, or Toggle Screen Share in Discord's desktop **User Settings → Keybinds**, then create matching **Send keyboard shortcut** buttons here. Leave Discord's keybind editor before testing. The share picker or stream settings may still need confirmation in Discord. These are shortcut controls, not live Discord-state indicators. The board's Start stream button controls OBS, not Discord.
+
+**Discord audio:** select the same microphone in Soundpad and Discord. If effects are filtered, follow [Soundpad's Discord FAQ](https://www.leppsoft.com/soundpad/help/faq). Normal PC playback alone does not send audio into Discord's microphone. Application-share audio and voice audio are separate paths; avoid capturing the same effect twice.
+
+**Other stream tools:** use a tool's supported global keybinds, foreground shortcuts, app launches, or macros. There is no automatic integration with every tool or plugin. The current shortcut action sends a tap, so use toggle actions rather than a hold-to-talk workflow.
 
 ## Examples
 

@@ -118,7 +118,8 @@ public sealed class DataStore
     private static void ValidateAction(DeckAction a,int depth)
     {
         string[] kinds=["scene","preview","transition","sound","stopSounds","app","url","hotkey","mute","source","filter","media","record","stream","replay","virtualCamera","studioMode","macro","delay"];
-        if(depth>3||!kinds.Contains(a.Kind)||a.Label.Length is <1 or >60||a.Target.Length>2048||a.Value.Length>1024||a.Steps.Count>30) throw new ArgumentException("Invalid button or macro (maximum 30 steps, 3 nesting levels).");
+        if(depth>3||(!kinds.Contains(a.Kind)&&!SoundpadClient.Supports(a.Kind))||a.Label.Length is <1 or >60||a.Target.Length>2048||a.Value.Length>1024||a.Steps.Count>30) throw new ArgumentException("Invalid button or macro (maximum 30 steps, 3 nesting levels).");
+        if(SoundpadClient.Supports(a.Kind)&&!(a.Kind=="soundpadPlay"&&a.Target.Length==0)) SoundpadClient.BuildCommand(a.Kind,a.Target,a.Value);
         if(a.Kind=="app" && a.Target.Length>0 && (!Path.IsPathFullyQualified(a.Target)||!new[]{".exe",".lnk"}.Contains(Path.GetExtension(a.Target).ToLowerInvariant()))) throw new ArgumentException("App actions require an absolute .exe or .lnk path.");
         if(a.Kind=="url"&&a.Target.Length>0&&(!Uri.TryCreate(a.Target,UriKind.Absolute,out var u)||u.Scheme is not ("https" or "http"))) throw new ArgumentException("Website actions require http:// or https://.");
         if(a.Kind=="sound"&&a.Target.Length>0&&(!Path.IsPathFullyQualified(a.Target)||!new[]{".wav",".mp3",".wma"}.Contains(Path.GetExtension(a.Target).ToLowerInvariant()))) throw new ArgumentException("Sound actions require an absolute WAV, MP3, or WMA file path.");

@@ -20,7 +20,7 @@ dotnet publish .\companion\TabletDeck.csproj -c Release -r win-x64 --self-contai
 .\dist\Windows\TabletDeck-Companion.exe --self-test
 ```
 
-Keep the published `wwwroot` and `Sounds` folders beside the executable. Eleven self-tests cover defaults, included sound assets, validation, key mapping, OBS authentication, confirmation propagation, and silent Windows WAV playback/stop.
+Keep the published `wwwroot` and `Sounds` folders beside the executable. Twenty self-tests cover defaults, included sound assets, validation, key mapping, OBS authentication, confirmation propagation, and silent Windows WAV playback/stop.
 
 Run the companion without `--self-test` to open the PC editor. Developer options are `--no-browser`, `--data-dir PATH`, `--http-port NUMBER`, and `--https-port NUMBER`. The shipping Android app uses HTTPS port 8743; alternate ports are for isolated development tests.
 
@@ -71,7 +71,7 @@ $output = Join-Path (Get-Location) 'dist'
 
 The script compiles resources and Java, converts classes to DEX, packages the bundled interface, aligns the APK, signs it, and verifies the result. Output: `dist/TabletDeck-Studio.apk`.
 
-App identity: `app.tabletdeck.studio`, version `1.0.0`, version code `1`, minimum SDK `26`, target SDK `35`. Increment version code for later releases.
+App identity: `app.tabletdeck.studio`, version `1.1.0`, version code `2`, minimum SDK `26`, target SDK `35`. Increment version code for later releases.
 
 On first build, the script generates `toolchain/signing/tabletdeck.jks` and a random password file. Keep these private and preserve them to update your own APK installation later. Git ignores them. The original release's private signing key is not in this repository; a newly generated key produces a different identity and cannot update the original APK without uninstalling it first.
 
@@ -108,7 +108,7 @@ $env:TABLETDECK_CHROME = 'C:\Path\To\chrome.exe'
 npm test --prefix .\tests
 ```
 
-The 40 checks cover pairing, lockout, revocation, editor isolation, OBS actions, audio, macros, saves, cancellation, disconnect state, browser errors, and layout constraints. Results and screenshots are written to ignored `.test-output`. Close the test companion using Ctrl+C afterward.
+The 44 checks cover pairing, lockout, revocation, editor isolation, OBS actions, audio, macros, saves, cancellation, disconnect state, browser errors, and layout constraints. Results and screenshots are written to ignored `.test-output`. Close the test companion using Ctrl+C afterward.
 
 Never publish `.test-output/data`: it contains runtime editor/device credentials even though the OBS service and its password are test fixtures. Passing this suite does not verify physical Android installation, WebView, Wi-Fi, or USB operation.
 
