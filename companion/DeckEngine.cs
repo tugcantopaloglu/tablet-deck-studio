@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using System.Text.Json;
 
 namespace TabletDeck;
 
@@ -10,8 +11,9 @@ public sealed class DeckEngine
     private int generation;
     private long snapshots;
     private readonly string session=Guid.NewGuid().ToString("N");
-    public DeckEngine(DataStore store,ObsClient obs){this.store=store;this.obs=obs;obs.Changed+=Invalidate;}
-    private readonly SemaphoreSlim stateGate=new(1,1), actionGate=new(1,1);
+    public ActionExecution Execution {get;}=new();
+    public DeckEngine(DataStore store,ObsClient obs){this.store=store;this.obs=obs;obs.Changed+=Invalidate;Execution.Changed+=Invalidate;}
+    private readonly SemaphoreSlim stateGate=new(1,1);
     private JsonObject? cachedState;
     private DateTime cacheTime=DateTime.MinValue;
     public void Invalidate() {Interlocked.Increment(ref generation);cacheTime=DateTime.MinValue;Invalidated?.Invoke();}
@@ -19,7 +21,7 @@ public sealed class DeckEngine
     {
         await stateGate.WaitAsync();
         try {
-            if(cachedState!=null&&(DateTime.UtcNow-cacheTime).TotalMilliseconds<900) return cachedState.DeepClone().AsObject();
+            if(cachedState!=null&&(DateTime.UtcNow-cacheTime).TotalMilliseconds<900) return WithExecution(cachedState);
             var version=Volatile.Read(ref generation);
             var state=new JsonObject { ["session"]=session,["revision"]=version,["obsConnected"]=false,["scene"]="",["streaming"]=false,["recording"]=false,["inputs"]=new JsonObject() };
             try {
@@ -40,19 +42,16 @@ public sealed class DeckEngine
                 state["scenes"]=scenes["scenes"]?.DeepClone();
                 foreach(var input in new[]{await mic,await desktop})state["inputs"]![input.Channel]=input.Value;
             } catch(Exception ex) {state["error"]="OBS unavailable. Enable Tools > WebSocket Server Settings, then check the password in Edit. "+ex.Message;}
-            state["revision"]=Interlocked.Increment(ref snapshots);cachedState=state;cacheTime=version==Volatile.Read(ref generation)?DateTime.UtcNow:DateTime.MinValue;return state.DeepClone().AsObject();
+            state["revision"]=Interlocked.Increment(ref snapshots);cachedState=state;cacheTime=version==Volatile.Read(ref generation)?DateTime.UtcNow:DateTime.MinValue;return WithExecution(state);
         } finally {stateGate.Release();}
     }
+    private JsonObject WithExecution(JsonObject state){var copy=state.DeepClone().AsObject();copy["execution"]=JsonSerializer.SerializeToNode(Execution.Status,DataStore.Json);return copy;}
     public static bool NeedsConfirm(DeckAction a)=>a.Confirm||a.Kind is "stream" or "record"||a.Steps.Any(NeedsConfirm);
-    public async Task Execute(DeckAction action)
-    {
-        if(!await actionGate.WaitAsync(0)) throw new InvalidOperationException("An action is still running. Wait for it to finish.");
-        try {using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(45));await Run(action,timeout.Token);}
-        finally {Invalidate();actionGate.Release();}
-    }
+    public Task Execute(DeckAction action)=>Execution.Run(action,ct=>Run(action,ct));
     private async Task Run(DeckAction a,CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
+        if(a.Kind!="macro")Execution.Step(a);
         if(SoundpadClient.Supports(a.Kind)) {
             var target=a.Target;
             if(a.Kind=="soundpadPlay"&&a.SoundpadKey.Length>0)target=SoundpadBindings.Resolve(a,await SoundpadLibrary.CurrentSounds(ct)).ToString(System.Globalization.CultureInfo.InvariantCulture);

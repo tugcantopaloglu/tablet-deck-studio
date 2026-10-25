@@ -55,6 +55,34 @@ async function api(path,body){
   if(!response.ok)throw new Error(data.error||`Request failed (${response.status}).`);return data;
 }
 let boardSignature='',boardRevision=0,lastGrid='',pages=[],pageId='',slice=0,state={},connection={},busy=false,refreshing=false,lastBoard=0,editing=false,dirty=false,toastTimer;
+let executionStatus=null,executionPending='',executionReachable=true,cancelPending=false;
+function acceptExecution(next,fresh=false){
+  if(!next||typeof next.session!=='string'||!Number.isFinite(next.revision))return;
+  if(executionStatus?.session===next.session&&next.revision<executionStatus.revision)return;
+  if(fresh||executionStatus?.session!==next.session||next.revision>executionStatus.revision)executionReachable=true;
+  executionStatus=next;renderExecution();
+}
+function renderExecution(){
+  const active=executionStatus?.active,visible=!!active||busy;
+  $('#execution').hidden=!visible;document.body.classList.toggle('execution-visible',visible);
+  $('#execution-label').textContent=active?.label||executionPending||'Running action';
+  $('#execution-step').textContent=!executionReachable?'Connection lost. The action may still be running.':active?.cancelling?'Cancelling after the current step. Completed steps are kept.':active?`Step ${active.step} of ${active.total} · ${active.stepLabel}`:'Waiting for the PC…';
+  $('#cancel-action').disabled=!active||active.cancelling||cancelPending;
+  $('#cancel-action').textContent=active?.cancelling||cancelPending?'Cancelling…':'Cancel action';
+}
+$('#cancel-action').onclick=async()=>{
+  const id=executionStatus?.active?.id;if(!id||cancelPending)return;
+  cancelPending=true;renderExecution();
+  try{const result=await api('/api/cancel',{id});notice(result.cancelled?'Cancellation requested. Completed steps are kept.':'That action has already finished.');await pollExecutionOnce();}
+  catch(error){notice(error.message,true);}finally{cancelPending=false;renderExecution();}
+};
+async function pollExecutionOnce(){
+  try{acceptExecution(await api('/api/execution'),true);}catch{executionReachable=false;renderExecution();}
+}
+async function watchExecution(){
+  if(!preview&&!document.hidden&&(!native||connection.paired))await pollExecutionOnce();
+  setTimeout(watchExecution,busy||executionStatus?.active?500:2000);
+}
 let padFull=false,padSize=24;
 try{const saved=JSON.parse(localStorage.getItem('deckPadView')||'{}');padFull=saved.full===true;padSize=saved.size===40?40:24;}catch{}
 function boardCapacity(){return padFull?padSize:12;}
@@ -106,7 +134,8 @@ async function trigger(a,button){
   if(a.configured===false){notice('Set this button’s file, app, or shortcut using Edit on the PC.',true);return;}
   let confirmed=false;if(a.confirm){confirmed=await confirmAction(labelFor(a)+'?',a.kind==='stream'?'This changes the stream broadcast in OBS.':'Run this action on your streaming PC?');if(!confirmed)return;}
   busy=true;button.disabled=true;button.classList.add('pressed');
-  try{await api('/api/action',{id:a.id,confirmed});notice(labelFor(a)+' — done');if(typeof afterControl==='function')afterControl();else await refresh(true);}catch(error){notice(error.message,true);}finally{busy=false;button.disabled=false;button.classList.remove('pressed');}
+  executionPending=labelFor(a);renderExecution();
+  try{const running=api('/api/action',{id:a.id,confirmed});pollExecutionOnce();await running;notice(labelFor(a)+' — done');if(typeof afterControl==='function')afterControl();else await refresh(true);}catch(error){notice(error.message,true);}finally{busy=false;executionPending='';button.disabled=false;button.classList.remove('pressed');await pollExecutionOnce();renderExecution();}
 }
 function buildMixer(){
   $('#channels').innerHTML=DOMPurify.sanitize(['mic','desktop'].map(ch=>`<section class="channel" data-channel="${ch}"><div class="channel-title">${icon(ch==='mic'?'mic':'monitor')}<span>${ch==='mic'?'Mic':'Desktop'}</span></div><output class="db" id="db-${ch}">— dB</output><div class="slider-wrap"><input class="fader" id="fader-${ch}" type="range" min="-60" max="0" step="1" value="-12" aria-label="${ch==='mic'?'Microphone':'Desktop audio'} volume in decibels" disabled><div class="scale" aria-hidden="true"><span>0</span><span>−12</span><span>−24</span><span>−36</span><span>−48</span><span>−60</span></div></div><span class="input-error" id="input-error-${ch}" hidden>Set input on PC</span><button class="mute" id="mute-${ch}" disabled>${icon('micOff')}<span>Mute</span></button></section>`).join(''));
@@ -117,6 +146,7 @@ function buildMixer(){
   }
 }
 function updateState(){
+  if(state.execution)acceptExecution(state.execution);
   $('#obs-dot').classList.toggle('connected',!!state.obsConnected);$('#obs-status').textContent=state.pcConnected===false?'PC disconnected':state.obsConnected?'OBS connected':'OBS disconnected';
   $('#connection').title=state.error||'Connection settings';$('#transport').textContent=preview?'Preview':native?(connection.mode==='usb'?'USB':'Wi-Fi'):'PC editor';
   $('#stream-status').innerHTML=DOMPurify.sanitize(`<span class="dot ${state.obsConnected&&state.streaming?'live':''}"></span>${!state.obsConnected?'Stream unknown':state.streaming?'Streaming live':state.recording?'Recording':'Stream offline'}`);
@@ -236,5 +266,6 @@ async function init(){
   await refresh(true);
 }
 init().catch(error=>notice(error.message,true));
+watchExecution();
 setInterval(()=>{if(!native||connection.paired)refresh();},1600);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh(true);});

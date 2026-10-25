@@ -79,6 +79,8 @@ app.Use(async (ctx,next)=>{
 app.UseDefaultFiles();app.UseStaticFiles();
 app.MapGet("/api/board",()=>new {pages=store.Config.Pages.Select(p=>new {p.Id,p.Name,p.Icon,buttons=p.Buttons.Select(a=>new{a.Id,a.Label,a.Kind,a.Icon,a.Color,confirm=DeckEngine.NeedsConfirm(a),target=a.Kind is "scene" or "preview"?a.Target:"",configured=!(a.Kind is "app" or "sound" or "url" or "hotkey" or "soundpadPlay")||a.Target.Length>0})})});
 app.MapGet("/api/state",()=>engine.State());
+app.MapGet("/api/execution",()=>engine.Execution.Status);
+app.MapPost("/api/cancel",(CancelRequest req)=>new{cancelled=engine.Execution.Cancel(req.Id)});
 app.MapPost("/api/hold",(HoldRequest req,HttpContext ctx)=>fastCommands.Hold(req,Principal(ctx)));
 app.MapGet("/api/events",async (HttpContext ctx)=>{
     ctx.Response.ContentType="text/event-stream";ctx.Response.Headers["X-Accel-Buffering"]="no";
@@ -159,6 +161,7 @@ static FileStream? AcquireLock(string path) {try{return new FileStream(path,File
 static bool SafeEqual(string a,string b)=>a.Length==b.Length&&CryptographicOperations.FixedTimeEquals(System.Text.Encoding.UTF8.GetBytes(a),System.Text.Encoding.UTF8.GetBytes(b));
 static string[] NetworkAddresses()=>System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces().Where(n=>n.OperationalStatus==System.Net.NetworkInformation.OperationalStatus.Up).SelectMany(n=>n.GetIPProperties().UnicastAddresses).Where(a=>a.Address.AddressFamily==AddressFamily.InterNetwork&&!IPAddress.IsLoopback(a.Address)).Select(a=>a.Address.ToString()).Distinct().ToArray();
 record ActionRequest(string Id,bool Confirmed=false);
+record CancelRequest(string Id);
 record AudioRequest(string Channel,double Db);
 record MuteRequest(string Channel);
 record PairRequest(string Code,string? Name);

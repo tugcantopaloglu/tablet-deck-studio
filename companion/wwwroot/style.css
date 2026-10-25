@@ -21,6 +21,16 @@ dialog{color:var(--ink);background:var(--canvas);border:1px solid var(--outline)
 @media(max-width:760px){.library-row{gap:10px}.library-name strong{font-size:16px}.library-row>.quiet{min-width:64px;padding:10px}.app-session-heading strong{font-size:18px}.app-session .app-mute{width:86px;font-size:13px}.app-session-heading{gap:12px}.app-slider-row{gap:12px}.arranging .key{gap:4px;padding:6px}.arranging .key>svg{width:24px;height:24px}.arranging .key:after{font-size:10px}.feature-editor-tools .quiet{flex:1}}
 .editor-list{max-height:420px;overflow-y:auto;overscroll-behavior:contain}
 .hold-key{touch-action:none}.hold-key:after{content:'Hold to talk';font-size:11px;font-weight:700;color:var(--secondary)}.key.holding{background:#1a3039;outline:3px solid var(--cyan);outline-offset:-3px}.key.holding:after{content:'Key held';color:var(--cyan)}
+body.execution-visible{grid-template-rows:auto minmax(0,1fr) auto var(--nav)}
+.execution{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:10px 18px;border-top:1px solid var(--outline);background:var(--surface);min-width:0}
+.execution-copy{display:flex;flex-direction:column;gap:4px;min-width:0}
+.execution-copy strong,.execution-copy span{overflow-wrap:anywhere}
+.execution-copy strong{font-size:15px;line-height:1.4}
+.execution-copy span{font-size:13px;line-height:1.5;color:var(--secondary);font-variant-numeric:tabular-nums}
+.execution>.danger{flex-shrink:0;min-height:48px}
+.execution>.danger:hover:not(:disabled){background:#4b2b34}
+body.execution-visible .notice{bottom:auto;top:calc(var(--header) + 12px)}
+@media(max-width:760px){.execution{gap:12px;padding:8px 12px}.execution-copy strong{font-size:13px}.execution-copy span{font-size:12px}.execution>.danger{padding:8px 12px;font-size:13px}}
 
 /* Fit the complete icon, label, and state inside every key, including short rows. */
 .keys>.key{gap:8px;padding:12px 8px}

@@ -1,5 +1,15 @@
 # Physical Android test — 2026-10-25
 
+## Discord microphone follow-up — 2026-10-26
+
+The user authorized live configuration of Soundpad's devices and Discord Voice & Video settings. Both selected the same NVIDIA Broadcast microphone; Soundpad's enabled recording endpoint reported Good. Discord retained Custom input, Noise Suppression None, and Echo Cancellation off; Automatic Gain Control and Bypass System Audio Input Processing were disabled following Soundpad's Discord guide. All 76 local collection buttons were set to both microphone and speaker/headphone output.
+
+A microphone-only Bruh command succeeded, Discord's local microphone-test meter showed a signal, and the user confirmed hearing the clip through that test. Direct Soundpad speaker playback was disabled for this test; the local microphone test was stopped afterward. No call or broadcast was started. Hearing the clip at another Discord account remains unverified. No user audio files or private configuration are included in the public source or release.
+
+## Version 1.6.0 development
+
+Progress and cancellation tests use isolated data and simulated OBS. They do not alter the user's live board, audio routing, or running companion. The 1.6.0 ribbon and touch cancellation have not yet been checked on the physical tablet. No browser or app window was opened for this development pass.
+
 ## Version 1.5.1 follow-up
 
 The Soundpad library handlers were being selected as HttpContext-only RequestDelegates, which discarded successful return values and produced an empty HTTP200 response. Shared CancellationToken-based route handlers now return explicit JSON results. GET and refresh POST each have a regression check against the actual HTTP route mapping. The manual update-check route used the same pattern and was corrected too.

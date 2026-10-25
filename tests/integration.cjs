@@ -5,7 +5,7 @@ const https=require('node:https');
 const crypto=require('node:crypto');
 const {WebSocketServer}=require('ws');
 const {chromium}=require('playwright');
-const root=path.resolve(__dirname,'../.test-output');
+const root=path.resolve(process.env.TABLETDECK_TEST_OUTPUT||path.join(__dirname,'../.test-output'));
 const session=JSON.parse(fs.readFileSync(path.join(root,'data/admin-session.json'),'utf8'));
 const base=`http://127.0.0.1:${session.httpPort}`;
 const calls=[];let scene='Gameplay',streaming=false,recording=false,studio=false;

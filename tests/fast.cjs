@@ -14,7 +14,9 @@ async function run(){
  const admin=async(route,body)=>{const response=await fetch('http://127.0.0.1:18940'+route,{method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json','X-Deck-Admin':session.token},body:body===undefined?undefined:JSON.stringify(body)});assert.equal(response.status,200,await response.clone().text());return response.json();};
  const info=await admin('/api/admin/info'),pairing=await admin('/api/admin/pairing',{});
  const pair=await new Promise((resolve,reject)=>{const request=https.request({host:'127.0.0.1',port:18943,path:'/api/pair',method:'POST',rejectUnauthorized:false,headers:{'Content-Type':'application/json'}},response=>{let text='';response.on('data',chunk=>text+=chunk);response.on('end',()=>resolve(JSON.parse(text)));});request.on('error',reject);request.end(JSON.stringify({code:pairing.code,name:'Fast tests'}));});
- const config=await admin('/api/admin/config');config.obsPort=19565;await admin('/api/admin/config',{config,replacePassword:false});const action=config.pages[0].buttons[0].id,streamAction=config.pages[0].buttons[11].id;
+ const config=await admin('/api/admin/config');config.obsPort=19565;
+ config.pages[0].buttons.push({id:'cancel-fixture',label:'Scene then wait',kind:'macro',steps:[{label:'Before',kind:'scene',target:'Before cancel'},{label:'Wait',kind:'delay',target:'10000'},{label:'After',kind:'scene',target:'Must not run'}]});
+ await admin('/api/admin/config',{config,replacePassword:false});const action=config.pages[0].buttons[0].id,streamAction=config.pages[0].buttons[11].id;
  async function connect(token=pair.token){
   const socket=tls.connect({host:'127.0.0.1',port:18944,rejectUnauthorized:false});socket.setNoDelay(true);socket.on('error',()=>{});let buffered=Buffer.alloc(0),next=1;const messages=[],waiters=[];
   const link={socket,send(value){const bytes=Buffer.from(JSON.stringify(value)),header=Buffer.alloc(4);header.writeUInt32BE(bytes.length);socket.write(Buffer.concat([header,bytes]));},wait(predicate,timeout=2500){const index=messages.findIndex(predicate);if(index>=0)return Promise.resolve(messages.splice(index,1)[0]);return new Promise((resolve,reject)=>{const waiter={predicate,resolve,reject};waiter.timer=setTimeout(()=>{const i=waiters.indexOf(waiter);if(i>=0)waiters.splice(i,1);reject(Error('Timed out waiting for fast packet'));},timeout);waiters.push(waiter);});},async call(route,body={}){const id=next++;this.send({id,path:route,body});return this.wait(message=>message.id===id);}};
@@ -35,6 +37,12 @@ async function run(){
  check((await link.call('/api/apps',{id:'F'.repeat(64),percent:-1})).error,'fast app volume preserves validation without changing any application');
  check((await link.call('/api/hold',{operation:'begin',id:'missing'})).error,'fast hold cannot inject an arbitrary key');
  const before=actions;check((await link.call('/api/action',{id:action})).result.ok&&actions===before+1,'fast scene action executes once');
+ const macro=link.call('/api/action',{id:'cancel-fixture'});
+ let running;for(let attempt=0;attempt<40;attempt++){running=(await admin('/api/execution')).active;if(running?.step===2)break;await sleep(25);}
+ check(running?.step===2&&running.total===3&&scene==='Before cancel','fast macro reports real step progress before cancellation');
+ const cancelAt=Date.now();check((await link.call('/api/cancel',{id:running.id})).result.cancelled,'fast cancellation runs while the macro request is pending');
+ check((await macro).error.includes('cancelled')&&Date.now()-cancelAt<1500&&scene==='Before cancel','fast cancellation interrupts delay and never executes the later scene');
+ check((await link.call('/api/action',{id:action})).result.ok,'new action can run after fast cancellation');
  link.send({id:777,path:'/api/action',body:{id:action}});await link.wait(message=>message.id===777);const once=actions;link.send({id:777,path:'/api/action',body:{id:action}});check((await link.wait(message=>message.id===777)).error&&actions===once,'duplicate recent request ID cannot repeat an action');
  const fragmented=Buffer.from(JSON.stringify({id:778,path:'/api/ping',body:{}})),header=Buffer.alloc(4);header.writeUInt32BE(fragmented.length);link.socket.write(header.subarray(0,1));await sleep(5);link.socket.write(header.subarray(1));link.socket.write(fragmented.subarray(0,2));await sleep(5);link.socket.write(fragmented.subarray(2));check((await link.wait(message=>message.id===778)).result.pong,'fragmented frame header and body are read completely');
  const current=await link.wait(message=>message.type==='state');check(current.state.obsConnected&&(subscriptions&76)===76,'state push uses non-meter OBS event subscriptions');

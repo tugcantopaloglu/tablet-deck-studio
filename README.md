@@ -10,6 +10,8 @@ The Studio layout has twelve large buttons beside two audio faders and five page
 
 The low-latency transport and Android packaging fix from 1.4.1 are retained. Physical Android 16 tests verified USB/Wi-Fi connections, audible soundboard playback, real OBS scene changes and mic mute/unmute, and Discord playback-session mute with its original state restored. Sparse heartbeat samples were 3.9–10.5 ms over USB and 6.5 ms over Wi-Fi; these are not end-to-end latency guarantees. See the [performance guide](docs/PERFORMANCE.md) and [hardware test limits](docs/LIVE-TEST.md).
 
+**1.6.0 adds running-action progress and cancellation.** A ribbon shows the current macro step and a **Cancel action** button in Studio and full-pad layouts. Cancellation interrupts delays and skips later steps; completed steps stay applied. See [running and cancelling macros](docs/MACROS.md) and the [development roadmap](docs/ROADMAP.md).
+
 ## Features
 
 | Area | Controls |
@@ -21,7 +23,7 @@ The low-latency transport and Android packaging fix from 1.4.1 are retained. Phy
 | Windows | App/shortcut launching, websites, keyboard shortcuts, volume/media keys |
 | Soundpad | Search sounds and categories, play to mic/speakers/both, import selected sounds as buttons on PC, stop, pause/resume, next, previous |
 | Discord and other tools | Matching app keybinds; Discord mute/deafen/screen-share setup documented |
-| Macros | Multiple steps, delays, confirmation, stop on first error |
+| Macros | Multiple steps, delays, confirmation, live step progress, cancellation, stop on first error |
 | Customization | Labels, icons, colors, drag-and-drop ordering on PC/tablet, multiple pages, JSON import/export, full-pad 24/40-button layouts |
 | Connection | Persistent pinned TLS over Wi-Fi/USB, pushed state, HTTPS fallback, optional automatic USB reconnection |
 | Desktop | Windows tray, opt-in startup, update notifications, per-user installer |
@@ -54,7 +56,7 @@ The low-latency transport and Android packaging fix from 1.4.1 are retained. Phy
 
 For a managed Windows installation, download **TabletDeck-Setup.exe**, run it, and type `INSTALL` after reviewing its destination. It creates a Start menu shortcut without launching any apps. The ZIP remains available for portable use. See [installation and uninstalling](docs/DESKTOP-AND-HOLD.md#install-or-update-windows).
 
-Download `TabletDeck-Studio-1.5.1.zip` from [Releases](https://github.com/tugcantopaloglu/tablet-deck-studio/releases/latest) for the complete package, or download `TabletDeck-Studio.apk` separately if you only need the Android installer. The APK keeps the original signing certificate, so installing it over an older version preserves pairing. Third-party meme collections are user content and are not included in the public release.
+Download `TabletDeck-Studio-1.6.0.zip` from [Releases](https://github.com/tugcantopaloglu/tablet-deck-studio/releases/latest) for the complete package, or download `TabletDeck-Studio.apk` separately if you only need the Android installer. Update both the APK and companion for progress and cancellation. The APK keeps the original signing certificate, so installing it over an older version preserves pairing. Third-party meme collections are user content and are not included in the public release.
 
 ```text
 TabletDeck-Studio/
@@ -211,6 +213,8 @@ The companion plays the file through the PC's default output. Check that output'
 
 Macros support up to 30 steps. They stop at the first error and have a 45-second execution budget. Earlier steps are not rolled back. A stream or recording step causes the macro to require confirmation. A toggle reverses the current state, so avoid adding toggles unless that reversal is intended.
 
+While an action runs, the bottom ribbon shows its label and current step, including steps inside nested macros. Choose **Cancel action** to interrupt a delay and prevent later steps. A command already sent to OBS or Windows may finish first. Cancellation does not undo earlier scene changes, close opened apps, stop an already started broadcast, or stop sound playback. Use the relevant controls afterward. Any paired controller can cancel the displayed run; stale cancellation requests cannot cancel a newer run.
+
 ### Read the board's state
 
 A cyan outline and ACTIVE label mark the current OBS scene. Muted channels show red Unmute buttons. Buttons can show Set up on PC when their file/app/shortcut target is missing. After a connection failure, Stream unknown means the companion cannot confirm OBS's state; it does not mean OBS stopped broadcasting. Use Mute for a muted input rather than relying on the fader's −60 dB minimum.
@@ -264,7 +268,7 @@ If you close the PC browser tab, the companion keeps running. Choose Open contro
 
 ## Verification and limits
 
-See [Verification results](docs/VERIFICATION.txt) for build, test, and security scan results. No physical Android tablet was connected during creation: installation, on-device WebView rendering, real Wi-Fi routing, and real USB transport still need verification on your tablet. Browser captures prove the shared UI layout; mocked OBS integration tests prove the protocol and action wiring, not a live stream. Run a rehearsal before relying on it in a broadcast.
+See [Verification results](docs/VERIFICATION.txt) for build, test, and security scan results, and [the hardware report](docs/LIVE-TEST.md) for completed physical USB/Wi-Fi, OBS, and Soundpad tests. Version 1.6.0 cancellation is covered by isolated HTTPS, persistent-TLS, and JavaScript logic tests; its new ribbon has not yet been visually or physically verified. Mocked OBS tests verify protocol behavior, not a live stream. Run a rehearsal before relying on it in a broadcast.
 
 ## Build and contribute
 

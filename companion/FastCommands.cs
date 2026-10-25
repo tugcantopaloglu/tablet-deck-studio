@@ -22,11 +22,12 @@ internal sealed class FastCommands(DataStore store,DeckEngine engine,HoldKeys ho
         if(action?.Kind!="holdHotkey")throw new ArgumentException("Choose a configured hold shortcut button.");
         return new HoldLease(holds.Begin(principal,action.Target));
     }
-    public static bool Supports(string path)=>path is "/api/action" or "/api/audio" or "/api/mute" or "/api/hold" or "/api/apps" or "/api/ping";
+    public static bool Supports(string path)=>path is "/api/action" or "/api/audio" or "/api/mute" or "/api/hold" or "/api/apps" or "/api/ping" or "/api/cancel";
     public async Task<object> Execute(string path,JsonElement body,string principal)
     {
         switch(path) {
             case "/api/ping":return new{pong=true};
+            case "/api/cancel":return new{cancelled=engine.Execution.Cancel((body.Deserialize<CancelRequest>(DataStore.Json)??throw new ArgumentException("Missing cancellation request.")).Id)};
             case "/api/action":return await Action(body.Deserialize<ActionRequest>(DataStore.Json)??throw new ArgumentException("Missing action."));
             case "/api/hold":return Hold(body.Deserialize<HoldRequest>(DataStore.Json)??throw new ArgumentException("Missing hold request."),principal);
             case "/api/apps":{var request=body.Deserialize<AppAudioRequest>(DataStore.Json)??throw new ArgumentException("Missing app volume request.");await appMixer.Set(request.Id,request.Percent,request.Muted);return new{ok=true};}

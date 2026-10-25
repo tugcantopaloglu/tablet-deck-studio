@@ -33,6 +33,10 @@
       <button id="apps-button" class="quiet apps-launch">App volumes</button>
     </aside>
   </main>
+  <section id="execution" class="execution" aria-label="Running action" hidden>
+    <div class="execution-copy"><strong id="execution-label"></strong><span id="execution-step" role="status" aria-live="polite"></span></div>
+    <button id="cancel-action" class="danger">Cancel action</button>
+  </section>
   <nav id="pages" class="pages" aria-label="Button pages"></nav>
   <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
   <dialog id="confirm-dialog" class="confirm-dialog"><form method="dialog"><h2 id="confirm-title">Confirm action</h2><p id="confirm-copy"></p><div class="dialog-actions"><button value="cancel" class="quiet">Cancel</button><button id="confirm-yes" value="confirm" class="primary">Confirm</button></div></form></dialog>

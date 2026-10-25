@@ -42,8 +42,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class MainActivity extends Activity {
     private static final String UI_HOST="app.tabletdeck.local";
-    private static final Set<String> GET_PATHS=new HashSet<>(Arrays.asList("/api/board","/api/state","/api/apps","/api/soundpad/library"));
-    private static final Set<String> POST_PATHS=new HashSet<>(Arrays.asList("/api/hold","/api/action","/api/audio","/api/mute","/api/apps","/api/layout","/api/soundpad/play","/api/soundpad/library"));
+    private static final Set<String> GET_PATHS=new HashSet<>(Arrays.asList("/api/board","/api/state","/api/execution","/api/apps","/api/soundpad/library"));
+    private static final Set<String> POST_PATHS=new HashSet<>(Arrays.asList("/api/cancel","/api/hold","/api/action","/api/audio","/api/mute","/api/apps","/api/layout","/api/soundpad/play","/api/soundpad/library"));
     private WebView web;
     private SharedPreferences preferences;
     private final ExecutorService network=Executors.newFixedThreadPool(2);
@@ -151,7 +151,7 @@ public final class MainActivity extends Activity {
             });
         }
     }
-    private static boolean fastPath(String path){return path.equals("/api/apps")||path.equals("/api/action")||path.equals("/api/audio")||path.equals("/api/mute")||path.equals("/api/hold");}
+    private static boolean fastPath(String path){return path.equals("/api/cancel")||path.equals("/api/apps")||path.equals("/api/action")||path.equals("/api/audio")||path.equals("/api/mute")||path.equals("/api/hold");}
     private void deliver(int id,JSONObject result){final String json=result.toString();runOnUiThread(()->{if(!closed)web.evaluateJavascript("window.nativeResult("+id+","+json+");",null);});}
     private JSONObject pair(JSONObject body) throws Exception {
         String host=body.optString("host","").trim(),mode=body.optString("mode","wifi");
