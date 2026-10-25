@@ -108,7 +108,7 @@ Tools without usable shortcuts may need a separate native integration or an expl
 
 ## Verification limits
 
-Soundpad command construction, routing, command-injection rejection, pipe framing, fragmented responses, and error statuses are tested against an isolated named-pipe fixture. The local test machine did not have a running Soundpad/Discord streaming setup for an end-to-end audio or live-share test. Real Soundpad playback, Discord keybind delivery, audio routing, and Android Wi-Fi/USB still need a rehearsal on your setup.
+Soundpad command construction, routing, command-injection rejection, pipe framing, fragmented responses, and error statuses are tested against isolated fixtures. The physical rehearsal also verified Soundpad4.0.35 library data, Stop, speakers-only playback with audible user confirmation, and Android Wi-Fi/USB connections. Discord app launching and Windows playback-session mute/restoration passed. Discord microphone/deafen keybind delivery, microphone routing, listener audio, and live screen sharing still need rehearsal with the user's chosen configuration. See the [physical test report](LIVE-TEST.md) for scope and limits.
 
 ## Voicemeeter
 

@@ -1,14 +1,14 @@
-Tablet Deck Studio 1.5.0 — verification
+Tablet Deck Studio 1.5.1 — verification
 
 BUILD
 - Windows companion and setup: self-contained .NET10 x64 Release builds.
-- Android: app.tabletdeck.studio, versionCode7, version1.5.0, minSDK26/targetSDK35.
+- Android: app.tabletdeck.studio, versionCode8, version1.5.1, minSDK26/targetSDK35.
 - APK signatures v2/v3 verify with the original signing certificate.
 - Bundled asset paths are checked for Windows separators and missing UI files before signing.
 - Android permissions remain INTERNET and WAKE_LOCK; no microphone/location permission, backup, or cleartext network traffic.
 
-AUTOMATED CHECKS — 229 TOTAL
--26 companion self-tests.
+AUTOMATED CHECKS — 231 TOTAL
+-28 companion self-tests, including actual HTTP GET/POST serialization through the shared Soundpad library route mapping.
 -32 safety checks for hold leases/ownership, Soundpad identities/remapping, native gain validation, USB device selection, desktop defaults, startup quoting, and update fixtures.
 -28 command-line JavaScript/API checks.
 -44 original OBS/API/browser integration checks, using synthetic authenticated OBS. The browser portion deliberately disables SSE to exercise HTTPS polling fallback; the fast suite separately covers pushed state.
@@ -24,7 +24,7 @@ PHYSICAL REHEARSAL
 - Real OBS: existing authenticated WebSocket connected; real scenes imported; tablet scene switch and restoration passed; microphone mute/unmute passed and original state restored. Desktop input matched its actual OBS name. No stream or recording was started.
 - Real Discord: configured app launch succeeded; Windows playback-session mute changed and restored. Microphone mute/deafen keybinds, voice listener audio, and screen sharing were not exercised.
 - Full-pad controls loaded on the tablet, selected the 40-key layout, retained twelve configured actions in eight columns, hid the mixer, and retained the preference across reopening. Full 40-action coverage uses the isolated synthetic browser fixture.
-- Soundpad4.0.35: real named-pipe library query returned a valid empty list; real Stop Soundpad command succeeded. A Stop Soundpad key was added to the user's Sounds page. Playback awaits a sound being added to the empty Soundpad library.
+- Soundpad4.0.35: after correcting the companion's empty HTTP response, real GET/POST library responses returned application/json with native library entries. Stop succeeded. A locally sourced 76-clip user collection was imported into six categories and added to a tablet Memes page using stable Soundpad identities and speakers-only routing. The physical tablet showed 40 actions then36 actions across two groups; a key press produced a success notice while Soundpad reported PLAYING. These clips are private user content, not bundled release assets. Listener/microphone routing remains unverified.
 
 SECURITY
 - The requested snyk_code_scan tool was unavailable; Snyk Code CLI was used and rescanned after changes.

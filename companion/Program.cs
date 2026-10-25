@@ -91,8 +91,7 @@ app.MapGet("/api/events",async (HttpContext ctx)=>{
 app.MapGet("/api/apps",async ()=>new {apps=await appMixer.List()});
 app.MapPost("/api/apps",async (AppAudioRequest req)=>{await appMixer.Set(req.Id,req.Percent,req.Muted);return Results.Ok(new{ok=true});});
 app.MapPost("/api/layout",(LayoutRequest req)=>{store.Reorder(req.Pages);return Results.Ok(new{ok=true});});
-app.MapGet("/api/soundpad/library",async (HttpContext ctx)=>await SoundpadLibrary.Get(false,ctx.RequestAborted));
-app.MapPost("/api/soundpad/library",async (HttpContext ctx)=>await SoundpadLibrary.Get(true,ctx.RequestAborted));
+app.MapSoundpadLibrary(SoundpadLibrary.Get);
 app.MapPost("/api/soundpad/play",async (SoundpadPlayRequest req,HttpContext ctx)=>{
     if(req.Key.Length>0){if(req.Key.Length!=64||!req.Key.All(Uri.IsHexDigit))throw new ArgumentException("Invalid library sound identity.");await engine.Execute(new DeckAction{Kind="soundpadPlay",Target=req.Index.ToString(CultureInfo.InvariantCulture),Value=req.Output,SoundpadKey=req.Key});return Results.Ok(new{ok=true});}
     var library=await SoundpadLibrary.Get(false,ctx.RequestAborted);
@@ -115,7 +114,7 @@ app.MapPost("/api/admin/pairing",()=>new{code=pairing.Open(),expiresIn=300,certi
 app.MapPost("/api/admin/revoke",(RevokeRequest req)=>{var owner=store.Devices.FirstOrDefault(device=>device.Id==req.Id)?.TokenHash;store.Revoke(req.Id);if(owner is not null){holds.ReleaseOwner(owner);fastControl.Revoke(owner);}return Results.Ok(new{ok=true});});
 app.MapGet("/api/admin/desktop",()=>new{settings=desktop.Get(),startWithWindows=DesktopPreferences.StartsWithWindows(),usbStatus=usb.Status,update=updates.Status});
 app.MapPost("/api/admin/desktop",(DesktopRequest req)=>{DesktopPreferences.Validate(req.Settings);if(req.StartWithWindows is not null)DesktopPreferences.SetStartup(req.StartWithWindows.Value);desktop.Save(req.Settings);return Results.Ok(new{ok=true});});
-app.MapPost("/api/admin/updates",async (HttpContext ctx)=>await updates.Check(true,ctx.RequestAborted));
+app.MapPost("/api/admin/updates",async (CancellationToken ct)=>await updates.Check(true,ct));
 app.MapPost("/api/admin/soundpad/remap",async (RemapRequest req,HttpContext ctx)=>{if(req.LinkLegacy&&!req.Confirmed)throw new ArgumentException("Verify existing Soundpad indices before linking old buttons.");return SoundpadBindings.Remap(store,await SoundpadLibrary.Get(true,ctx.RequestAborted),req.LinkLegacy);});
 app.MapGet("/api/admin/config",()=>{
     var result=JsonSerializer.SerializeToNode(store.Config,DataStore.Json)!.AsObject();result["obsPassword"]="";result["passwordConfigured"]=store.Config.ObsPassword.Length>0;return result;

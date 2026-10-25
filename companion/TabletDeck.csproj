@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>TabletDeck-Companion</AssemblyName>
     <RootNamespace>TabletDeck</RootNamespace>
-    <Version>1.5.0</Version>
+    <Version>1.5.1</Version>
     <UseWindowsForms>true</UseWindowsForms>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>

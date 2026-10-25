@@ -1,5 +1,11 @@
 # Physical Android test — 2026-10-25
 
+## Version 1.5.1 follow-up
+
+The Soundpad library handlers were being selected as HttpContext-only RequestDelegates, which discarded successful return values and produced an empty HTTP200 response. Shared CancellationToken-based route handlers now return explicit JSON results. GET and refresh POST each have a regression check against the actual HTTP route mapping. The manual update-check route used the same pattern and was corrected too.
+
+With real Soundpad4.0.35 running, the corrected companion returned JSON library data. A private 76-clip user collection was imported and verified in six categories, then linked to a Memes tablet page with speakers-only routing. The physical tablet displayed 40 buttons and then36 on its second group. A tablet key press returned a success notice while Soundpad reported PLAYING. The user subsequently confirmed audible Bruh playback; Soundpad reported46% speaker volume and unmuted. The collection files, source list, and user settings are local; no third-party audio was published in GitHub or the app release. Discord listener audio and broadcast rights are unverified.
+
 ## Version 1.5 follow-up
 
 - The user confirmed audible output after the tablet triggered the bundled applause sound over USB.

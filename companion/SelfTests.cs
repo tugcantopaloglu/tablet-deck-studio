@@ -42,6 +42,9 @@ public static class SelfTests
         var unsafeXml="<!DOCTYPE Soundlist [<!ENTITY x SYSTEM 'file:///C:/private'>]><Soundlist>&x;</Soundlist>";
         try {SoundpadLibrary.ParseXml(unsafeXml);throw new Exception("Unsafe XML was accepted.");}catch(System.Xml.XmlException){Check(true,"Soundpad XML external entities are prohibited");}
         TestLibraryPipe(sampleXml).GetAwaiter().GetResult();Check(true,"fragmented Soundpad XML responses are fully read");
+        var endpointChecks=TestLibraryEndpoints().GetAwaiter().GetResult();
+        Check(endpointChecks.Get,"library GET returns serialized JSON through the actual route mapping");
+        Check(endpointChecks.Post,"library refresh POST returns JSON and requests a fresh library");
         TestAppMixer().GetAwaiter().GetResult();Check(true,"app mixer set/mute, invalid volume, and stale sessions");
         TestReorder();Check(true,"layout reorder preserves actions and rejects duplicate IDs atomically");
         var silentPath=Path.Combine(Path.GetTempPath(),"tabletdeck-silence-"+Guid.NewGuid().ToString("N")+".wav");
@@ -52,6 +55,24 @@ public static class SelfTests
             WindowsActions.PlaySound(silentPath);WindowsActions.StopSounds();Check(true,"Windows WAV playback and stop using a silent test file");
         } finally {WindowsActions.StopSounds();File.Delete(silentPath);}
         Console.WriteLine($"{passed} self-tests passed.");
+    }
+    private static async Task<(bool Get,bool Post)> TestLibraryEndpoints()
+    {
+        var builder=WebApplication.CreateBuilder(new WebApplicationOptions {Args=[],ContentRootPath=AppContext.BaseDirectory});
+        builder.Logging.ClearProviders();builder.WebHost.UseUrls("http://127.0.0.1:0");
+        await using var app=builder.Build();var refreshes=new List<bool>();
+        app.MapSoundpadLibrary((refresh,ct)=>{refreshes.Add(refresh);return Task.FromResult(new SoundpadLibraryResult([new(1,"A <horn>","","0:01",["Test"])],null));});
+        await app.StartAsync();
+        try {
+            using var client=new HttpClient {BaseAddress=new Uri(app.Urls.Single()),Timeout=TimeSpan.FromSeconds(5)};
+            async Task<bool> Response(HttpResponseMessage response) {
+                using(response) {if(!response.IsSuccessStatusCode||response.Content.Headers.ContentType?.MediaType!="application/json")return false;
+                var data=await response.Content.ReadFromJsonAsync<SoundpadLibraryResult>();return data?.Sounds.Count==1&&data.Sounds[0].Name=="A <horn>";}
+            }
+            var get=await Response(await client.GetAsync("/api/soundpad/library"));
+            var post=await Response(await client.PostAsync("/api/soundpad/library",null));
+            return (get&&refreshes.Count==2&&!refreshes[0],post&&refreshes.Count==2&&refreshes[1]);
+        } finally {await app.StopAsync();}
     }
     private static async Task TestLibraryPipe(string xml)
     {

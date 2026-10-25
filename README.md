@@ -6,7 +6,7 @@ Turn an Android tablet into a customizable control board for a Windows streaming
 
 ![Studio layout with twelve action keys and two audio faders — illustrative design preview](docs/images/studio-preview.png)
 
-The Studio layout has twelve large buttons beside two audio faders and five page tabs. Version **1.5.0 adds Full pad mode with 24 or 40 buttons per group**, plus icon sizing that fits short rows, long labels, and active-scene badges. Tap **Full pad**, choose a density, and use **Exit full pad** to restore the mixer. See the [full-pad guide](docs/FULL-PAD.md). The screenshot above is an illustrative Studio preview.
+The Studio layout has twelve large buttons beside two audio faders and five page tabs. Version **1.5.0 adds Full pad mode with 24 or 40 buttons per group**, plus icon sizing that fits short rows, long labels, and active-scene badges. **1.5.1 fixes empty Soundpad library responses in the Windows companion**, so installed sounds appear in the tablet browser. Tap **Full pad**, choose a density, and use **Exit full pad** to restore the mixer. See the [full-pad guide](docs/FULL-PAD.md). The screenshot above is an illustrative Studio preview.
 
 The low-latency transport and Android packaging fix from 1.4.1 are retained. Physical Android 16 tests verified USB/Wi-Fi connections, audible soundboard playback, real OBS scene changes and mic mute/unmute, and Discord playback-session mute with its original state restored. Sparse heartbeat samples were 3.9–10.5 ms over USB and 6.5 ms over Wi-Fi; these are not end-to-end latency guarantees. See the [performance guide](docs/PERFORMANCE.md) and [hardware test limits](docs/LIVE-TEST.md).
 
@@ -54,7 +54,7 @@ The low-latency transport and Android packaging fix from 1.4.1 are retained. Phy
 
 For a managed Windows installation, download **TabletDeck-Setup.exe**, run it, and type `INSTALL` after reviewing its destination. It creates a Start menu shortcut without launching any apps. The ZIP remains available for portable use. See [installation and uninstalling](docs/DESKTOP-AND-HOLD.md#install-or-update-windows).
 
-Download `TabletDeck-Studio-1.5.zip` from [Releases](https://github.com/tugcantopaloglu/tablet-deck-studio/releases/latest) for the complete package, or download `TabletDeck-Studio.apk` separately if you only need the Android installer. The APK keeps the original signing certificate, so installing it over an older version preserves pairing.
+Download `TabletDeck-Studio-1.5.1.zip` from [Releases](https://github.com/tugcantopaloglu/tablet-deck-studio/releases/latest) for the complete package, or download `TabletDeck-Studio.apk` separately if you only need the Android installer. The APK keeps the original signing certificate, so installing it over an older version preserves pairing. Third-party meme collections are user content and are not included in the public release.
 
 ```text
 TabletDeck-Studio/
