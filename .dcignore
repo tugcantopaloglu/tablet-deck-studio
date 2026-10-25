@@ -1,0 +1,6 @@
+**/node_modules/**
+**/bin/**
+**/obj/**
+**/build/**
+companion/wwwroot/vendor/**
+.test-output/**

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101318">
+  <title>Tablet Deck Studio</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="vendor/purify.min.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <h1>Tablet Deck</h1>
+    <button id="connection" class="connection" aria-label="Connection settings"><span class="dot" id="obs-dot"></span><span id="obs-status">Connecting</span></button>
+    <span id="transport" class="transport">Local control</span>
+    <span id="stream-status" class="stream-status"><span class="dot"></span>Stream offline</span>
+    <button id="pair-button" class="quiet" hidden>Pair tablet</button>
+    <button id="edit-button" class="quiet"></button>
+  </header>
+  <main id="workspace" class="workspace">
+    <section class="keys-area" aria-label="Action buttons"><div id="keys" class="keys"></div><div id="pagination" class="pagination" hidden></div></section>
+    <aside class="mixer" aria-label="OBS audio mixer">
+      <div class="mixer-heading"><h2>Audio</h2><span id="preview-label" hidden>Design preview</span></div>
+      <div class="channels" id="channels"></div>
+    </aside>
+  </main>
+  <nav id="pages" class="pages" aria-label="Button pages"></nav>
+  <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+  <dialog id="confirm-dialog" class="confirm-dialog"><form method="dialog"><h2 id="confirm-title">Confirm action</h2><p id="confirm-copy"></p><div class="dialog-actions"><button value="cancel" class="quiet">Cancel</button><button id="confirm-yes" value="confirm" class="primary">Confirm</button></div></form></dialog>
+  <dialog id="panel" class="panel"><div class="panel-top"><h2 id="panel-title">Settings</h2><button id="close-panel" class="quiet" aria-label="Close settings">Close</button></div><div id="panel-body" class="panel-body"></div></dialog>
+</body>
+</html>

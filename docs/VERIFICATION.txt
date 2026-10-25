@@ -1,0 +1,32 @@
+Tablet Deck Studio 1.0.0 — verification
+
+Built for Windows10/11 x64 and Android8.0+ (minSDK26, targetSDK35).
+
+BUILD
+- Windows Release build: success, no compiler warnings or errors.
+- Windows package: .NET10 self-contained single-file executable with external UI/sound assets.
+- Android compilation and D8 dex conversion: success.
+- APK signing verification: APK Signature Scheme v2 and v3 valid.
+- Android package: app.tabletdeck.studio, versionCode1.
+- Only Android INTERNET permission is requested. Backups are disabled. Cleartext network traffic is disabled.
+
+TESTS
+-11 companion self-tests pass, including shipped sound-asset presence, configuration validation, hotkey parsing, OBS authentication, confirmation propagation, and Windows WAV play/stop using silence.
+-40 integration checks pass against the real companion and a mock OBS WebSocket v5 service.
+- Checks cover TLS pairing, one-use PINs, five-attempt lockout, revoked credentials, local editor isolation, OBS state/actions, scene buttons, input volumes/mute, source/filter/media controls, sequential macros, editor save, cancelled recording confirmation, truthful disconnect state, browser errors, overflow, and tablet touch targets.
+- Browser rendering inspected at1536x1024,1280x800,1024x600, and390x844. Android-native rendering was not captured.
+- Windows USB helper correctly reports that no authorized Android device is connected.
+- Independent design review: all8 material fixes and a compact active-key clipping regression scored resolved. Disposition ship applies to those reviewed fixes.
+
+SECURITY
+The requested snyk_code_scan tool was not exposed in this session. Snyk Code CLI was run and rescanned after fixes instead.
+- Dynamic HTML assembly now uses DOMPurify3.4.17 and Node-only DOM append operations.
+- Final report:0 error-level findings,0 warning-level findings,1 note: java/JavaScriptEnabled.
+- The note is intentional for the bundled WebView UI. External navigation, frames, file/content access, cleartext traffic, and arbitrary native endpoints are blocked; it is retained transparently, not suppressed.
+- npm dependency audit:0 vulnerabilities at build time.
+- Secrets and pairing records are generated on the user's PC at runtime, not included in this ZIP.
+
+NOT YET VERIFIED ON HARDWARE
+No Android tablet was connected during creation. APK installation, Android WebView behavior, tablet audio/touch/rotation, actual Wi-Fi routing, and physical USB connection still require a test on your device. OBS protocol tests used fixture data, not a live broadcast. The USB helper uses official ADB reverse support; its full tablet-to-PC path was not exercised here.
+
+This app implements the documented streaming controls. It does not reproduce Elgato's proprietary plugin marketplace or every third-party integration.

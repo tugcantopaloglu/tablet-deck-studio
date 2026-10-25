@@ -1,0 +1,45 @@
+# Build products and downloaded tools
+**/bin/
+**/obj/
+build/
+dist/
+toolchain/
+**/node_modules/
+*.apk
+*.apk.idsig
+*.aab
+*.exe
+*.dll
+*.pdb
+*.zip
+
+# Credentials, certificate private keys, and Android signing material
+.env
+.env.*
+!.env.example
+**/signing/
+*.jks
+*.keystore
+*.pfx
+*.p12
+*.key
+password.txt
+admin-session.json
+devices.json
+config.json
+runtime.lock
+
+# Local test sessions and diagnostics
+.test-output/
+.artifacts/
+test-data/
+*.log
+playwright-report/
+test-results/
+
+# Editor and OS files
+.vs/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

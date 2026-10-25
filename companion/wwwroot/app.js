@@ -1,0 +1,199 @@
+'use strict';
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const paths={
+ obs:'M12,24C5.383,24,0,18.617,0,12S5.383,0,12,0s12,5.383,12,12S18.617,24,12,24z M12,1.109 C5.995,1.109,1.11,5.995,1.11,12C1.11,18.005,5.995,22.89,12,22.89S22.89,18.005,22.89,12C22.89,5.995,18.005,1.109,12,1.109z M6.182,5.99c0.352-1.698,1.503-3.229,3.05-3.996c-0.269,0.273-0.595,0.483-0.844,0.78c-1.02,1.1-1.48,2.692-1.199,4.156 c0.355,2.235,2.455,4.06,4.732,4.028c1.765,0.079,3.485-0.937,4.348-2.468c1.848,0.063,3.645,1.017,4.7,2.548 c0.54,0.799,0.962,1.736,0.991,2.711c-0.342-1.295-1.202-2.446-2.375-3.095c-1.135-0.639-2.529-0.802-3.772-0.425 c-1.56,0.448-2.849,1.723-3.293,3.293c-0.377,1.25-0.216,2.628,0.377,3.772c-0.825,1.429-2.315,2.449-3.932,2.756 c-1.244,0.261-2.551,0.059-3.709-0.464c1.036,0.302,2.161,0.355,3.191-0.011c1.381-0.457,2.522-1.567,3.024-2.935 c0.556-1.49,0.345-3.261-0.591-4.54c-0.7-1.007-1.803-1.717-3.002-1.969c-0.38-0.068-0.764-0.098-1.148-0.134 c-0.611-1.231-0.834-2.66-0.528-3.996L6.182,5.99z',
+ discord:'M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z',
+
+ home:'M3 11 12 3l9 8M5 10v11h5v-7h4v7h5V10',
+ homeFilled:'M2 11 12 2l10 9-2 2-1-1v10h-5v-8h-4v8H5V12l-1 1z',
+ bed:'M3 5v16M3 17h18v4M3 14h18v3M7 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6M12 8h6a3 3 0 0 1 3 3v3h-9z',
+ image:'M3 3h18v18H3zM3 17l6-6 4 4 3-3 5 5M16 7h.1',
+ list:'M3 4h3v3H3zM10 5h11M3 11h3v3H3zM10 12h11M3 18h3v3H3zM10 19h11',
+ grid:'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
+ monitor:'M3 4h18v13H3zM8 21h8M12 17v4',
+ gamepad:'M7 7h10c3 0 5 9 4 11-2 2-4-3-6-3H9c-2 0-4 5-6 3C2 16 4 7 7 7zM7 10v4M5 12h4M16 11h.1M19 13h.1',
+ chat:'M4 4h16v12H9l-5 5V4',
+ coffee:'M3 9h14v9a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3zM17 10h2a3 3 0 0 1 0 6h-2M6 2v3M11 2v3',
+ clapper:'M3 8h18v13H3zM3 8l-1-5 18-2 1 5zM7 3l3 4M14 2l3 4M10 12l5 3-5 3z',
+ speaker:'M3 9h4l5-5v16l-5-5H3zM16 8a6 6 0 0 1 0 8M19 4a11 11 0 0 1 0 16',
+ mic:'M9 4a3 3 0 0 1 6 0v8a3 3 0 0 1-6 0zM5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8',
+ micOff:'M9 7V4a3 3 0 0 1 6 0v8M9 12a3 3 0 0 0 4 3M5 10v2a7 7 0 0 0 11 6M19 10v2M12 19v3M8 22h8M2 2l20 20',
+ clap:'M6 19l-3-5a2 2 0 0 1 3-2l2 2 5-8a1.5 1.5 0 0 1 3 1l-3 6 4-5a1.5 1.5 0 0 1 2 2l-3 4 3-2a1.5 1.5 0 0 1 2 2l-5 7c-3 3-7 3-10-2zM5 3l2 3M12 1v3M19 2l-2 3',
+ horn:'M3 10h5l12-6v16L8 14H3zM8 14l2 7H6l-1-7M23 9v6',
+ stop:'M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20M8 8h8v8H8z',
+ replay:'M3 10a9 9 0 1 1 1 8M3 4v6h6M10 8l6 4-6 4z',
+ aperture:'M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20M12 2l5 10-5 10M3 7l11 1 7 9M3 17l5-9 10-4',
+ record:'M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20M12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10',
+ broadcast:'M12 7a3 3 0 1 1 0 6 3 3 0 0 1 0-6M12 13v9M7 4a8 8 0 0 0 0 13M17 4a8 8 0 0 1 0 13M4 1a12 12 0 0 0 0 19M20 1a12 12 0 0 1 0 19',
+ bolt:'M14 2 4 14h7l-1 8 10-13h-7z',
+ edit:'M3 21l1-6L16 3a2 2 0 0 1 4 4L8 19zM14 5l5 5',
+ settings:'M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2',
+ arrow:'M4 12h16M14 6l6 6-6 6',
+ camera:'M3 6h12v13H3zM15 10l6-4v13l-6-4',
+ keyboard:'M2 5h20v14H2zM5 9h1M9 9h1M13 9h1M17 9h1M5 13h1M9 13h1M13 13h1M17 13h1M6 16h12',
+ link:'M10 14l4-4M8 16l-2 2a4 4 0 0 1-5-5l5-5a4 4 0 0 1 5 0M13 8l2-2a4 4 0 0 1 6 6l-4 4a4 4 0 0 1-5 0',
+ filter:'M3 4h18l-7 9v7l-4 2V13z',
+ clock:'M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20M12 6v6l4 2'
+};
+function icon(name){const filled=['obs','discord','homeFilled'].includes(name);return `<svg viewBox="0 0 24 24" aria-hidden="true"${filled?' class="filled-icon"':''}><path d="${paths[name]||paths.grid}"/></svg>`;}
+const native=typeof window.DeckNative!=='undefined';
+const preview=new URLSearchParams(location.search).get('preview')==='1'&&!native;
+let adminToken=new URLSearchParams(location.hash.slice(1)).get('admin')||sessionStorage.getItem('deckAdmin')||'';
+if(adminToken){sessionStorage.setItem('deckAdmin',adminToken);history.replaceState(null,'',location.pathname+location.search);}
+let nextRequest=0;const pending=new Map();
+window.nativeResult=(id,result)=>{const p=pending.get(id);if(!p)return;clearTimeout(p.timer);pending.delete(id);result.error?p.reject(new Error(result.error)):p.resolve(result);};
+function nativeRequest(path,body,method='POST'){
+  return new Promise((resolve,reject)=>{const id=++nextRequest;const timer=setTimeout(()=>{pending.delete(id);reject(new Error('The PC did not respond. Check the connection before trying again.'));},65000);pending.set(id,{resolve,reject,timer});window.DeckNative.dispatch(JSON.stringify({id,path,body,method}));});
+}
+async function api(path,body){
+  if(native)return nativeRequest(path,body,body===undefined?'GET':'POST');
+  const response=await fetch(path,{method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json','X-Deck-Admin':adminToken},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(65000)});
+  let data;try{data=await response.json();}catch{throw new Error(`Request failed (${response.status}). Reopen the companion to unlock the PC editor.`);}
+  if(!response.ok)throw new Error(data.error||`Request failed (${response.status}).`);return data;
+}
+let pages=[],pageId='',slice=0,state={},connection={},busy=false,refreshing=false,lastBoard=0,editing=false,dirty=false,toastTimer;
+function notice(message,error=false){const n=$('#notice');n.textContent=message;n.classList.toggle('error',error);n.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>n.hidden=true,error?12000:3000);}
+$('#notice').onclick=()=>$('#notice').hidden=true;
+const panel=$('#panel');
+function openPanel(title,html){$('#panel-title').textContent=title;$('#panel-body').innerHTML=DOMPurify.sanitize(html);if(!panel.open)panel.showModal();}
+async function closePanel(){if(dirty&&!await confirmAction('Discard changes?','Your unsaved changes will be lost.'))return;dirty=false;editing=false;panel.close();}
+$('#close-panel').onclick=closePanel;
+panel.addEventListener('cancel',event=>{if(dirty){event.preventDefault();closePanel();}else editing=false;});
+function confirmAction(title,copy){const d=$('#confirm-dialog');$('#confirm-title').textContent=title;$('#confirm-copy').textContent=copy;d.showModal();return new Promise(resolve=>d.addEventListener('close',()=>resolve(d.returnValue==='confirm'),{once:true}));}
+function labelFor(a){if(a.kind==='stream')return !state.obsConnected?'Stream control':state.streaming?'Stop stream':'Start stream';if(a.kind==='record')return !state.obsConnected?'Record control':state.recording?'Stop recording':'Record';return a.label;}
+function renderBoard(){
+  const page=pages.find(p=>p.id===pageId)||pages[0];if(!page)return;pageId=page.id;
+  const total=Math.max(1,Math.ceil(page.buttons.length/12));if(slice>=total)slice=total-1;
+  const keys=$('#keys');keys.replaceChildren();
+  for(const a of page.buttons.slice(slice*12,slice*12+12)){
+    const button=document.createElement('button');button.className='key '+(['violet','amber','red','blue'].includes(a.color)?a.color:'blue');button.dataset.id=a.id;
+    const active=a.kind==='scene'&&state.obsConnected&&a.target===state.scene;
+    button.classList.toggle('active',active);button.setAttribute('aria-label',labelFor(a)+(active?', active':''));
+    button.innerHTML=DOMPurify.sanitize(icon(a.icon)+`<span class="key-label">${esc(labelFor(a))}</span>`+(active?'<span class="active-tag">ACTIVE</span>':a.configured===false?'<small>Set up on PC</small>':''));
+    button.onclick=()=>trigger(a,button);keys.appendChild(button);
+  }
+  if(page.buttons.length===0){const empty=document.createElement('div');empty.className='empty-key';empty.innerHTML=DOMPurify.sanitize(icon(page.icon)+'<strong>No buttons yet</strong><span>Add actions using Edit in the Windows companion.</span>');keys.appendChild(empty);}
+  const pagination=$('#pagination');pagination.hidden=total<=1;pagination.innerHTML=DOMPurify.sanitize(`<button id="prev-keys" class="quiet" ${slice===0?'disabled':''}>Previous</button><span>Page ${slice+1} of ${total}</span><button id="next-keys" class="quiet" ${slice===total-1?'disabled':''}>Next</button>`);
+  $('#prev-keys').onclick=()=>{slice--;renderBoard();};$('#next-keys').onclick=()=>{slice++;renderBoard();};
+  const nav=$('#pages');nav.replaceChildren();for(const p of pages){const button=document.createElement('button');button.className='page-tab'+(p.id===pageId?' selected':'');button.setAttribute('aria-current',p.id===pageId?'page':'false');button.innerHTML=DOMPurify.sanitize(icon(p.icon==='home'&&p.id===pageId?'homeFilled':p.icon)+`<span>${esc(p.name)}</span>`);button.onclick=()=>{pageId=p.id;slice=0;renderBoard();};nav.appendChild(button);}
+}
+async function trigger(a,button){
+  if(preview){notice('Design preview — pair a tablet to use real controls.');return;}
+  if(busy){notice('An action is still running.');return;}
+  if(a.configured===false){notice('Set this button’s file, app, or shortcut using Edit on the PC.',true);return;}
+  let confirmed=false;if(a.confirm){confirmed=await confirmAction(labelFor(a)+'?',a.kind==='stream'?'This changes the stream broadcast in OBS.':'Run this action on your streaming PC?');if(!confirmed)return;}
+  busy=true;button.disabled=true;button.classList.add('pressed');
+  try{await api('/api/action',{id:a.id,confirmed});notice(labelFor(a)+' — done');await refresh(true);}catch(error){notice(error.message,true);}finally{busy=false;button.disabled=false;button.classList.remove('pressed');}
+}
+function buildMixer(){
+  $('#channels').innerHTML=DOMPurify.sanitize(['mic','desktop'].map(ch=>`<section class="channel" data-channel="${ch}"><div class="channel-title">${icon(ch==='mic'?'mic':'monitor')}<span>${ch==='mic'?'Mic':'Desktop'}</span></div><output class="db" id="db-${ch}">— dB</output><div class="slider-wrap"><input class="fader" id="fader-${ch}" type="range" min="-60" max="0" step="1" value="-12" aria-label="${ch==='mic'?'Microphone':'Desktop audio'} volume in decibels" disabled><div class="scale" aria-hidden="true"><span>0</span><span>−12</span><span>−24</span><span>−36</span><span>−48</span><span>−60</span></div></div><span class="input-error" id="input-error-${ch}" hidden>Set input on PC</span><button class="mute" id="mute-${ch}" disabled>${icon('micOff')}<span>Mute</span></button></section>`).join(''));
+  for(const ch of ['mic','desktop']){
+    const fader=$('#fader-'+ch);fader.addEventListener('input',()=>{$('#db-'+ch).textContent=fader.value+' dB';fader.style.setProperty('--level',((Number(fader.value)+60)/60*100)+'%');fader.dataset.dragging='true';});
+    fader.addEventListener('change',async()=>{if(preview){delete fader.dataset.dragging;return;}try{await api('/api/audio',{channel:ch,db:Number(fader.value)});}catch(error){notice(error.message,true);}finally{delete fader.dataset.dragging;await refresh(true);}});
+    $('#mute-'+ch).onclick=async()=>{if(preview)return;try{await api('/api/mute',{channel:ch});await refresh(true);}catch(error){notice(error.message,true);}};
+  }
+}
+function updateState(){
+  $('#obs-dot').classList.toggle('connected',!!state.obsConnected);$('#obs-status').textContent=state.pcConnected===false?'PC disconnected':state.obsConnected?'OBS connected':'OBS disconnected';
+  $('#connection').title=state.error||'Connection settings';$('#transport').textContent=preview?'Preview':native?(connection.mode==='usb'?'USB':'Wi-Fi'):'PC editor';
+  $('#stream-status').innerHTML=DOMPurify.sanitize(`<span class="dot ${state.obsConnected&&state.streaming?'live':''}"></span>${!state.obsConnected?'Stream unknown':state.streaming?'Streaming live':state.recording?'Recording':'Stream offline'}`);
+  for(const ch of ['mic','desktop']){
+    const input=state.inputs?.[ch];const available=!!(state.obsConnected&&input?.available);const fader=$('#fader-'+ch);fader.disabled=!available;$('#mute-'+ch).disabled=!available;
+    if(!fader.dataset.dragging){const db=Number.isFinite(input?.db)?Math.max(-60,Math.min(0,input.db)):-60;fader.value=String(Math.round(db));fader.style.setProperty('--level',((db+60)/60*100)+'%');$('#db-'+ch).textContent=available?Math.round(db)+' dB':'— dB';}
+    $('#input-error-'+ch).hidden=available||!state.obsConnected;$('#input-error-'+ch).title=input?.error||'';
+    const mute=$('#mute-'+ch);mute.classList.toggle('is-muted',!!input?.muted);mute.setAttribute('aria-pressed',String(!!input?.muted));mute.innerHTML=DOMPurify.sanitize(icon(input?.muted?'micOff':ch==='mic'?'mic':'speaker')+`<span>${input?.muted?'Unmute':'Mute'}</span>`);
+  }
+  renderBoard();
+}
+async function refresh(force=false){
+  if(refreshing||preview||(!force&&(document.hidden||panel.open)))return;refreshing=true;
+  try{
+    if(force||Date.now()-lastBoard>10000){const board=await api('/api/board');pages=board.pages;lastBoard=Date.now();}
+    state=await api('/api/state');state.pcConnected=true;updateState();
+  }catch(error){state={pcConnected:false,obsConnected:false,inputs:{},error:error.message};updateState();if(force)notice(error.message,true);}
+  finally{refreshing=false;}
+}
+function connectionForm(){
+  openPanel('Connect your tablet',`<section class="setup"><h3>Your studio, one tap away.</h3><p>Run TabletDeck-Companion.exe on your Windows PC, then choose <strong>Pair tablet</strong>. Enter the address, certificate code, and pairing PIN shown there.</p><div class="form-grid"><label>Connection<select id="pair-mode"><option value="wifi">Wi-Fi — same local network</option><option value="usb">USB — connected with USB-Connect.cmd</option></select></label><label>PC Wi-Fi address<input id="pair-host" placeholder="192.168.1.100" inputmode="decimal" value="${esc(connection.host||'')}"></label><label class="wide">Certificate code from your PC<input id="pair-cert" placeholder="6 groups of 4 letters and numbers" autocomplete="off" autocapitalize="characters" spellcheck="false"></label><label>Six-digit pairing PIN<input id="pair-code" placeholder="123456" inputmode="numeric" maxlength="6" autocomplete="off"></label></div><p class="help">Wi-Fi uses encrypted local-network control. For USB, enable USB debugging on the tablet and run USB-Connect.cmd in the Windows package. Keep the companion running.</p><div class="row"><button id="pair-submit" class="primary">Pair and connect</button>${connection.paired?'<button id="forget-pc" class="danger">Forget this PC</button>':''}</div>${connection.paired?'<div class="row"><button id="switch-transport" class="quiet">Switch to '+(connection.mode==='usb'?'Wi-Fi':'USB')+'</button></div>':''}<p id="pair-error" role="alert" class="help"></p></section>`);
+  $('#pair-mode').value=connection.mode||'wifi';$('#pair-mode').onchange=()=>$('#pair-host').disabled=$('#pair-mode').value==='usb'&&!connection.paired;$('#pair-mode').onchange();
+  $('#pair-submit').onclick=async()=>{const button=$('#pair-submit');button.disabled=true;$('#pair-error').textContent='Connecting securely…';try{connection=await nativeRequest('/native/pair',{host:$('#pair-host').value.trim(),mode:$('#pair-mode').value,certificate:$('#pair-cert').value.trim(),code:$('#pair-code').value.trim()});panel.close();await refresh(true);notice('Tablet paired. Your board is ready.');}catch(error){$('#pair-error').textContent=error.message;}finally{button.disabled=false;}};
+  if($('#forget-pc'))$('#forget-pc').onclick=async()=>{if(!await confirmAction('Forget this PC?','You will need a new pairing code to reconnect.'))return;connection=await nativeRequest('/native/forget',{});connectionForm();};
+  if($('#switch-transport'))$('#switch-transport').onclick=async()=>{try{connection=await nativeRequest('/native/transport',{mode:connection.mode==='usb'?'wifi':'usb',host:$('#pair-host').value.trim()});panel.close();await refresh(true);}catch(error){notice(error.message,true);}};
+}
+let config,selectedPage=0,selectedButton=0;
+const kinds={scene:'Switch OBS scene',preview:'Set preview scene',transition:'Take studio transition',sound:'Play sound on PC',stopSounds:'Stop all deck sounds',app:'Open Windows app',url:'Open website',hotkey:'Send keyboard shortcut',mute:'Toggle OBS input mute',source:'Toggle source visibility',filter:'Toggle source filter',media:'Restart / stop OBS media',record:'Toggle recording',stream:'Toggle streaming',replay:'Save replay buffer',virtualCamera:'Toggle virtual camera',studioMode:'Toggle studio mode',macro:'Run multiple actions',delay:'Delay (milliseconds)'};
+const targetHints={scene:'Exact OBS scene name',preview:'Exact OBS scene name',sound:'C:\\Sounds\\applause.wav',app:'C:\\Program Files\\App\\App.exe or absolute .lnk path',url:'https://example.com',hotkey:'CTRL+SHIFT+M, PLAYPAUSE, or VOLUMEUP',mute:'OBS input name',source:'OBS scene name',filter:'OBS source name',media:'OBS media input name',delay:'0–10000 milliseconds'};
+const newAction=()=>({id:crypto.randomUUID().replaceAll('-',''),label:'New button',kind:'scene',target:'',value:'',icon:'monitor',color:'violet',confirm:false,steps:[]});
+function options(items,value){return Object.entries(items).map(([v,label])=>`<option value="${esc(v)}" ${v===value?'selected':''}>${esc(label)}</option>`).join('');}
+async function showEditor(){
+  if(native){openPanel('Edit your board',`<section class="setup"><h3>Make it yours on the PC.</h3><p>Open the Windows companion’s control panel and select <strong>Edit</strong> to change buttons, add sounds and apps, create macros, or choose OBS inputs. Changes sync to this tablet automatically.</p><div class="row"><button id="tablet-connection" class="primary">Connection settings</button></div></section>`);$('#tablet-connection').onclick=connectionForm;return;}
+  if(preview){notice('Design preview — open the Windows companion to edit.');return;}
+  try{config=await api('/api/admin/config');editing=true;dirty=false;selectedPage=0;selectedButton=0;renderEditor();}catch(error){notice(error.message,true);}
+}
+function renderEditor(){
+  const page=config.pages[selectedPage]||config.pages[0];selectedPage=config.pages.indexOf(page);
+  const action=page.buttons[selectedButton];
+  openPanel('Edit your studio',`<h3>OBS connection</h3><div class="form-grid"><label>OBS WebSocket port<input id="obs-port" type="number" min="1" max="65535" value="${config.obsPort}"></label><label>OBS WebSocket password<input id="obs-password" type="password" placeholder="${config.passwordConfigured?'Saved — leave blank to keep':'Enter OBS password'}" autocomplete="new-password" value="${esc(config.obsPassword)}"></label><label>Mic input name<input id="mic-input" value="${esc(config.micInput)}" list="obs-inputs"></label><label>Desktop input name<input id="desktop-input" value="${esc(config.desktopInput)}" list="obs-inputs"></label></div><datalist id="obs-inputs"></datalist><div class="row"><button id="load-obs" class="quiet">Find OBS inputs</button><button id="import-scenes" class="quiet">Import OBS scenes</button><label class="check"><input id="clear-password" type="checkbox">Clear saved OBS password</label></div><p class="help">In OBS, enable Tools → WebSocket Server Settings and keep authentication enabled. Scene and input names must match OBS. Audio faders change OBS input volume, not the Windows system volume.</p><div class="editor-layout"><section><div class="row"><label>Page<select id="edit-page">${config.pages.map((p,i)=>`<option value="${i}" ${i===selectedPage?'selected':''}>${esc(p.name)}</option>`).join('')}</select></label></div><label>Page name<input id="page-name" value="${esc(page.name)}" maxlength="30"></label><div class="row"><button id="add-page" class="quiet">Add page</button><button id="delete-page" class="quiet">Delete page</button></div><div class="editor-list">${page.buttons.map((a,i)=>`<button class="quiet editor-item ${i===selectedButton?'selected':''}" data-edit-index="${i}">${icon(a.icon)}${esc(a.label)}</button>`).join('')}</div><div class="row"><button id="add-button" class="primary">Add button</button></div></section><section class="editor-form" id="action-form"></section></div><div class="save-bar"><span class="help" id="save-status">${dirty?'Unsaved changes':'Changes sync to your tablet after saving.'}</span><button id="export-config" class="quiet">Export</button><button id="import-config" class="quiet">Import</button><input id="config-file" type="file" accept=".json,application/json" hidden><button id="save-config" class="primary">Save changes</button></div>`);
+  if(action)renderActionForm(action);else $('#action-form').innerHTML=DOMPurify.sanitize('<h3>Add your first button</h3><p>Choose Add button, then select an action.</p>');
+  const bind=(id,key,convert=v=>v)=>{$(id).oninput=e=>{config[key]=convert(e.target.value);markDirty();};};
+  bind('#obs-port','obsPort',Number);bind('#obs-password','obsPassword');bind('#mic-input','micInput');bind('#desktop-input','desktopInput');
+  $('#clear-password').onchange=markDirty;
+  $('#page-name').oninput=e=>{page.name=e.target.value;markDirty();};
+  $('#edit-page').onchange=e=>{selectedPage=Number(e.target.value);selectedButton=0;renderEditor();};
+  document.querySelectorAll('[data-edit-index]').forEach(b=>b.onclick=()=>{selectedButton=Number(b.dataset.editIndex);renderEditor();});
+  $('#add-button').onclick=()=>{page.buttons.push(newAction());selectedButton=page.buttons.length-1;dirty=true;renderEditor();};
+  $('#add-page').onclick=()=>{config.pages.push({id:crypto.randomUUID(),name:'New page',icon:'grid',buttons:[]});selectedPage=config.pages.length-1;selectedButton=0;dirty=true;renderEditor();};
+  $('#delete-page').onclick=async()=>{if(config.pages.length<=1){notice('Keep at least one page.',true);return;}if(!await confirmAction('Delete '+page.name+'?','This removes the page and its buttons when you save.'))return;config.pages.splice(selectedPage,1);selectedPage=0;selectedButton=0;dirty=true;renderEditor();};
+  $('#load-obs').onclick=async()=>{try{await saveConfig(false);const data=await api('/api/admin/obs');$('#obs-inputs').innerHTML=DOMPurify.sanitize(data.inputs.inputs.map(i=>`<option value="${esc(i.inputName)}"></option>`).join(''));notice('OBS connected. Input names are available in the audio fields.');}catch(error){notice(error.message,true);}};
+  $('#import-scenes').onclick=async()=>{try{await saveConfig(false);await api('/api/admin/import-scenes',{});config=await api('/api/admin/config');dirty=false;renderEditor();notice('OBS scenes added to the Scenes page.');}catch(error){notice(error.message,true);}};
+  $('#save-config').onclick=()=>saveConfig(true).catch(error=>notice(error.message,true));
+  $('#export-config').onclick=()=>{const copy=structuredClone(config);copy.obsPassword='';delete copy.passwordConfigured;const url=URL.createObjectURL(new Blob([JSON.stringify(copy,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='TabletDeck-board.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);notice('Board exported. OBS password is excluded.');};
+  $('#import-config').onclick=()=>$('#config-file').click();$('#config-file').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;if(file.size>1024*1024)throw new Error('Choose a board smaller than 1 MB.');const imported=JSON.parse(await file.text());if(!Array.isArray(imported.pages)||!imported.pages.length)throw new Error('This is not a Tablet Deck board.');config={...config,...imported,obsPassword:''};selectedPage=0;selectedButton=0;dirty=true;renderEditor();notice('Board imported. Review it, then Save changes.');}catch(error){notice(error.message,true);}};
+}
+function markDirty(){dirty=true;if($('#save-status'))$('#save-status').textContent='Unsaved changes';}
+async function saveConfig(close){
+  const clear=$('#clear-password')?.checked;const password=config.obsPassword;
+  await api('/api/admin/config',{config,replacePassword:!!password||!!clear});config.passwordConfigured=!!password||(config.passwordConfigured&&!clear);config.obsPassword='';dirty=false;
+  if(close){editing=false;panel.close();await refresh(true);notice('Saved. Your tablet will update automatically.');}else if($('#save-status'))$('#save-status').textContent='Saved';
+}
+function renderActionForm(a){
+  const needsTarget=Object.hasOwn(targetHints,a.kind);const needsValue=['source','filter','media'].includes(a.kind);
+  $('#action-form').innerHTML=DOMPurify.sanitize(`<h3>${esc(a.label)}</h3><div class="form-grid"><label>Button label<input id="action-label" value="${esc(a.label)}" maxlength="60"></label><label>Action<select id="action-kind">${options(kinds,a.kind)}</select></label><label>Icon<select id="action-icon">${options(Object.fromEntries(Object.keys(paths).map(x=>[x,x])),a.icon)}</select></label><label>Color<select id="action-color">${options({violet:'Violet · scenes',amber:'Amber · sounds',blue:'Blue · apps',red:'Red · broadcast'},a.color)}</select></label>${needsTarget?`<label class="wide">${a.kind==='delay'?'Delay':'Target'}<input id="action-target" value="${esc(a.target)}" placeholder="${esc(targetHints[a.kind])}"></label>`:''}${needsValue?`<label class="wide">${a.kind==='source'?'Source name':a.kind==='filter'?'Filter name':'Media action (restart or stop)'}<input id="action-value" value="${esc(a.value)}" placeholder="${a.kind==='media'?'restart or stop':''}"></label>`:''}</div><div class="row"><label class="check"><input id="action-confirm" type="checkbox" ${a.confirm?'checked':''}>Confirm before running</label></div>${a.kind==='sound'?'<p class="help">Sound plays on the PC’s default output. Enable OBS Desktop Audio capture, or route that output through your mixer, so viewers hear it.</p>':''}${a.kind==='hotkey'?'<p class="help">Shortcuts go to the foreground Windows app. OBS-specific controls work in the background.</p>':''}${a.kind==='macro'?'<h3>Actions in order</h3><p class="help">Steps run in order and stop on the first error. Use Delay for timing. Stream and recording steps always require confirmation.</p><div id="macro-steps"></div><button id="add-step" class="quiet">Add step</button>':''}<div class="row"><button id="move-left" class="quiet">Move earlier</button><button id="move-right" class="quiet">Move later</button><button id="delete-button" class="danger">Delete button</button></div>`);
+  for(const [id,key] of [['#action-label','label'],['#action-icon','icon'],['#action-color','color'],['#action-target','target'],['#action-value','value']])if($(id))$(id).oninput=e=>{a[key]=e.target.value;markDirty();};
+  $('#action-kind').onchange=e=>{a.kind=e.target.value;markDirty();renderActionForm(a);};$('#action-confirm').onchange=e=>{a.confirm=e.target.checked;markDirty();};
+  const page=config.pages[selectedPage];
+  function move(offset){const index=selectedButton+offset;if(index<0||index>=page.buttons.length)return;[page.buttons[selectedButton],page.buttons[index]]=[page.buttons[index],page.buttons[selectedButton]];selectedButton=index;dirty=true;renderEditor();}
+  $('#move-left').onclick=()=>move(-1);$('#move-right').onclick=()=>move(1);$('#delete-button').onclick=async()=>{if(!await confirmAction('Delete '+a.label+'?','This removes the button when you save.'))return;page.buttons.splice(selectedButton,1);selectedButton=Math.max(0,selectedButton-1);dirty=true;renderEditor();};
+  if(a.kind==='macro'){
+    a.steps??=[];$('#macro-steps').innerHTML=DOMPurify.sanitize(a.steps.map((s,i)=>`<div class="step"><div class="form-grid"><label>Action<select data-step="${i}" data-field="kind">${options(Object.fromEntries(Object.entries(kinds).filter(([key])=>key!=='macro')),s.kind)}</select></label><label>Target / file / milliseconds<input data-step="${i}" data-field="target" value="${esc(s.target)}"></label><label>Source / filter / media action<input data-step="${i}" data-field="value" value="${esc(s.value)}"></label></div><div class="row"><button class="quiet" data-remove-step="${i}">Remove step ${i+1}</button></div></div>`).join(''));
+    document.querySelectorAll('[data-step]').forEach(el=>el.oninput=e=>{a.steps[Number(e.target.dataset.step)][e.target.dataset.field]=e.target.value;markDirty();});
+    document.querySelectorAll('[data-remove-step]').forEach(el=>el.onclick=()=>{a.steps.splice(Number(el.dataset.removeStep),1);markDirty();renderActionForm(a);});
+    $('#add-step').onclick=()=>{const step=newAction();step.label='Macro step';a.steps.push(step);markDirty();renderActionForm(a);};
+  }
+}
+async function showPairing(){
+  try{const info=await api('/api/admin/info');const pairing=await api('/api/admin/pairing',{});const grouped=pairing.certificateCode.match(/.{1,4}/g).join('-');
+    openPanel('Pair an Android tablet',`<section class="setup"><h3>Connect to this PC</h3><p>Install TabletDeck-Studio.apk on the tablet. Open it and enter these details. This PIN works once and expires in five minutes.</p><div class="pair-details"><p>PC Wi-Fi address</p><strong class="cert-code">${info.addresses.map(esc).join(' · ')||'No network address found. Use USB.'}</strong><p>Certificate code</p><strong class="cert-code">${esc(grouped)}</strong><p>Pairing PIN</p><strong class="pair-code">${esc(pairing.code)}</strong></div><h3>USB connection</h3><p>Connect a data cable, enable USB debugging on the tablet, approve this PC, and run <strong>USB-Connect.cmd</strong> in the Windows package. Select USB in the tablet pairing screen. After pairing, you can switch between Wi-Fi and USB without pairing again.</p><p class="help">For Wi-Fi, allow the companion through Windows Firewall on your private network. Keep port ${info.httpsPort} on the local network; internet access is not needed.</p><h3>Paired tablets</h3><div id="devices">${info.devices.length?info.devices.map(d=>`<div class="device-row"><span>${esc(d.name)}</span><button class="danger" data-revoke="${esc(d.id)}">Revoke</button></div>`).join(''):'<p>No tablets paired yet.</p>'}</div><div class="row"><button id="new-code" class="quiet">Generate a new PIN</button></div></section>`);
+    $('#new-code').onclick=showPairing;document.querySelectorAll('[data-revoke]').forEach(b=>b.onclick=async()=>{if(!await confirmAction('Revoke this tablet?','It will lose access to this PC immediately.'))return;await api('/api/admin/revoke',{id:b.dataset.revoke});await showPairing();});
+  }catch(error){notice(error.message,true);}
+}
+function previewData(){
+  const names=['Gameplay','Just chatting','Be right back','Starting','Applause','Air horn','Stop sounds','Save replay','Open OBS','Open Discord','Record','Start stream'];
+  const kindsList=['scene','scene','scene','scene','sound','sound','stopSounds','replay','app','app','record','stream'];
+  const icons=['gamepad','chat','bed','clapper','clap','horn','stop','replay','obs','discord','record','broadcast'];
+  const buttons=names.map((label,i)=>({id:String(i),label,kind:kindsList[i],icon:icons[i],color:i<4?'violet':i<8?'amber':i<10?'blue':'red',target:label,configured:true}));
+  pages=['Main','Scenes','Sounds','Apps','Macros'].map((name,i)=>({id:String(i),name,icon:['home','image','speaker','grid','list'][i],buttons:i===0?buttons:i===1?buttons.slice(0,4):i===2?buttons.slice(4,7):i===3?buttons.slice(8,10):[]}));
+  state={obsConnected:true,scene:'Gameplay',streaming:false,recording:false,inputs:{mic:{available:true,db:-6,muted:false},desktop:{available:true,db:-12,muted:false}}};$('#preview-label').hidden=false;updateState();
+}
+async function init(){
+  buildMixer();$('#edit-button').innerHTML=DOMPurify.sanitize(icon('settings')+'<span>Edit</span>');$('#edit-button').onclick=showEditor;
+  $('#pair-button').hidden=native||preview;$('#pair-button').onclick=showPairing;
+  $('#connection').onclick=()=>native?connectionForm():state.error?notice(state.error,true):notice('The PC editor controls OBS through its local WebSocket server.');
+  if(preview){previewData();return;}
+  if(native){try{connection=await nativeRequest('/native/connection',{});}catch(error){notice(error.message,true);}if(!connection.paired){$('#obs-status').textContent='Pair your PC';connectionForm();return;}}
+  await refresh(true);
+}
+init().catch(error=>notice(error.message,true));
+setInterval(()=>{if(!native||connection.paired)refresh();},1600);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh(true);});
