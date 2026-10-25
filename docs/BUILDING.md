@@ -22,6 +22,8 @@ dotnet publish .\companion\TabletDeck.csproj -c Release -r win-x64 --self-contai
 
 Keep the published `wwwroot`, `Sounds`, and `Licenses` folders beside the executable. Twenty-six self-tests cover defaults, included sound assets, validation, key mapping, OBS authentication, confirmations, Soundpad pipe/XML parsing, app-mixer validation, atomic layout reorder, and Soundpad button import.
 
+The Android build packs bundled assets with the JDK `jar` tool. Windows `aapt2 -A` produced backslashes in asset ZIP entry names during the physical 1.4 test, which Android could not load. Before signing, the build rejects backslash entries and verifies every required UI asset has its exact forward-slash path. See [the hardware test report](LIVE-TEST.md).
+
 An additional real Windows audio smoke test creates a silent playback session, adjusts only its own volume/mute, verifies those values, and restores them:
 
 ```powershell
@@ -141,7 +143,7 @@ USB adds ADB reverse tunnels for ports 8743 and 8744. The PC editor uses a separ
 Assemble the complete release ZIP with SHA256SUMS.txt listing every file except itself, then embed it:
 
 ```powershell
-$payload = (Resolve-Path .\dist\TabletDeck-Studio-1.4.zip).Path
+$payload = (Resolve-Path .\dist\TabletDeck-Studio-1.4.1.zip).Path
 dotnet publish .\installer\TabletDeck.Setup.csproj -c Release -o .\dist\Setup "-p:PayloadArchive=$payload"
 .\dist\Setup\TabletDeck-Setup.exe --verify-payload
 ```

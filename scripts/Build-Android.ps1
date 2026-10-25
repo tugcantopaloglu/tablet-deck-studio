@@ -17,7 +17,18 @@ Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\fonts') -Destinat
 Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\vendor') -Destination (Join-Path $taskBuild 'assets\www') -Recurse -Force
 function Invoke-Checked([string]$Exe,[string[]]$Arguments){& $Exe @Arguments;if($LASTEXITCODE -ne 0){throw "Build command failed: $Exe"}}
 Invoke-Checked (Join-Path $taskBuildTools 'aapt2.exe') @('compile','--dir',(Join-Path $taskAndroid 'res'),'-o',(Join-Path $taskBuild 'resources.zip'))
-Invoke-Checked (Join-Path $taskBuildTools 'aapt2.exe') @('link','-o',(Join-Path $taskBuild 'unsigned.apk'),'--manifest',(Join-Path $taskAndroid 'AndroidManifest.xml'),'-I',$taskPlatform,'-R',(Join-Path $taskBuild 'resources.zip'),'-A',(Join-Path $taskBuild 'assets'),'--auto-add-overlay')
+Invoke-Checked (Join-Path $taskBuildTools 'aapt2.exe') @('link','-o',(Join-Path $taskBuild 'unsigned.apk'),'--manifest',(Join-Path $taskAndroid 'AndroidManifest.xml'),'-I',$taskPlatform,'-R',(Join-Path $taskBuild 'resources.zip'),'--auto-add-overlay')
+# The Windows aapt2 asset packer emits backslashes in ZIP entry names. Android's
+# AssetManager requires forward slashes; jar normalizes filesystem paths for us.
+Invoke-Checked (Join-Path $taskJdk 'bin\jar.exe') @('uf',(Join-Path $taskBuild 'unsigned.apk'),'-C',$taskBuild,'assets')
+$taskArchive=[System.IO.Compression.ZipFile]::OpenRead((Join-Path $taskBuild 'unsigned.apk'))
+try {
+ $taskEntries=@($taskArchive.Entries | ForEach-Object FullName)
+ if(@($taskEntries | Where-Object { $_.Contains('\') }).Count){throw 'APK contains Windows path separators.'}
+ foreach($taskAsset in @('index.html','app.js','features.js','hardening.js','latency.js','style.css','fonts/Manrope.ttf','vendor/purify.min.js')){
+  if($taskEntries -notcontains ('assets/www/'+$taskAsset)){throw "APK asset is missing: $taskAsset"}
+ }
+} finally {$taskArchive.Dispose()}
 $taskSources=@(Get-ChildItem -LiteralPath (Join-Path $taskAndroid 'src') -Filter '*.java' -Recurse | ForEach-Object FullName)
 Invoke-Checked (Join-Path $taskJdk 'bin\javac.exe') (@('-encoding','UTF-8','--release','8','-classpath',$taskPlatform,'-d',(Join-Path $taskBuild 'classes'))+$taskSources)
 Push-Location (Join-Path $taskBuild 'classes')

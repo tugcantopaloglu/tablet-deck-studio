@@ -1,4 +1,14 @@
-Tablet Deck Studio 1.4.0 — verification
+Tablet Deck Studio 1.4.1 — verification
+
+PHYSICAL PATCH VERIFICATION
+-1.4.1 fixes Windows-style APK asset entries; the build now checks forward-slash names and all required UI assets before signing.
+-APK versionCode6/version1.4.1, original signing key, signatures v2/v3 verified.
+-Installed and launched on a physical Android16 tablet: bundled UI, USB pairing, twelve-button board, Wi-Fi/USB switching, Windows app-session listing, successful Applause and Stop sounds responses, and background/resume reconnection verified.
+-Native heartbeat samples: USB3.9ms/10.5ms, Wi-Fi6.5ms. Individual observations only; no end-to-end latency claim.
+-Snyk Code CLI:0 errors,0 warnings, same existing JavaScriptEnabled informational note. Requested snyk_code_scan tool remains unavailable.
+-See docs/LIVE-TEST.md for scope, the packaging defect, and remaining hardware/integration checks.
+
+The sections below preserve the 1.4.0 baseline results. They were not all rerun for this packaging-only patch.
 
 BUILD
 - Windows companion: .NET10 self-contained x64 Release, zero compiler warnings/errors.

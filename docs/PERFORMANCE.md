@@ -2,6 +2,8 @@
 
 Version 1.4 removes repeated connection setup and polling delays from the normal control path. It cannot make network transmission, touch sampling, display refresh, app startup, audio buffers, or capture instantaneous.
 
+Version 1.4.1 corrects APK asset paths for Android. A physical Android 16 tablet subsequently connected over both Wi-Fi and USB; sparse heartbeat observations were 3.9–10.5 ms over USB and 6.5 ms over Wi-Fi. These are individual connection samples, not action-latency benchmarks. See the [physical test report and limits](LIVE-TEST.md).
+
 ## Measured software overhead
 
 These command-line measurements use one Windows PC and a synthetic OBS server. No tablet, Wi-Fi, USB cable, actual OBS, or audio output is involved.
