@@ -8,7 +8,7 @@ using Windows.Storage.Streams;
 namespace TabletDeck;
 
 public sealed record MediaSessionInfo(string Id,string Source,string Kind,string Title,string Artist,string Album,string Artwork,double PositionMs,double DurationMs,bool Playing,bool CanPlay,bool CanPause,bool CanNext,bool CanPrevious,bool CanSeek,string ContextToken);
-public sealed record MediaSessionsSnapshot(MediaSessionInfo[] Sessions,string? Error=null);
+public sealed record MediaSessionsSnapshot(MediaSessionInfo[] Sessions,string? Error=null,string? Warning=null);
 public sealed record MediaSessionActionRequest(string PresetId,string SessionId,string ContextToken,string Operation,double? PositionMs=null);
 
 internal sealed record MediaSessionData(string Title,string Artist,string Album,long TrackRevision,long StartTicks,long EndTicks,long PositionTicks,long MinSeekTicks,long MaxSeekTicks,bool Playing,bool CanPlay,bool CanPause,bool CanNext,bool CanPrevious,bool CanSeek,byte[]? Artwork=null);
@@ -84,7 +84,8 @@ public sealed class MediaSessions : IDisposable
             }
             lock(gate){
                 foreach(var key in entries.Keys.Where(key=>!live.Contains(key)).ToArray())entries.Remove(key);
-                cached=new(result.OrderBy(s=>s.Kind=="spotify"?0:s.Kind=="browser"?1:2).ThenBy(s=>s.Source,StringComparer.OrdinalIgnoreCase).ToArray(),failed?"Some Windows players did not provide media details. Refresh to retry.":null);
+                var message=failed?"Some Windows players did not provide media details. Refresh to retry.":null;
+                cached=new(result.OrderBy(s=>s.Kind=="spotify"?0:s.Kind=="browser"?1:2).ThenBy(s=>s.Source,StringComparer.OrdinalIgnoreCase).ToArray(),failed&&result.Count==0?message:null,failed&&result.Count>0?message:null);
                 captured=Stopwatch.GetTimestamp();return cached;
             }
         }catch(Exception ex) when(ex is not OutOfMemoryException){

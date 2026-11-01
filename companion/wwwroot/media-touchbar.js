@@ -10,7 +10,7 @@
   function button(name,label){const node=make('button','media-transport');node.type='button';node.setAttribute('aria-label',label);node.append(symbol(name));return node;}
   class MediaView {
     constructor(presetId,options){
-      this.presetId=presetId;this.options=options;this.selectedId='';this.sessions=[];this.apps=[];this.mixerId='';this.mixerExplicit=false;this.snapshotError='';this.reading=false;this.writing=false;this.destroyed=false;this.epoch=0;this.drag=null;this.volumeDrag=null;this.volumePending=null;this.volumeWriting=false;this.volumeTimer=null;
+      this.presetId=presetId;this.options=options;this.selectedId='';this.sessions=[];this.apps=[];this.mixerId='';this.mixerExplicit=false;this.snapshotError='';this.snapshotWarning='';this.reading=false;this.writing=false;this.destroyed=false;this.epoch=0;this.drag=null;this.volumeDrag=null;this.volumePending=null;this.volumeWriting=false;this.volumeTimer=null;
       this.element=make('section','media-touchbar');this.element.setAttribute('aria-label',presetId==='spotify'?'Spotify player':'Browser media player');this.build();this.render();this.refresh();this.timer=setInterval(()=>this.refresh(),1000);
     }
     active(){return !this.destroyed&&this.options.isActive();}
@@ -39,11 +39,11 @@
     async refresh(){
       if(!this.active()||this.reading)return;this.reading=true;const epoch=this.epoch;
       try{const results=await Promise.allSettled([this.options.request('/api/computer/media'),this.options.request('/api/apps')]);if(!this.active()||epoch!==this.epoch)return;
-        if(results[0].status==='rejected')throw results[0].reason;const data=results[0].value;this.sessions=Array.isArray(data.sessions)?data.sessions.filter(session=>this.eligible(session)):[];this.snapshotError=data.error||'';this.apps=results[1].status==='fulfilled'&&Array.isArray(results[1].value.apps)?results[1].value.apps:[];
+        if(results[0].status==='rejected')throw results[0].reason;const data=results[0].value,allSessions=Array.isArray(data.sessions)?data.sessions:[];this.sessions=allSessions.filter(session=>this.eligible(session));this.snapshotError=allSessions.length?'':data.error||'';this.snapshotWarning=data.warning||(allSessions.length?data.error||'':'');this.apps=results[1].status==='fulfilled'&&Array.isArray(results[1].value.apps)?results[1].value.apps:[];
         if(this.selectedId&&!this.selected()){this.cancelDrag();this.selectedId='';this.mixerId='';}
         if(!this.selectedId&&this.presetId==='spotify'&&this.sessions.length===1)this.selectedId=this.sessions[0].id;
         this.render();
-      }catch(error){if(this.active()&&epoch===this.epoch){this.snapshotError=error.message;this.sessions=[];this.apps=[];this.cancelDrag();this.selectedId='';this.render();}}
+      }catch(error){if(this.active()&&epoch===this.epoch){this.snapshotError=error.message;this.snapshotWarning='';this.sessions=[];this.apps=[];this.cancelDrag();this.selectedId='';this.render();}}
       finally{this.reading=false;}
     }
     render(){
@@ -53,7 +53,8 @@
       const enabled=this.enabled()&&!this.writing;this.previous.hidden=!selected?.canPrevious;this.next.hidden=!selected?.canNext;this.toggle.hidden=!!selected&&!selected.canPlay&&!selected.canPause;this.previous.disabled=!enabled;this.next.disabled=!enabled;this.toggle.disabled=!enabled||!selected||(selected.playing?!selected.canPause:!selected.canPlay);this.toggle.setAttribute('aria-label',selected?.playing?'Pause':'Play');this.toggle.replaceChildren(symbol(selected?.playing?'pause':'play'));
       const duration=Math.max(0,Number(selected?.durationMs)||0),position=Math.max(0,Math.min(duration,Number(selected?.positionMs)||0));this.seek.disabled=!enabled||!selected?.canSeek||duration<=0;
       if(!this.drag){this.seek.max=String(Math.max(1,duration));this.seek.value=String(position);this.position.textContent=clock(position);this.seek.setAttribute('aria-valuetext',clock(position)+' of '+clock(duration));}this.duration.textContent=clock(duration);
-      this.status.textContent=this.snapshotError?'Media unavailable. '+this.snapshotError:!this.options.isEnabled()?'Enable Computer Copilot on the PC to use these controls.':!selected?(this.sessions.length?'Select the player you want to control.':'No compatible media session. Start playback in '+(this.presetId==='spotify'?'the Spotify desktop app.':'your browser, then refresh.')):!selected.canSeek?'This player does not support seeking.':'';this.renderVolume();
+      const primaryStatus=this.snapshotError?'Media unavailable. '+this.snapshotError:!this.options.isEnabled()?'Enable Computer Copilot on the PC to use these controls.':!selected?(this.sessions.length?'Select the player you want to control.':'No compatible media session. Start playback in '+(this.presetId==='spotify'?'the Spotify desktop app.':'your browser, then refresh.')):!selected.canSeek?'This player does not support seeking.':'';
+      this.status.textContent=[primaryStatus,this.snapshotWarning].filter(Boolean).join(' ');this.renderVolume();
     }
     volumeCandidates(){
       const selected=this.selected();if(!selected)return[];let process='';if(this.presetId==='spotify'&&selected.kind==='spotify')process='spotify';else if(selected.kind==='browser'){const source=String(selected.source||'').toLowerCase();if(['chrome','chrome.exe','msedge.exe','firefox.exe','brave.exe','opera.exe','vivaldi.exe'].includes(source))process=source.replace(/\.exe$/,'');}return process?this.apps.filter(app=>String(app.name||'').toLowerCase()===process):[];

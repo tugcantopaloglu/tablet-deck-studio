@@ -52,11 +52,12 @@ The snapshot is:
     "canSeek": true,
     "contextToken": "opaque 32-character track identity"
   }],
-  "error": null
+  "error": null,
+  "warning": null
 }
 ```
 
-`MediaSessionsSnapshot` has `MediaSessionInfo[] Sessions` and nullable `string Error`. `MediaSessionInfo` has exactly the fields above. Read failures return an empty or partial array with a readable error. A missing player is a normal empty result. Nothing starts playback as a side effect of a snapshot, and no fake/sample track is returned.
+`MediaSessionsSnapshot` has `MediaSessionInfo[] Sessions`, nullable `string Error`, and nullable `string Warning`. `MediaSessionInfo` has exactly the fields above. If one player fails but usable players remain, the response preserves those sessions with `error:null` and a readable `warning`; their controls remain usable. If every player's metadata fails, or platform initialization/enumeration fails, the response has an empty sessions array and an `error`. An ordinary empty enumeration has neither error nor warning. This distinction preserves the native bridge's existing rule that a truthy `error` rejects a response; partial success never requires weakening that rule. Nothing starts playback as a side effect of a snapshot, and no fake/sample track is returned.
 
 ## Session selection and stale requests
 

@@ -4,7 +4,7 @@ using TabletDeck;
 if(args.Contains("--probe")){
     // Explicitly read-only diagnostic. Never calls Execute/Operate or starts an app.
     using var real=new MediaSessions();var first=await real.Snapshot();await Task.Delay(600);var snapshot=await real.Snapshot();
-    Console.WriteLine(JsonSerializer.Serialize(new{sessions=snapshot.Sessions.Select(s=>new{s.Id,s.Source,s.Kind,s.Title,s.Artist,s.Album,artworkCharacters=s.Artwork.Length,s.PositionMs,s.DurationMs,s.Playing,s.CanPlay,s.CanPause,s.CanNext,s.CanPrevious,s.CanSeek,s.ContextToken}),snapshot.Error,sameSessionIds=first.Sessions.Select(s=>s.Id).Order().SequenceEqual(snapshot.Sessions.Select(s=>s.Id).Order()),readOnly=true},new JsonSerializerOptions(JsonSerializerDefaults.Web){WriteIndented=true}));return;
+    Console.WriteLine(JsonSerializer.Serialize(new{sessions=snapshot.Sessions.Select(s=>new{s.Id,s.Source,s.Kind,s.Title,s.Artist,s.Album,artworkCharacters=s.Artwork.Length,s.PositionMs,s.DurationMs,s.Playing,s.CanPlay,s.CanPause,s.CanNext,s.CanPrevious,s.CanSeek,s.ContextToken}),snapshot.Error,snapshot.Warning,sameSessionIds=first.Sessions.Select(s=>s.Id).Order().SequenceEqual(snapshot.Sessions.Select(s=>s.Id).Order()),readOnly=true},new JsonSerializerOptions(JsonSerializerDefaults.Web){WriteIndented=true}));return;
 }
 var passed=0;
 void Check(bool value,string message){if(!value)throw new Exception("FAIL "+message);passed++;Console.WriteLine("PASS "+message);}
@@ -58,7 +58,15 @@ using(var sharing=new MediaSessions(slow)){var one=sharing.Snapshot();var two=sh
 var waiting=new FakeSession("Spotify.exe","Waiting"){Barrier=new(TaskCreationOptions.RunContinuationsAsynchronously)};
 using(var busy=new MediaSessions(new FakePlatform{Handles=[waiting]})){var view=(await busy.Snapshot()).Sessions[0];var first=busy.Execute(Req(view));await waiting.Entered.Task;await Reject(()=>busy.Execute(Req(view)),"overlapping writes are rejected without queueing another playback command");waiting.Barrier.SetResult();await first;}
 var declining=new FakeSession("Spotify.exe","Decline"){Accepted=false};using(var refused=new MediaSessions(new FakePlatform{Handles=[declining,browser]})){var view=(await refused.Snapshot()).Sessions[0];await Reject(()=>refused.Execute(Req(view)),"player refusal is reported without trying another session");}
-using(var unavailable=new MediaSessions(new FakePlatform{Failure=true})){var empty=await unavailable.Snapshot();Check(empty.Sessions.Length==0&&empty.Error is not null,"platform failure returns an honest empty/error state without a mock/current player");}
+using(var unavailable=new MediaSessions(new FakePlatform{Failure=true})){var empty=await unavailable.Snapshot();Check(empty.Sessions.Length==0&&empty.Error is not null&&empty.Warning is null,"platform failure returns an honest empty/error state without a mock/current player");}
+var validSpotify=new FakeSession("Spotify.exe","Usable song");var validBrowser=new FakeSession("Chrome","Usable video");var brokenPlayer=new FakeSession("unrelated.exe","Unreadable"){ReadFailure=true};
+using(var partial=new MediaSessions(new FakePlatform{Handles=[validSpotify,brokenPlayer,validBrowser]})){
+    var usable=await partial.Snapshot();Check(usable.Sessions.Length==2&&usable.Error is null&&usable.Warning is not null,"unrelated metadata failure preserves two valid players with Warning only");
+    var payload=JsonSerializer.SerializeToElement(usable,new JsonSerializerOptions(JsonSerializerDefaults.Web));Check(payload.GetProperty("error").ValueKind==JsonValueKind.Null&&payload.GetProperty("warning").GetString() is not null,"partial success serializes no truthy error for the native bridge");
+    await partial.Execute(Req(usable.Sessions.Single(s=>s.Kind=="spotify")));Check(validSpotify.Calls.Count==1&&validBrowser.Calls.Count==0&&brokenPlayer.Calls.Count==0,"valid Spotify player remains usable after unrelated metadata failure without fallback");
+}
+using(var unreadable=new MediaSessions(new FakePlatform{Handles=[brokenPlayer]})){var empty=await unreadable.Snapshot();Check(empty.Sessions.Length==0&&empty.Error is not null&&empty.Warning is null,"complete metadata failure remains an error for the native bridge");}
+using(var noPlayers=new MediaSessions(new FakePlatform())){var empty=await noPlayers.Snapshot();Check(empty.Sessions.Length==0&&empty.Error is null&&empty.Warning is null,"ordinary empty session enumeration has neither an error nor a warning");}
 var now=new DateTimeOffset(2026,11,2,12,0,0,TimeSpan.Zero);long T(double seconds)=>TimeSpan.FromSeconds(seconds).Ticks;
 long Estimate(bool playing=true,double? rate=1,DateTimeOffset? updated=null,long? start=null,long? end=null,long? position=null)=>WindowsMediaSession.EstimatePosition(position??T(35),start??T(5),end??T(185),playing,updated??now.AddSeconds(-5),rate,now);
 Check(Estimate()==T(40),"playing progress advances by elapsed UTC time from reported timeline timestamp");
@@ -83,9 +91,9 @@ internal sealed class FakePlatform : IMediaSessionPlatform {
     public void Dispose(){}
 }
 internal sealed class FakeSession : IMediaSessionHandle {
-    public object Identity{get;}=new();public string Source{get;}public MediaSessionData Data;public List<(string,long)> Calls=[];public bool Accepted=true;public TaskCompletionSource? Barrier;public TaskCompletionSource Entered=new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public object Identity{get;}=new();public string Source{get;}public MediaSessionData Data;public List<(string,long)> Calls=[];public bool Accepted=true,ReadFailure;public TaskCompletionSource? Barrier;public TaskCompletionSource Entered=new(TaskCreationOptions.RunContinuationsAsynchronously);
     public FakeSession(string source,string title){Source=source;Data=new(title,"Artist","Album",0,50000000,1850000000,350000000,50000000,1850000000,true,true,true,true,true,true,Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j2V8AAAAASUVORK5CYII="));}
-    public Task<MediaSessionData> Read(bool artwork,CancellationToken ct)=>Task.FromResult(Data);
+    public Task<MediaSessionData> Read(bool artwork,CancellationToken ct)=>ReadFailure?Task.FromException<MediaSessionData>(new InvalidOperationException("Fixture metadata failure")):Task.FromResult(Data);
     public async Task<bool> Operate(string operation,long absoluteTicks,CancellationToken ct){Calls.Add((operation,absoluteTicks));Entered.TrySetResult();if(Barrier is not null)await Barrier.Task.WaitAsync(ct);return Accepted;}
 }
 }
