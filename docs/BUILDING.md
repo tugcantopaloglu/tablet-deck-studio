@@ -9,7 +9,7 @@ Use a prebuilt release if you only want to use the app. These instructions are f
 - JDK 17, Android platform 35, and Android build-tools 35.0.0 for the APK.
 - Node.js 22+ and Chrome for the optional integration tests.
 
-No Gradle or Maven dependencies are required. The Android wrapper uses platform APIs; its web interface and dependencies are vendored locally. The Windows build restores NAudio.Wasapi 2.2.1 and its dependencies from NuGet for audio-session control.
+No Gradle or Maven client is required. The Android wrapper uses platform APIs and the pinned, vendored ZXing core 3.5.3 JAR for local QR decoding; the APK build checks its SHA-256. The bundled web interface stays local. The Windows build restores NAudio.Wasapi 2.2.1 for audio-session control and QRCoder 1.6.0 for local pairing PNG generation. License notices are included in the Windows package and APK assets.
 
 ## Clone and publish Windows
 
@@ -79,7 +79,7 @@ $output = Join-Path (Get-Location) 'dist'
 
 The script compiles resources and Java, converts classes to DEX, packages the bundled interface, aligns the APK, signs it, and verifies the result. Output: `dist/TabletDeck-Studio.apk`.
 
-App identity: `app.tabletdeck.studio`, version `1.8.0`, version code `11`, minimum SDK `26`, target SDK `35`. Increment version code for later releases. Asset checks include `boards.js` and `desktop.js`; the latter remains inactive in Android but shares the bundled page entry.
+App identity: `app.tabletdeck.studio`, version `1.9.0`, version code `12`, minimum SDK `26`, target SDK `35`. Increment version code for later releases. Asset checks include `boards.js`, `desktop.js`, and `studio.js`. Camera permission is optional and only requested by the user-opened QR scanner; manual pairing needs none.
 
 On first build, the script generates `toolchain/signing/tabletdeck.jks` and a random password file. Keep these private and preserve them to update your own APK installation later. Git ignores them. The original release's private signing key is not in this repository; a newly generated key produces a different identity and cannot update the original APK without uninstalling it first.
 
@@ -143,7 +143,7 @@ USB adds ADB reverse tunnels for ports 8743 and 8744. The PC editor uses a separ
 Assemble the complete release ZIP with SHA256SUMS.txt listing every file except itself, then embed it:
 
 ```powershell
-$payload = (Resolve-Path .\dist\TabletDeck-Studio-1.8.0.zip).Path
+$payload = (Resolve-Path .\dist\TabletDeck-Studio-1.9.0.zip).Path
 dotnet publish .\installer\TabletDeck.Setup.csproj -c Release -o .\dist\Setup "-p:PayloadArchive=$payload"
 .\dist\Setup\TabletDeck-Setup.exe --verify-payload
 ```
@@ -156,12 +156,15 @@ The installer uses a fixed per-user destination. `--test-mode --quiet` installs 
 .\dist\Windows\TabletDeck-Companion.exe --self-test
 .\dist\Windows\TabletDeck-Companion.exe --hardening-self-test
 .\dist\Windows\TabletDeck-Companion.exe --boards-self-test
+.\dist\Windows\TabletDeck-Companion.exe --studio-self-test --no-browser --no-tray
 $env:TABLETDECK_COMPANION = (Resolve-Path .\dist\Windows\TabletDeck-Companion.exe).Path
 npm run test:headless --prefix .\tests
 npm run test:fast --prefix .\tests
 npm run test:execution --prefix .\tests
 npm run test:boards --prefix .\tests
 npm run test:desktop --prefix .\tests
+npm run test:studio --prefix .\tests
+npm run test:studio-ui --prefix .\tests
 npm run test:integration-headless --prefix .\tests
 ```
 

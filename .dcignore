@@ -4,3 +4,4 @@
 **/build/**
 companion/wwwroot/vendor/**
 .test-output/**
+outputs/**

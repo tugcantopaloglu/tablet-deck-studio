@@ -6,6 +6,11 @@ namespace TabletDeck;
 internal sealed class FastCommands(DataStore store,DeckEngine engine,HoldKeys holds,AppAudioMixer appMixer)
 {
     private readonly object configurationGate=new();
+    private readonly Dictionary<string,DateTimeOffset> profileLocks=new();
+    private DateTimeOffset manualProfileUntil;
+    public void ProfileLock(string principal,bool active){lock(configurationGate){foreach(var key in profileLocks.Where(p=>p.Value<DateTimeOffset.UtcNow).Select(p=>p.Key).ToArray())profileLocks.Remove(key);if(active)profileLocks[principal]=DateTimeOffset.UtcNow.AddSeconds(12);else profileLocks.Remove(principal);}}
+    public void ManualProfile(string id){lock(configurationGate){ChangeBoard(()=>store.SwitchProfile(id));manualProfileUntil=DateTimeOffset.UtcNow.AddSeconds(30);}}
+    public bool AutoProfile(string id){lock(configurationGate){if(engine.Execution.Status.Active is not null||holds.Active||DateTimeOffset.UtcNow<manualProfileUntil||profileLocks.Values.Any(until=>until>DateTimeOffset.UtcNow))return false;if(store.Config.ProfileId!=id){store.SwitchProfile(id);engine.Invalidate();}return true;}}
     public void ChangeBoard(System.Action change){lock(configurationGate){if(engine.Execution.Status.Active is not null)throw new InvalidOperationException("Finish or cancel the running action before changing boards.");holds.ReleaseAll();change();engine.Invalidate();}}
     internal sealed record HoldLease(string Lease,int ExpiresIn=3);
     public void Release(string principal,string lease)=>holds.Release(principal,lease);

@@ -35,11 +35,18 @@ public final class FastLink implements AutoCloseable {
     private final ScheduledExecutorService heartbeat=Executors.newSingleThreadScheduledExecutor(r->{Thread t=new Thread(r,"TabletDeck link heartbeat");t.setDaemon(true);return t;});
     private volatile long pingAt;
     private volatile double roundTrip=-1;
+    private final Object statsGate=new Object();
+    private final java.util.ArrayDeque<Double> samples=new java.util.ArrayDeque<>();
+    private final java.util.ArrayDeque<String> events=new java.util.ArrayDeque<>();
+    private int connects,disconnects,timeouts;
+    private void event(String kind){synchronized(statsGate){events.addLast("{\"at\":"+System.currentTimeMillis()+",\"kind\":\""+kind+"\"}");while(events.size()>16)events.removeFirst();}}
+    public void clearStatistics(){synchronized(statsGate){samples.clear();events.clear();connects=disconnects=timeouts=0;roundTrip=-1;pingAt=0;}}
+    public String statistics(){synchronized(statsGate){return "{\"samples\":"+samples.toString()+",\"events\":"+events.toString()+",\"connects\":"+connects+",\"disconnects\":"+disconnects+",\"timeouts\":"+timeouts+"}";}}
     public FastLink(Listener listener){this.listener=listener;worker=new Thread(this::run,"TabletDeck fast TLS");worker.setDaemon(true);}
-    public void start(){worker.start();heartbeat.scheduleAtFixedRate(()->{try{synchronized(writeGate){if(ready){pingAt=System.nanoTime();write("{\"id\":0,\"path\":\"/api/ping\",\"body\":{}}");}}}catch(IOException ignored){reset();}},2,8,TimeUnit.SECONDS);}
+    public void start(){worker.start();heartbeat.scheduleAtFixedRate(()->{try{synchronized(writeGate){if(ready){if(pingAt!=0){if(System.nanoTime()-pingAt>12000000000L){synchronized(statsGate){timeouts++;}reset();}return;}pingAt=System.nanoTime();write("{\"id\":0,\"path\":\"/api/ping\",\"body\":{}}");}}}catch(IOException ignored){reset();}},2,8,TimeUnit.SECONDS);}
     public boolean connected(){return ready;}
     public double roundTripMs(){return roundTrip;}
-    public void pong(){if(pingAt!=0)roundTrip=(System.nanoTime()-pingAt)/1000000.0;}
+    public void pong(){synchronized(statsGate){if(pingAt!=0){roundTrip=(System.nanoTime()-pingAt)/1000000.0;pingAt=0;samples.addLast(roundTrip);while(samples.size()>120)samples.removeFirst();}}}
     public boolean send(String json) throws IOException {
         synchronized(writeGate){if(!ready)return false;write(json);return true;}
     }
@@ -61,10 +68,10 @@ public final class FastLink implements AutoCloseable {
                 DataInputStream input=new DataInputStream(connection.getInputStream());
                 while(running&&!paused){int length=input.readInt();if(length<2||length>1024*1024)throw new IOException("Control response exceeds limit.");byte[] bytes=new byte[length];input.readFully(bytes);
                     String json=StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes)).toString();
-                    if(listener.packet(json)){ready=true;retry=250;}
+                    if(listener.packet(json)){if(!ready){synchronized(statsGate){connects++;}event("connected");}ready=true;retry=250;}
                 }
             }catch(Exception ignored){/* HTTPS remains available; failures never replay controls. */}
-            finally{ready=false;SSLSocket previous=socket;socket=null;if(previous!=null)try{previous.close();}catch(IOException ignored){}listener.disconnected();}
+            finally{if(ready){synchronized(statsGate){disconnects++;}event("disconnected");}ready=false;pingAt=0;SSLSocket previous=socket;socket=null;if(previous!=null)try{previous.close();}catch(IOException ignored){}listener.disconnected();}
             if(running){waitFor(retry);retry=Math.min(5000,retry*2);}
         }
     }

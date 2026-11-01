@@ -30,6 +30,10 @@ devices.json
 config.json
 runtime.lock
 desktop.json
+auto-profiles.json
+recent-sounds.json
+pack-assets/
+*.deckpack
 .tabletdeck-install.json
 
 # Local test sessions and diagnostics

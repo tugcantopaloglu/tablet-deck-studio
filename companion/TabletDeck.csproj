@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>TabletDeck-Companion</AssemblyName>
     <RootNamespace>TabletDeck</RootNamespace>
-    <Version>1.8.0</Version>
+    <Version>1.9.0</Version>
     <UseWindowsForms>true</UseWindowsForms>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
@@ -21,5 +21,6 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+    <PackageReference Include="QRCoder" Version="1.6.0" />
   </ItemGroup>
 </Project>

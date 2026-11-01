@@ -78,6 +78,12 @@ public sealed partial class DataStore
     {
         lock(gate){var next=Copy(Config);if(next.ProfileId==id)next.ProfileName=ProfileName(name);else (next.Profiles.FirstOrDefault(p=>p.Id==id)??throw new ArgumentException("Unknown profile.")).Name=ProfileName(name);SaveBoard(next,"Before profile rename");}
     }
+    public string ImportProfile(string name,List<DeckPage> pages){lock(gate){
+        if(Config.Profiles.Count>=9)throw new ArgumentException("Keep at most 10 profiles. Delete one before importing.");
+        var copy=Copy(pages);void NewIds(DeckAction action){action.Id=Guid.NewGuid().ToString("N");foreach(var step in action.Steps)NewIds(step);}
+        foreach(var page in copy){page.Id=Guid.NewGuid().ToString("N");foreach(var action in page.Buttons)NewIds(action);}
+        var profile=new BoardProfile{Name=ProfileName(name),Pages=copy};var next=Copy(Config);next.Profiles.Add(profile);SaveBoard(next,"Before portable profile import");return profile.Id;
+    }}
     private static string ProfileName(string? name)=>!string.IsNullOrWhiteSpace(name)&&name.Trim().Length<=30?name.Trim():throw new ArgumentException("Profile names need 1–30 characters.");
     public void DeleteProfile(string id)
     {

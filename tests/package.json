@@ -11,6 +11,8 @@
     "test:execution": "node execution.cjs",
     "test:boards": "node boards.cjs",
     "test:desktop": "node desktop.cjs",
+    "test:studio": "node studio.cjs",
+    "test:studio-ui": "node studio-ui.cjs",
     "test:integration-headless": "node integration-headless.cjs",
     "test:layout": "node layout.cjs",
     "benchmark:latency": "node latency.cjs"

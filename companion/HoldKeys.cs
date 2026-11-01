@@ -13,6 +13,7 @@ public sealed class HoldKeys : IDisposable
     private string owner="",token="";
     private ushort[] keys=[];
     private DateTimeOffset expires;
+    public bool Active {get{lock(gate)return keys.Length>0;}}
     public HoldKeys():this(WindowsActions.SetKeys,()=>DateTimeOffset.UtcNow) { }
     internal HoldKeys(Action<ushort[],bool> send,Func<DateTimeOffset> now)
     {

@@ -15,6 +15,7 @@ public sealed class DeckAction
     public string Value { get; set; } = "";
     public string SoundpadKey { get; set; } = "";
     public string Icon { get; set; } = "monitor";
+    public string IconImage { get; set; } = "";
     public string Color { get; set; } = "violet";
     public bool Confirm { get; set; }
     public List<DeckAction> Steps { get; set; } = [];
@@ -36,6 +37,7 @@ public sealed class DeckConfig
     public string ObsPassword { get; set; } = "";
     public string MicInput { get; set; } = "Mic/Aux";
     public string DesktopInput { get; set; } = "Desktop Audio";
+    public List<MixerChannel> MixerInputs {get;set;}=[];
     public List<DeckPage> Pages { get; set; } = [];
     public static DeckConfig Defaults()
     {
@@ -140,7 +142,8 @@ public sealed partial class DataStore
     }
     public static void Validate(DeckConfig c)
     {
-        if(c is null||c.Pages is null||c.Profiles is null||c.Favourites is null||c.ProfileId is null||c.ObsPassword is null||c.MicInput is null||c.DesktopInput is null)throw new ArgumentException("Invalid board settings.");
+        if(c is null||c.Pages is null||c.Profiles is null||c.Favourites is null||c.ProfileId is null||c.ObsPassword is null||c.MicInput is null||c.DesktopInput is null||c.MixerInputs is null)throw new ArgumentException("Invalid board settings.");
+        StudioTools.ValidateMixer(c.MixerInputs);
         if(c.ObsPort is <1 or >65535 || c.Pages.Count is <1 or >30 || c.ObsPassword.Length>1024) throw new ArgumentException("Invalid settings or page count (1–30).");
         if(c.Profiles.Count>9||c.Favourites.Count>200||string.IsNullOrWhiteSpace(c.ProfileName)||c.ProfileName.Length>30)throw new ArgumentException("Keep at most 10 profiles and 200 favourites; profile names need 1–30 characters.");
         var profileIds=new HashSet<string>(StringComparer.Ordinal){c.ProfileId};
@@ -170,8 +173,9 @@ public sealed partial class DataStore
     }
     private static void ValidateAction(DeckAction a,int depth)
     {
-        if(a is null||a.Kind is null||a.Label is null||a.Target is null||a.Value is null||a.SoundpadKey is null||a.Steps is null)throw new ArgumentException("Invalid button fields.");
-        string[] kinds=["scene","preview","transition","sound","stopSounds","app","url","hotkey","holdHotkey","mute","source","filter","media","record","stream","replay","virtualCamera","studioMode","macro","delay","voicemeeter"];
+        if(a is null||a.Kind is null||a.Label is null||a.Target is null||a.Value is null||a.SoundpadKey is null||a.Steps is null||a.IconImage is null)throw new ArgumentException("Invalid button fields.");
+        StudioTools.ValidateIcon(a.IconImage);
+        string[] kinds=["scene","preview","transition","sound","stopSounds","app","url","hotkey","holdHotkey","mute","muteOn","muteOff","source","filter","media","record","recordStart","recordStop","stream","streamStart","streamStop","replay","virtualCamera","studioMode","macro","delay","voicemeeter"];
         if(depth>3||(!kinds.Contains(a.Kind)&&!SoundpadClient.Supports(a.Kind))||a.Label.Length is <1 or >60||a.Target.Length>2048||a.Value.Length>1024||a.Steps.Count>30) throw new ArgumentException("Invalid button or macro (maximum 30 steps, 3 nesting levels).");
         if(SoundpadClient.Supports(a.Kind)&&!(a.Kind=="soundpadPlay"&&a.Target.Length==0)) SoundpadClient.BuildCommand(a.Kind,a.Target,a.Value);
         if(a.SoundpadKey.Length>0&&(a.SoundpadKey.Length!=64||!a.SoundpadKey.All(Uri.IsHexDigit)))throw new ArgumentException("Invalid Soundpad binding. Reimport the sound from the library.");
@@ -182,5 +186,7 @@ public sealed partial class DataStore
         if(a.Kind=="sound"&&a.Target.Length>0&&(!Path.IsPathFullyQualified(a.Target)||!new[]{".wav",".mp3",".wma"}.Contains(Path.GetExtension(a.Target).ToLowerInvariant()))) throw new ArgumentException("Sound actions require an absolute WAV, MP3, or WMA file path.");
         foreach(var s in a.Steps) ValidateAction(s,depth+1);
     }
+    public static void CheckAction(DeckAction action)=>ValidateAction(action,0);
 }
+public sealed record MixerChannel(string Id,string Label,string Input);
 public sealed record PageOrder(string Id,string[] ButtonIds);

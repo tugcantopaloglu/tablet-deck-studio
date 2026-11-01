@@ -1,5 +1,11 @@
 # Physical Android test — 2026-10-25
 
+## Version 1.9 development boundary — 2026-11-01
+
+All eight requested studio additions have isolated storage, mock-OBS/API, native QR and controller checks. Real camera scanning, foreground-app switching, rendered layout, touch, keyboard/screen-reader use, live OBS/Soundpad and hardware rehearsal remain unverified. Live video and Twitch/Kick chat are a following phase.
+
+A failed build was followed by an older executable because the test command initially lacked an exit guard. It briefly started the companion/control panel against the default private data directory; this was disclosed and the process stopped. Startup performed the normal backed-up profile/config migration, preserving existing board actions and credentials. Later runners require successful builds, disable browser/tray explicitly and use isolated data. This incident was not a visual or hardware test. No claim of an entirely GUI-free development pass is made.
+
 ## Version 1.8 development boundary — 2026-11-01
 
 Desktop setup has isolated API/controller checks, including OBS password modes, preservation of board/profile/pairing data, first-run behaviour, and stale navigation/save responses. No browser, app window, or computer-use surface was opened. The new desktop interface has no rendered-layout or physical keyboard/screen-reader approval. Tests did not change the running user installation, OBS, Discord, Soundpad, startup registry settings, or tablet app. See [VERIFICATION.txt](VERIFICATION.txt) for current automated coverage; the reports below describe earlier hardware sessions, not a new live rehearsal.

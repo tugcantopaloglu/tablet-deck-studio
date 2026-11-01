@@ -41,6 +41,7 @@ async function showDesktopHub(){
   generation=panelGeneration;
   const actions={'#setup-refresh':showDesktopHub,'#setup-pair':showPairing,'#setup-obs':showObsSetup,'#setup-edit':showEditor,'#setup-profiles':showProfiles,'#setup-backups':showBackups,'#setup-sounds':showSoundpadLibrary,'#setup-windows':showDesktopSettings,'#setup-board':()=>panel.close()};
   for(const [id,action] of Object.entries(actions))$(id).onclick=()=>{if(ownsDesktop(generation,'pc-setup'))return action();};
+  if(typeof showStudioTools==='function'){const tools=document.createElement('button');tools.className='quiet';tools.textContent='More studio tools';tools.onclick=showStudioTools;$('#setup-backups').after(tools);}
 }
 async function showObsSetup(){
   if(!desktopCanNavigate())return;

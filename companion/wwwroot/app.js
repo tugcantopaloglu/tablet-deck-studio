@@ -40,18 +40,19 @@ const paths={
 };
 paths.star='m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8-6.2-3.2L5.8 21 7 14.2 2 9.3l6.9-1z';
 function icon(name){const filled=['obs','discord','homeFilled'].includes(name);return `<svg viewBox="-2 -2 28 28" aria-hidden="true"${filled?' class="filled-icon"':''}><path d="${paths[name]||paths.grid}"/></svg>`;}
+function actionIcon(a){return typeof a.iconImage==='string'&&a.iconImage.startsWith('data:image/png;base64,')&&a.iconImage.length<=100000?`<img class="custom-key-icon" src="${esc(a.iconImage)}" alt="">`:icon(a.icon);}
 const native=typeof window.DeckNative!=='undefined';
 const preview=new URLSearchParams(location.search).get('preview')==='1'&&!native;
 let adminToken=new URLSearchParams(location.hash.slice(1)).get('admin')||sessionStorage.getItem('deckAdmin')||'';
 if(adminToken){sessionStorage.setItem('deckAdmin',adminToken);history.replaceState(null,'',location.pathname+location.search);}
 let nextRequest=0;const pending=new Map();
 window.nativeResult=(id,result)=>{const p=pending.get(id);if(!p)return;clearTimeout(p.timer);pending.delete(id);result.error?p.reject(new Error(result.error)):p.resolve(result);};
-function nativeRequest(path,body,method='POST'){
-  return new Promise((resolve,reject)=>{const id=++nextRequest;const timer=setTimeout(()=>{pending.delete(id);reject(new Error('The PC did not respond. Check the connection before trying again.'));},65000);pending.set(id,{resolve,reject,timer});window.DeckNative.dispatch(JSON.stringify({id,path,body,method}));});
+function nativeRequest(path,body,method='POST',timeoutMs=65000){
+  return new Promise((resolve,reject)=>{const id=++nextRequest;const timer=timeoutMs>0?setTimeout(()=>{pending.delete(id);reject(new Error('The PC did not respond. Check the connection before trying again.'));},timeoutMs):null;pending.set(id,{resolve,reject,timer});window.DeckNative.dispatch(JSON.stringify({id,path,body,method}));});
 }
-async function api(path,body){
-  if(native)return nativeRequest(path,body,body===undefined?'GET':'POST');
-  const response=await fetch(path,{method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json','X-Deck-Admin':adminToken},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(65000)});
+async function api(path,body,timeoutMs=65000){
+  if(native)return nativeRequest(path,body,body===undefined?'GET':'POST',timeoutMs);
+  const response=await fetch(path,{method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json','X-Deck-Admin':adminToken},body:body===undefined?undefined:JSON.stringify(body),signal:timeoutMs>0?AbortSignal.timeout(timeoutMs):undefined});
   let data;try{data=await response.json();}catch{throw new Error(`Request failed (${response.status}). Reopen the companion to unlock the PC editor.`);}
   if(!response.ok)throw new Error(data.error||`Request failed (${response.status}).`);return data;
 }
@@ -106,7 +107,7 @@ function notice(message,error=false){const n=$('#notice');n.textContent=message;
 $('#notice').onclick=()=>$('#notice').hidden=true;
 const panel=$('#panel');
 let panelGeneration=0;
-function openPanel(title,html){panelGeneration++;$('#panel-title').textContent=title;$('#panel-body').innerHTML=DOMPurify.sanitize(html);if(!panel.open)panel.showModal();}
+function openPanel(title,html){panelGeneration++;$('#panel-title').textContent=title;$('#panel-body').innerHTML=DOMPurify.sanitize(html);if(!panel.open)panel.showModal();if(typeof renewProfileLock==='function')queueMicrotask(renewProfileLock);}
 async function closePanel(){if(dirty&&!await confirmAction('Discard changes?','Your unsaved changes will be lost.'))return;dirty=false;editing=false;panel.close();}
 $('#close-panel').onclick=closePanel;
 panel.addEventListener('cancel',event=>{if(dirty){event.preventDefault();closePanel();}else editing=false;});
@@ -121,7 +122,7 @@ function renderBoard(){
     const button=document.createElement('button');button.className='key '+(['violet','amber','red','blue'].includes(a.color)?a.color:'blue');button.dataset.id=a.id;
     const active=a.kind==='scene'&&state.obsConnected&&a.target===state.scene;
     button.classList.toggle('active',active);button.setAttribute('aria-label',labelFor(a)+(active?', active':''));button.title=labelFor(a);
-    button.innerHTML=DOMPurify.sanitize(icon(a.icon)+`<span class="key-label">${esc(labelFor(a))}</span>`+(active?'<span class="active-tag">ACTIVE</span>':a.configured===false?'<small>Set up on PC</small>':''));
+    button.innerHTML=DOMPurify.sanitize(actionIcon(a)+`<span class="key-label">${esc(labelFor(a))}</span>`+(active?'<span class="active-tag">ACTIVE</span>':a.configured===false?'<small>Set up on PC</small>':''));
     button.onclick=()=>trigger(a,button);keys.appendChild(button);
   }
   if(page.buttons.length===0){const empty=document.createElement('div');empty.className='empty-key';empty.innerHTML=DOMPurify.sanitize(icon(page.icon)+'<strong>No buttons yet</strong><span>Add actions using Edit in the Windows companion.</span>');keys.appendChild(empty);}
@@ -184,12 +185,14 @@ async function refresh(force=false){
   finally{refreshing=false;}
 }
 async function connectionForm(){
+  window.deckPairPorts=null;
   if(native){try{connection=await nativeRequest('/native/connection',{});}catch{}}
   openPanel('Connect your tablet',`<section class="setup"><h3>Your studio, one tap away.</h3><p class="help">${connection.fastConnected?'Persistent encrypted control link connected'+(connection.roundTripMs>=0?' · last network round-trip '+Number(connection.roundTripMs).toFixed(1)+' ms':''):'HTTPS fallback · fast control uses TCP 8744; USB needs both tunnel ports'}</p><p>Run TabletDeck-Companion.exe on your Windows PC, then choose <strong>Pair tablet</strong>. Enter the address, certificate code, and pairing PIN shown there.</p><div class="form-grid"><label>Connection<select id="pair-mode"><option value="wifi">Wi-Fi — same local network</option><option value="usb">USB — connected with USB-Connect.cmd</option></select></label><label>PC Wi-Fi address<input id="pair-host" placeholder="192.168.1.100" inputmode="decimal" value="${esc(connection.host||'')}"></label><label class="wide">Certificate code from your PC<input id="pair-cert" placeholder="6 groups of 4 letters and numbers" autocomplete="off" autocapitalize="characters" spellcheck="false"></label><label>Six-digit pairing PIN<input id="pair-code" placeholder="123456" inputmode="numeric" maxlength="6" autocomplete="off"></label></div><p class="help">Wi-Fi uses encrypted local-network control. For USB, enable USB debugging on the tablet and run USB-Connect.cmd in the Windows package. Keep the companion running.</p><div class="row"><button id="pair-submit" class="primary">Pair and connect</button>${connection.paired?'<button id="forget-pc" class="danger">Forget this PC</button>':''}</div>${connection.paired?'<div class="row"><button id="switch-transport" class="quiet">Switch to '+(connection.mode==='usb'?'Wi-Fi':'USB')+'</button></div>':''}<p id="pair-error" role="alert" class="help"></p></section>`);
   $('#pair-mode').value=connection.mode||'wifi';$('#pair-mode').onchange=()=>$('#pair-host').disabled=$('#pair-mode').value==='usb'&&!connection.paired;$('#pair-mode').onchange();
-  $('#pair-submit').onclick=async()=>{const button=$('#pair-submit');button.disabled=true;$('#pair-error').textContent='Connecting securely…';try{connection=await nativeRequest('/native/pair',{host:$('#pair-host').value.trim(),mode:$('#pair-mode').value,certificate:$('#pair-cert').value.trim(),code:$('#pair-code').value.trim()});panel.close();await refresh(true);notice('Tablet paired. Your board is ready.');}catch(error){$('#pair-error').textContent=error.message;}finally{button.disabled=false;}};
+  $('#pair-submit').onclick=async()=>{const button=$('#pair-submit');button.disabled=true;$('#pair-error').textContent='Connecting securely…';try{connection=await nativeRequest('/native/pair',{host:$('#pair-host').value.trim(),mode:$('#pair-mode').value,certificate:$('#pair-cert').value.trim(),code:$('#pair-code').value.trim(),...(window.deckPairPorts||{})});panel.close();await refresh(true);notice('Tablet paired. Your board is ready.');}catch(error){$('#pair-error').textContent=error.message;}finally{button.disabled=false;}};
   if($('#forget-pc'))$('#forget-pc').onclick=async()=>{if(!await confirmAction('Forget this PC?','You will need a new pairing code to reconnect.'))return;connection=await nativeRequest('/native/forget',{});connectionForm();};
   if($('#switch-transport'))$('#switch-transport').onclick=async()=>{try{connection=await nativeRequest('/native/transport',{mode:connection.mode==='usb'?'wifi':'usb',host:$('#pair-host').value.trim()});panel.close();await refresh(true);}catch(error){notice(error.message,true);}};
+  if(typeof attachTabletPairing==='function')attachTabletPairing();
 }
 let config,selectedPage=0,selectedButton=0;
 const kinds={scene:'Switch OBS scene',preview:'Set preview scene',transition:'Take studio transition',sound:'Play sound on PC',stopSounds:'Stop all deck sounds',app:'Open Windows app',url:'Open website',hotkey:'Send keyboard shortcut',mute:'Toggle OBS input mute',source:'Toggle source visibility',filter:'Toggle source filter',media:'Restart / stop OBS media',record:'Toggle recording',stream:'Toggle streaming',replay:'Save replay buffer',virtualCamera:'Toggle virtual camera',studioMode:'Toggle studio mode',macro:'Run multiple actions',delay:'Delay (milliseconds)'};
@@ -234,6 +237,7 @@ async function saveConfig(close){
   if(close){editing=false;panel.close();await refresh(true);notice('Saved. Your tablet will update automatically.');}else if($('#save-status'))$('#save-status').textContent='Saved';
 }
 function renderActionForm(a){
+  if(typeof enhanceActionEditor==='function')queueMicrotask(()=>enhanceActionEditor(a));
   const needsTarget=Object.hasOwn(targetHints,a.kind);const needsValue=['source','filter','media','soundpadPlay','voicemeeter'].includes(a.kind);
   $('#action-form').innerHTML=DOMPurify.sanitize(`<h3>${esc(a.label)}</h3><div class="form-grid"><label>Button label<input id="action-label" value="${esc(a.label)}" maxlength="60"></label><label>Action<select id="action-kind">${options(kinds,a.kind)}</select></label><label>Icon<select id="action-icon">${options(Object.fromEntries(Object.keys(paths).map(x=>[x,x])),a.icon)}</select></label><label>Color<select id="action-color">${options({violet:'Violet · scenes',amber:'Amber · sounds',blue:'Blue · apps',red:'Red · broadcast'},a.color)}</select></label>${needsTarget?`<label class="wide">${a.kind==='delay'?'Delay':'Target'}<input id="action-target" value="${esc(a.target)}" placeholder="${esc(targetHints[a.kind])}"></label>`:''}${needsValue?`<label class="wide">${a.kind==='source'?'Source name':a.kind==='filter'?'Filter name':a.kind==='soundpadPlay'?'Soundpad output (default, both, mic, speakers)':a.kind==='voicemeeter'?'Value: gain in dB or mute 0 / 1':'Media action (restart or stop)'}<input id="action-value" value="${esc(a.value)}" placeholder="${a.kind==='media'?'restart or stop':''}"></label>`:''}</div><div class="row"><label class="check"><input id="action-confirm" type="checkbox" ${a.confirm?'checked':''}>Confirm before running</label></div>${a.kind==='sound'?'<p class="help">Sound plays on the PC’s default output. Enable OBS Desktop Audio capture, or route that output through your mixer, so viewers hear it.</p>':''}${a.kind==='hotkey'?'<p class="help">Shortcuts reach the foreground app or a running app’s configured global keybind. Configure matching shortcuts in Discord or your other tool, then leave its keybind settings before testing.</p>':''}${a.kind==='macro'?'<h3>Actions in order</h3><p class="help">Steps run in order and stop on the first error. Use Delay for timing. Stream and recording steps always require confirmation.</p><div id="macro-steps"></div><button id="add-step" class="quiet">Add step</button>':''}<div class="row"><button id="move-left" class="quiet">Move earlier</button><button id="move-right" class="quiet">Move later</button><button id="delete-button" class="danger">Delete button</button></div>`);
   for(const [id,key] of [['#action-label','label'],['#action-icon','icon'],['#action-color','color'],['#action-target','target'],['#action-value','value']])if($(id))$(id).oninput=e=>{a[key]=e.target.value;if(key==='target'&&a.kind==='soundpadPlay')a.soundpadKey='';markDirty();};
@@ -257,6 +261,7 @@ async function showPairing(){
   try{const info=await api('/api/admin/info');if(!owns())return;const pairing=await api('/api/admin/pairing',{});if(!owns())return;const grouped=pairing.certificateCode.match(/.{1,4}/g).join('-');
     openPanel('Pair an Android tablet',`<section class="setup"><h3>Connect to this PC</h3><p>Install TabletDeck-Studio.apk on the tablet. Open it and enter these details. This PIN works once and expires in five minutes.</p><div class="pair-details"><p>PC Wi-Fi address</p><strong class="cert-code">${info.addresses.map(esc).join(' · ')||'No network address found. Use USB.'}</strong><p>Certificate code</p><strong class="cert-code">${esc(grouped)}</strong><p>Pairing PIN</p><strong class="pair-code">${esc(pairing.code)}</strong></div><h3>USB connection</h3><p>Connect a data cable, enable USB debugging on the tablet, approve this PC, and run <strong>USB-Connect.cmd</strong> in the Windows package. Select USB in the tablet pairing screen. After pairing, you can switch between Wi-Fi and USB without pairing again.</p><p class="help">For Wi-Fi, allow the companion through Windows Firewall on your private network. Keep port ${info.httpsPort} on the local network; internet access is not needed.</p><h3>Paired tablets</h3><div id="devices">${info.devices.length?info.devices.map(d=>`<div class="device-row"><span>${esc(d.name)}</span><button class="danger" data-revoke="${esc(d.id)}">Revoke</button></div>`).join(''):'<p>No tablets paired yet.</p>'}</div><div class="row"><button id="new-code" class="quiet">Generate a new PIN</button></div></section>`);
     generation=panelGeneration;
+    if(typeof attachPairingQr==='function')attachPairingQr(info);
     $('#new-code').onclick=showPairing;document.querySelectorAll('[data-revoke]').forEach(b=>b.onclick=async()=>{if(!owns()||!await confirmAction('Revoke this tablet?','It will lose access to this PC immediately.')||!owns())return;try{await api('/api/admin/revoke',{id:b.dataset.revoke});if(owns())await showPairing();}catch(error){if(owns())notice(error.message,true);}});
   }catch(error){if(owns())$('#pairing-load-error').textContent=error.message;}
 }

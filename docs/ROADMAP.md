@@ -20,12 +20,23 @@ This is a prioritized shortlist, not a delivery schedule.
 - **Independent OBS settings:** save connection/audio names without resubmitting board contents; explicit password keep/replace/clear, saved-connection checks and input discovery.
 - **Navigation protection:** late setup/editor/pairing/Windows requests cannot replace a newer form or reopen a dismissed panel; Windows and OBS forms protect unsaved changes.
 
-## Next priorities
+## Implemented in 1.9.0
 
-1. **Recent sounds** — a bounded recent-play history separate from starred favourites.
-2. **Explicit OBS state actions** — separate start/stop and mute/unmute choices for macros, reducing accidental reversals caused by toggles.
-3. **Connection diagnostics** — recent round-trip distribution, transport/fallback status, and a guided local rehearsal. Network round-trip and touch-to-sound latency must remain separate measurements.
+- Connection diagnostics with bounded request/heartbeat samples, percentiles, events, recovery guidance and identity resets.
+- Explicit OBS stream/record Start/Stop and input Mute/Unmute actions, also usable in macros.
+- Persistent recent linked Soundpad sounds with safe missing/duplicate handling and independent clearing.
+- Desktop app/file selection, target checks, custom PNG icons and button preview.
+- Offline camera QR pairing with optional permission, manual fallback and certificate/PIN confirmation.
+- Opt-in foreground-app profile rules with debounce, editing leases, active-action/hold guards and manual-switch pause.
+- Expanded OBS mixer with two main plus eight additional configured inputs.
+- Reviewed portable profile packs with selected sound assets, embedded icons, checksum/ZIP validation and inactive imports.
+
+## Following phase
+
+1. **Live video preview** — choose a local preview transport and resolution/frame-rate budget; measure preview delay separately from control latency.
+2. **Twitch and Kick chat preview** — verify supported APIs/embeds and account permissions, then design moderation and reconnect behavior. No account tokens or placeholder integrations are shipped in 1.9.
+3. Rendered and hardware rehearsals for all newly added flows before relying on them in a broadcast.
 
 ## Hardware checks still needed
 
-Version 1.6/1.7 rendered interfaces and physical touch use, including profiles and favourites; extended USB unplug/replug and Wi-Fi-loss tests; an actual Discord listener check; live hold-to-talk and Voicemeeter routing; long-session stability. See [the hardware report](LIVE-TEST.md) for the earlier completed tests and their limits.
+Version 1.6–1.9 rendered interfaces and physical touch use, including profiles, favourites, new Tools views and custom icons; real QR camera/permission use and foreground-app switching; extended USB unplug/replug and Wi-Fi-loss tests; an actual Discord listener check; live hold-to-talk and Voicemeeter routing; long-session stability. See [the hardware report](LIVE-TEST.md) for the earlier completed tests and their limits.

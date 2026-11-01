@@ -8,8 +8,16 @@ using System.Text.Json.Nodes;
 using System.Diagnostics;
 using System.Globalization;
 
+var flagOptions=new HashSet<string>(StringComparer.Ordinal){"--self-test","--boards-self-test","--studio-self-test","--audio-smoke-test","--hardening-self-test","--no-browser","--no-tray","--tray"};
+var valueOptions=new HashSet<string>(StringComparer.Ordinal){"--data-dir","--http-port","--https-port","--control-port"};
+for(var i=0;i<args.Length;i++){
+    if(flagOptions.Contains(args[i]))continue;
+    if(valueOptions.Contains(args[i])&&i+1<args.Length&&!args[i+1].StartsWith("--",StringComparison.Ordinal)){i++;continue;}
+    Console.Error.WriteLine("Unknown or incomplete command-line option. No companion or control panel was started.");Environment.ExitCode=2;return;
+}
 if(args.Contains("--self-test")) { SelfTests.Run();return; }
 if(args.Contains("--boards-self-test")) {BoardStorageTests.Run();return;}
+if(args.Contains("--studio-self-test")) {await StudioTests.Run();return;}
 if(args.Contains("--audio-smoke-test")) {await SelfTests.AudioSmokeTest();return;}
 if(args.Contains("--hardening-self-test")) {await HardeningTests.Run();return;}
 string Option(string name,string fallback) {var i=Array.IndexOf(args,name);return i>=0&&i+1<args.Length?args[i+1]:fallback;}
@@ -50,6 +58,8 @@ await using var fastControl=new FastControlServer(store,fastCommands,stateUpdate
 var desktop=new DesktopPreferences(store.DirectoryPath);
 using var usb=new UsbReconnect(desktop,httpsPort,controlPort);
 using var updates=new ReleaseUpdates();
+using var autoProfiles=new AutoProfiles(store.DirectoryPath,id=>store.ProfileList().Any(p=>p.Id==id),fastCommands.AutoProfile);
+var boardPacks=new BoardPacks(store);
 using var backgroundStop=new CancellationTokenSource();
 DesktopTray? tray=null;
 bool IsAdmin(HttpContext c)=>c.Connection.LocalPort==httpPort&&IPAddress.IsLoopback(c.Connection.RemoteIpAddress??IPAddress.None)&&SafeEqual(c.Request.Headers["X-Deck-Admin"].ToString(),adminToken);
@@ -78,9 +88,10 @@ app.Use(async (ctx,next)=>{
     }
 });
 app.UseDefaultFiles();app.UseStaticFiles();
-app.MapGet("/api/board",()=>{var config=store.Config;return new {profileId=config.ProfileId,profileName=config.ProfileName,pages=config.Pages.Select(p=>new {p.Id,p.Name,p.Icon,buttons=p.Buttons.Select(a=>new{a.Id,a.Label,a.Kind,a.Icon,a.Color,confirm=DeckEngine.NeedsConfirm(a),target=a.Kind is "scene" or "preview"?a.Target:"",configured=!(a.Kind is "app" or "sound" or "url" or "hotkey" or "soundpadPlay")||a.Target.Length>0})})};});
+app.MapStudio(store,engine,fastCommands,autoProfiles,boardPacks,Principal,()=>pairing.Open(),NetworkAddresses,fingerprint,httpsPort,controlPort);
+app.MapGet("/api/board",()=>{var config=store.Config;return new {profileId=config.ProfileId,profileName=config.ProfileName,pages=config.Pages.Select(p=>new {p.Id,p.Name,p.Icon,buttons=p.Buttons.Select(a=>new{a.Id,a.Label,a.Kind,a.Icon,a.IconImage,a.Color,confirm=DeckEngine.NeedsConfirm(a),target=a.Kind is "scene" or "preview"?a.Target:"",configured=!(a.Kind is "app" or "sound" or "url" or "hotkey" or "soundpadPlay")||a.Target.Length>0})})};});
 app.MapGet("/api/profiles",()=>new{profiles=store.ProfileList(),warning=store.RecoveryWarning});
-app.MapPost("/api/profile",(ProfileRequest req)=>{fastCommands.ChangeBoard(()=>store.SwitchProfile(req.Id));return Results.Ok(new{ok=true});});
+app.MapPost("/api/profile",(ProfileRequest req)=>{fastCommands.ManualProfile(req.Id);return Results.Ok(new{ok=true});});
 app.MapPost("/api/admin/profiles",(ManageProfileRequest req)=>{
     string? id=null;
     fastCommands.ChangeBoard(()=>{switch(req.Operation){case "create":id=store.CreateProfile(req.Name,req.Duplicate);break;case "rename":store.RenameProfile(req.Id,req.Name);break;case "delete":if(!req.Confirmed)throw new ArgumentException("Confirm profile deletion first.");store.DeleteProfile(req.Id);break;default:throw new ArgumentException("Unknown profile operation.");}});
@@ -178,6 +189,7 @@ app.Lifetime.ApplicationStarted.Register(()=>{
     Console.WriteLine($"Tablet encrypted port: {httpsPort}. Tray menu > Exit, or Ctrl+C, closes the companion.");
     if(!args.Contains("--no-tray")&&(args.Contains("--tray")||!args.Contains("--no-browser")))tray=new DesktopTray(panel,desktop,updates,()=>app.Lifetime.StopApplication());
     usb.Start();
+    autoProfiles.Start();
     if(!args.Contains("--no-browser")) Process.Start(new ProcessStartInfo(panel){UseShellExecute=true});
 });
 var updateLoop=Task.Run(async()=>{while(!backgroundStop.IsCancellationRequested){try{if(desktop.Get().UpdateNotifications)await updates.Check(false,backgroundStop.Token);await Task.Delay(TimeSpan.FromMinutes(15),backgroundStop.Token);}catch(OperationCanceledException){break;}}});

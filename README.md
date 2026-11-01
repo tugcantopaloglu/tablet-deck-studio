@@ -16,6 +16,8 @@ The low-latency transport and Android packaging fix from 1.4.1 are retained. Phy
 
 **1.8.0 makes desktop setup easier.** Choose **PC setup** in the Windows control panel for tablet pairing, OBS connection and audio-input checks, button editing, profiles, backups, Soundpad, and Windows options. First-time PCs with no paired tablet open this guide automatically once per browser tab. OBS connection settings can be saved separately from board buttons, and checks never start a stream or play a sound. See [the PC setup guide](docs/PC-SETUP.md).
 
+**1.9.0 adds all eight studio tools:** connection diagnostics, explicit OBS Start/Stop/Mute actions, recent Soundpad clips, an easier button editor with app/file selection and PNG icons, offline QR pairing, optional automatic profiles, an expanded OBS mixer, and portable board packs with selected audio. Choose **Tools** on the PC or tablet; local administration tools stay on the PC. Update both components. See [the complete Studio tools guide](docs/STUDIO-TOOLS.md).
+
 ## Features
 
 | Area | Controls |
@@ -61,7 +63,7 @@ The low-latency transport and Android packaging fix from 1.4.1 are retained. Phy
 
 For a managed Windows installation, download **TabletDeck-Setup.exe**, run it, and type `INSTALL` after reviewing its destination. It creates a Start menu shortcut without launching any apps. The ZIP remains available for portable use. See [installation and uninstalling](docs/DESKTOP-AND-HOLD.md#install-or-update-windows).
 
-Download `TabletDeck-Studio-1.8.0.zip` from [Releases](https://github.com/tugcantopaloglu/tablet-deck-studio/releases/latest) for the complete package, or download `TabletDeck-Studio.apk` separately if you only need the Android installer. Update both the APK and companion for profiles, backups, favourites, progress, and cancellation. The APK keeps the original signing certificate, so installing it over an older version preserves pairing. Third-party meme collections are user content and are not included in the public release.
+Download `TabletDeck-Studio-1.9.0.zip` from [Releases](https://github.com/tugcantopaloglu/tablet-deck-studio/releases/latest) for the complete package, or download `TabletDeck-Studio.apk` separately if you only need the Android installer. Update both the APK and companion for profiles, backups, favourites, progress, and cancellation. The APK keeps the original signing certificate, so installing it over an older version preserves pairing. Third-party meme collections are user content and are not included in the public release.
 
 ```text
 TabletDeck-Studio/

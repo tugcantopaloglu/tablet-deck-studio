@@ -18,6 +18,7 @@ async function showSoundpadLibrary(){
   $('#library-search').oninput=()=>{libraryLimit=80;renderSoundpadResults();};$('#library-category').onchange=()=>{libraryLimit=80;renderSoundpadResults();};
   const filter=document.createElement('button');filter.id='library-favourites';filter.className='quiet favourites-filter';filter.textContent='Favourites';filter.setAttribute('aria-pressed',String(libraryOnlyFavourites));$('#library-refresh').after(filter);filter.onclick=()=>{libraryOnlyFavourites=!libraryOnlyFavourites;filter.setAttribute('aria-pressed',String(libraryOnlyFavourites));libraryLimit=80;renderSoundpadResults();};
   $('#library-refresh').onclick=()=>loadSoundpadLibrary(true);
+  if(typeof showRecentSounds==='function'){const recent=document.createElement('button');recent.className='quiet';recent.textContent='Recent sounds';recent.onclick=showRecentSounds;$('#library-refresh').after(recent);}
   $('#library-more').onclick=()=>{libraryLimit+=80;renderSoundpadResults();};
   if($('#library-add'))$('#library-add').onclick=importSoundpadSelection;
   if(!native){const row=document.createElement('div');row.className='row';for(const [text,link] of [['Refresh linked indices',false],['Link old buttons',true]]){const button=document.createElement('button');button.className='quiet';button.textContent=text;button.onclick=()=>remapSoundpad(link);row.appendChild(button);}$('#library-results').before(row);}

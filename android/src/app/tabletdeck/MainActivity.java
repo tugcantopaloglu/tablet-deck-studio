@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.os.Build;
 import android.os.Bundle;
 import android.content.SharedPreferences;
+import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
@@ -42,14 +43,15 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class MainActivity extends Activity {
     private static final String UI_HOST="app.tabletdeck.local";
-    private static final Set<String> GET_PATHS=new HashSet<>(Arrays.asList("/api/profiles","/api/soundpad/favourites","/api/board","/api/state","/api/execution","/api/apps","/api/soundpad/library"));
-    private static final Set<String> POST_PATHS=new HashSet<>(Arrays.asList("/api/profile","/api/soundpad/favourites","/api/cancel","/api/hold","/api/action","/api/audio","/api/mute","/api/apps","/api/layout","/api/soundpad/play","/api/soundpad/library"));
+    private static final Set<String> GET_PATHS=new HashSet<>(Arrays.asList("/api/ping","/api/mixer","/api/soundpad/recent","/api/profiles","/api/soundpad/favourites","/api/board","/api/state","/api/execution","/api/apps","/api/soundpad/library"));
+    private static final Set<String> POST_PATHS=new HashSet<>(Arrays.asList("/api/ping","/api/profile-lock","/api/soundpad/recent/clear","/api/profile","/api/soundpad/favourites","/api/cancel","/api/hold","/api/action","/api/audio","/api/mute","/api/apps","/api/layout","/api/soundpad/play","/api/soundpad/library"));
     private WebView web;
     private SharedPreferences preferences;
     private final ExecutorService network=Executors.newFixedThreadPool(2);
     private final ExecutorService controls=Executors.newFixedThreadPool(3);
     private final ConcurrentHashMap<Integer,Boolean> fastPending=new ConcurrentHashMap<>();
     private FastLink fastLink;
+    private int pendingScan;
     private SSLSocketFactory cachedFactory;
     private String cachedPin="";
     private volatile boolean paused=false;
@@ -99,7 +101,7 @@ public final class MainActivity extends Activity {
                 String token=preferences.getString("token",""),pin=preferences.getString("fingerprint","");
                 if(token.isEmpty()||!pin.matches("[A-F0-9]{64}"))return null;
                 String host=preferences.getString("mode","wifi").equals("usb")?"127.0.0.1":preferences.getString("host","");validateHost(host);
-                return new FastLink.Settings(host,8744,token,pin,pinnedFactory(pin,null));
+                return new FastLink.Settings(host,preferences.getInt("controlPort",8744),token,pin,pinnedFactory(pin,null));
             }
             public boolean packet(String json) throws Exception {
                 JSONObject message=new JSONObject(json);String type=message.optString("type");
@@ -113,7 +115,7 @@ public final class MainActivity extends Activity {
     }
     private static WebResourceResponse blocked(){return new WebResourceResponse("text/plain","UTF-8",403,"Blocked",Collections.emptyMap(),new ByteArrayInputStream(new byte[0]));}
     private JSONObject connection() throws Exception {
-        return new JSONObject().put("roundTripMs",fastLink==null?-1:fastLink.roundTripMs()).put("fastConnected",fastLink!=null&&fastLink.connected()).put("paired",!preferences.getString("token","").isEmpty()).put("host",preferences.getString("host","")).put("mode",preferences.getString("mode","wifi"));
+        return new JSONObject().put("diagnostics",fastLink==null?new JSONObject():new JSONObject(fastLink.statistics())).put("roundTripMs",fastLink==null?-1:fastLink.roundTripMs()).put("fastConnected",fastLink!=null&&fastLink.connected()).put("paired",!preferences.getString("token","").isEmpty()).put("host",preferences.getString("host","")).put("mode",preferences.getString("mode","wifi")).put("pairingId",preferences.getString("pairingId","")).put("port",preferences.getInt("port",8743)).put("controlPort",preferences.getInt("controlPort",8744));
     }
     public final class Bridge {
         @JavascriptInterface public void dispatch(String message) {
@@ -127,12 +129,14 @@ public final class MainActivity extends Activity {
                     String path=request.getString("path"),method=request.optString("method","POST");
                     JSONObject body=request.optJSONObject("body");if(body==null)body=new JSONObject();
                     if(path.equals("/native/connection"))result=connection();
+                    else if(path.equals("/native/scan")){startScan(id);return;}
+                    else if(path.equals("/native/diagnostics/reset")){fastLink.clearStatistics();result=connection();}
                     else if(path.equals("/native/forget")){preferences.edit().clear().commit();updateWifiLock();fastLink.reset();result=connection();}
                     else if(path.equals("/native/transport")){
                         String mode=body.getString("mode");if(!mode.equals("usb")&&!mode.equals("wifi"))throw new Exception("Choose Wi-Fi or USB.");
                         String host=body.optString("host",preferences.getString("host","")).trim();
                         if(mode.equals("wifi"))validateHost(host);
-                        preferences.edit().putString("mode",mode).putString("host",host).commit();updateWifiLock();fastLink.reset();result=connection();
+                        preferences.edit().putString("mode",mode).putString("host",host).commit();updateWifiLock();fastLink.clearStatistics();fastLink.reset();result=connection();
                     }
                     else if(path.equals("/native/pair"))result=pair(body);
                     else {
@@ -151,7 +155,9 @@ public final class MainActivity extends Activity {
             });
         }
     }
-    private static boolean fastPath(String path){return path.equals("/api/cancel")||path.equals("/api/apps")||path.equals("/api/action")||path.equals("/api/audio")||path.equals("/api/mute")||path.equals("/api/hold");}
+    private static boolean fastPath(String path){return path.equals("/api/ping")||path.equals("/api/cancel")||path.equals("/api/apps")||path.equals("/api/action")||path.equals("/api/audio")||path.equals("/api/mute")||path.equals("/api/hold");}
+    private synchronized void startScan(int id) throws Exception {if(pendingScan!=0)throw new Exception("A pairing scan is already open.");pendingScan=id;runOnUiThread(()->{try{startActivityForResult(new Intent(this,QrScanActivity.class),42);}catch(Exception ex){int request=pendingScan;pendingScan=0;try{deliver(request,new JSONObject().put("error","Camera scanner unavailable. Use manual pairing."));}catch(Exception ignored){}}});}
+    @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(request!=42)return;int id=pendingScan;pendingScan=0;if(id==0)return;try{if(result!=RESULT_OK||data==null)throw new Exception(data==null?"Scan cancelled. You can pair manually.":data.getStringExtra("error")==null?"Scan cancelled.":data.getStringExtra("error"));PairingPayload p=PairingPayload.parse(data.getStringExtra("pairing"));deliver(id,new JSONObject().put("host",p.host).put("mode",p.mode).put("port",p.port).put("controlPort",p.controlPort).put("certificate",p.certificate).put("code",p.code));}catch(Exception ex){try{deliver(id,new JSONObject().put("error",ex.getMessage()));}catch(Exception ignored){}}}
     private void deliver(int id,JSONObject result){final String json=result.toString();runOnUiThread(()->{if(!closed)web.evaluateJavascript("window.nativeResult("+id+","+json+");",null);});}
     private JSONObject pair(JSONObject body) throws Exception {
         String host=body.optString("host","").trim(),mode=body.optString("mode","wifi");
@@ -161,12 +167,13 @@ public final class MainActivity extends Activity {
         String certificate=body.getString("certificate").replaceAll("[- :\\s]","").toUpperCase(java.util.Locale.ROOT);
         if(!certificate.matches("[A-F0-9]{24}|[A-F0-9]{64}"))throw new Exception("Enter the 24-character certificate code shown on the PC.");
         String code=body.getString("code");if(!code.matches("[0-9]{6}"))throw new Exception("Enter the six-digit pairing PIN.");
+        int port=body.optInt("port",8743),controlPort=body.optInt("controlPort",8744);if(port<1||port>65535||controlPort<1||controlPort>65535)throw new Exception("Invalid pairing ports.");
         String[] actualFingerprint=new String[1];
         JSONObject request=new JSONObject().put("code",code).put("name",Build.MANUFACTURER+" "+Build.MODEL);
-        JSONObject response=send(mode.equals("usb")?"127.0.0.1":host,"/api/pair","POST",request,certificate,"",actualFingerprint);
+        JSONObject response=sendTo(mode.equals("usb")?"127.0.0.1":host,"/api/pair","POST",request,certificate,"",actualFingerprint,port);
         if(actualFingerprint[0]==null||!actualFingerprint[0].equals(response.getString("fingerprint")))throw new Exception("The PC certificate changed. Generate a new pairing code.");
-        preferences.edit().putString("host",host).putString("mode",mode).putString("fingerprint",actualFingerprint[0]).putString("token",response.getString("token")).commit();
-        updateWifiLock();fastLink.reset();return connection();
+        preferences.edit().putString("pairingId",java.util.UUID.randomUUID().toString()).putInt("port",port).putInt("controlPort",controlPort).putString("host",host).putString("mode",mode).putString("fingerprint",actualFingerprint[0]).putString("token",response.getString("token")).commit();
+        updateWifiLock();fastLink.clearStatistics();fastLink.reset();return connection();
     }
     private static void validateHost(String host) throws Exception {
         if(!host.matches("[0-9]{1,3}(\\.[0-9]{1,3}){3}"))throw new Exception("Use the PC’s numeric IPv4 address shown in Pair tablet.");
@@ -178,9 +185,12 @@ public final class MainActivity extends Activity {
         byte[] digest=MessageDigest.getInstance("SHA-256").digest(cert.getEncoded());StringBuilder result=new StringBuilder();for(byte b:digest)result.append(String.format(java.util.Locale.ROOT,"%02X",b));return result.toString();
     }
     private JSONObject send(String host,String path,String method,JSONObject body,String expected,String token,String[] actual) throws Exception {
+        return sendTo(host,path,method,body,expected,token,actual,preferences.getInt("port",8743));
+    }
+    private JSONObject sendTo(String host,String path,String method,JSONObject body,String expected,String token,String[] actual,int port) throws Exception {
         validateHost(host);
         if(!expected.matches("[A-F0-9]{24}|[A-F0-9]{64}"))throw new Exception("Pair this tablet with your PC first.");
-        HttpsURLConnection conn=(HttpsURLConnection)new URL("https://"+host+":8743"+path).openConnection();
+        HttpsURLConnection conn=(HttpsURLConnection)new URL("https://"+host+":"+port+path).openConnection();
         conn.setSSLSocketFactory(pinnedFactory(expected,actual));
         conn.setHostnameVerifier((hostname,session)->{try{X509Certificate peer=(X509Certificate)session.getPeerCertificates()[0];peer.checkValidity();String found=hash(peer);return hostname.equals(host)&&MessageDigest.isEqual(found.substring(0,expected.length()).getBytes(StandardCharsets.US_ASCII),expected.getBytes(StandardCharsets.US_ASCII));}catch(Exception ex){return false;}});
         conn.setRequestProperty("Connection","keep-alive");

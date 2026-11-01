@@ -1,28 +1,34 @@
-Tablet Deck Studio 1.8.0 - verification (2026-11-01)
+Tablet Deck Studio 1.9.0 - verification (2026-11-01)
 
 BUILD
-- Self-contained .NET 10 Windows x64 companion and setup installer; Android APK version 1.8.0 / versionCode 11 / minSdk 26 / targetSdk 35.
-- Bundled UI entry, scripts, CSS, fonts and sanitizer are included locally. desktop.js is present in both packages and inactive on Android.
-- Original APK signing certificate retained; APK signatures, exact asset contents and release SHA256 manifests checked before publishing.
+- Self-contained .NET 10 Windows x64 companion and installer; Android 1.9.0 / versionCode 12 / minSdk 26 / targetSdk 35.
+- Nine UI entry/script/style files match source, published Windows and APK assets; local font, sanitizer and license assets are included.
+- APK v2/v3 signatures and original signing certificate retained. Release payload checksums and uploaded asset digests verified before publication.
+- New pinned dependencies: QRCoder 1.6.0 (MIT) and offline ZXing core 3.5.3 (Apache-2.0), with notices. APK build checks the ZXing JAR SHA256. NuGet advisory check reports no vulnerable direct/transitive packages in current sources.
 
-AUTOMATED CHECKS - 338 passed
-- 28 companion self-tests; 32 hardening self-tests; 32 profile/backup/favourite storage checks.
-- 30 headless API/JavaScript checks, 33 original OBS/API integration checks with browser section disabled, 31 persistent TLS/API/logic checks, and 9 native Java transport checks.
-- 24 execution/cancellation and 53 profiles/backups/favourites API/controller checks.
-- 60 desktop API/controller checks: local-admin/cross-origin protection, keep/replace/clear password modes and validation, secret redaction, shared setting writes that preserve boards/profiles/favourites/pairing, macro guard, password-free snapshots, first-run gating, escaped custom content, honest pairing status, read-only checks, unsaved forms, locked pending fields, dismissed-panel and stale-navigation protection, including legacy editor/pairing/Windows destinations.
-- New desktop and storage checks also pass against the published Windows executable.
-- 6 isolated installer checks: embedded payload hashes; install/update/backup; owned-file uninstall; refusal/preservation; unchanged real installation location. No shortcuts, registry changes, or app launch in installer test mode.
+AUTOMATED CHECKS - 495 passed
+- 28 companion self-tests, 32 hardening checks and 32 board storage checks.
+- 31 headless API/JavaScript checks; 33 mock OBS/API integration checks; 31 persistent TLS/API/logic plus 9 native Java transport checks.
+- 24 execution/cancellation, 53 profiles/backups/favourites, and 60 desktop setup API/controller checks.
+- 48 new studio storage/safety checks: app debounce/persistence/manual pause/editing lease/hold guards; bounded recent identity history and post-success recording; failed-play exclusion; configured mixer identity bounds; PNG validation; QR payload validation; pack selection, nested references, checksums, private extraction, inactive import, fresh IDs, credential preservation, and unexpected/duplicate entry refusal.
+- 47 new studio API/logic checks: unknown-CLI refusal before data/server/GUI initialization, admin/origin boundaries, harmless authenticated probes, repeated explicit OBS state commands without toggles, mandatory broadcast confirmation, extra mixer input routing, disabled automatic-rule management, non-executing target checks, local QR generation/single-use PIN, recent clearing, pack preview/confirmed import, PNG board transport, and valid uploads above ordinary one-MB request limit.
+- 18 native QR checks: bundled decoder reads a generated QR; host/mode/ports/PIN/certificate survive round trip; malformed, public, duplicate, unexpected and unsupported payload fields are refused. No camera was used.
+- 43 new UI controller checks: tool discoverability, diagnostic probe behavior and identity resets, human-operation versus network deadlines, pending saves and stale/dismissed views, mixer drag/read protection and disconnect disabling, recent unavailability, pack preview/trust confirmation, scan fill without auto-pair, and editing lease renewal/release.
+- New studio suites also pass against the published Windows executable.
+- 6 isolated installer checks verify payload hashes, install/update/backup, managed uninstall/refusal, and preservation of the real installation location. Installer test mode opens no UI, creates no shortcuts and writes no startup registry entries.
 
 SECURITY
-- The requested snyk_code_scan tool was unavailable; Snyk Code CLI scanned first-party code and rescanned the final changes.
-- Zero new findings, zero errors and warnings. Existing informational notes remain: JavaScript enabled in the bundled, restricted WebView and four pre-existing loopback test TLS exceptions. The new test code adds no TLS exception.
-- OBS settings writes are local-admin only, use existing origin protections, validate bounded inputs, and pass through the running-action guard. They modify a fresh protected copy rather than accepting board contents from the settings form.
-- Runtime secrets, user configuration, backup/quarantine files, devices, certificate private keys, signing keys and third-party meme audio are excluded from published artifacts.
+- The requested snyk_code_scan tool is unavailable; Snyk Code CLI scanned and rescanned the first-party source.
+- A new test-fixture path note was fixed with canonical temporary-root/name/size validation and rescanned. No new findings remain. Zero errors/warnings; existing informational notes remain for the restricted bundled WebView and four pre-existing loopback TLS test exceptions.
+- Tablet bridge allows only configured mixer/history/profile-lock/probe routes; app/file/pack/rule/QR administration remains local-admin only with existing origin protection.
+- Portable packs validate bounded metadata, allowed ZIP paths/entries, hashes and asset limits. They exclude credentials/executables, clear app targets, and import inactive profiles with renewed IDs; arbitrary actions never run during import.
+- Private data, devices, pairing/certificate/signing material, recent history, auto rules, pack assets and third-party sound collections are excluded from published program artifacts.
 
-REVIEW AND LIMITS
-- Independent reviewer scored both findings resolved: legacy async navigation cannot replace newer forms/reopen dismissed panels; desktop wrapping uses an automatic header grid row while execution retains its four-row layout. Documentation records the inherited Studio design without introducing a new visual system.
-- No browser, CUA or app window opened. No rendered-layout, physical touch, keyboard-focus or assistive-technology approval. CSS declarations and controller fixtures do not replace those checks.
-- Tests use isolated data, synthetic sound libraries and mock OBS. They did not replace the running installation, install an APK, change Discord/Soundpad devices, write startup settings, start streams/recordings, or play user sounds.
-- The PC setup hub shows a checked snapshot. Saved pairing count is not live connection status; USB tunnel and OBS state do not measure touch-to-sound latency. Refresh checks to update it.
-- Normal backup restore retains current credentials. Exceptional damaged-config recovery requires the OBS password again because snapshots exclude it. External sound files/apps and Soundpad native library are not copied into backups.
-- Windows executables remain unsigned. Earlier hardware results and their limits are documented in LIVE-TEST.md. Real Discord listeners, long-session/cable stability and Voicemeeter hardware remain unverified.
+REVIEW, INCIDENT AND LIMITS
+- Fresh reviewer scored both P2s resolved and approved source/logic scope: human choosers/scans no longer inherit network deadlines; manual diagnostics reset on connection identity changes. Inherited Studio design documented; no replacement visual system.
+- One failed-build test command accidentally started a stale companion against the default data directory and briefly opened the control panel. It was disclosed and stopped. Startup performed the normal backed-up profile/config migration, preserving existing actions and credentials. Subsequent runners guard build success, explicitly disable browser/tray and use isolated data. The companion now rejects unknown CLI options before accessing data or starting a server/window. No entirely GUI-free development-pass claim is made, and the incident was not visual/hardware verification.
+- The passing isolated suites used synthetic OBS/Soundpad dependencies, fake foreground selection/key sinks and generated audio bytes; no real stream, recording, camera scan, app-picker dialog, foreground-app integration or user sound playback was exercised by them.
+- Rendered fit, physical tablet touch, real keyboard/focus/screen-reader behavior, camera/permission UX, Wi-Fi/USB hardware rehearsal, live OBS/Soundpad/Discord audio routing, long-session stability and Voicemeeter remain unverified for these additions.
+- Diagnostics measure network/loopback request timings, not end-to-end sound or broadcast latency, and do not estimate packet loss. Automatic editing locks expire after 12 seconds without renewal; stale profile saves are refused.
+- Packs retain imported assets for backup references; deleting profiles does not remove those files. Soundpad native libraries, favourites, recent history and automatic rules are outside portable packs. Normal board backups include extra mixer inputs but not recent history/rules.
+- Live video and Twitch/Kick chat previews are a later phase; no accounts or preview capture were connected. Windows binaries remain unsigned. Update both components and rehearse before broadcast use.
