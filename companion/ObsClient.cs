@@ -62,7 +62,7 @@ public sealed class ObsClient : IAsyncDisposable
                 var hello=await Read(ws,timeout.Token);
                 if(hello["op"]?.GetValue<int>()!=0) throw new IOException("OBS WebSocket v5 is required.");
                 // Scenes, input changes, and output state; no high-volume meter events.
-                var identify=new JsonObject { ["rpcVersion"]=1,["eventSubscriptions"]=4|8|64 };
+                var identify=new JsonObject { ["rpcVersion"]=1,["eventSubscriptions"]=2|4|8|64 };
                 if(hello["d"]?["authentication"] is JsonObject auth)
                     identify["authentication"]=Auth(password,auth["salt"]!.GetValue<string>(),auth["challenge"]!.GetValue<string>());
                 await Send(ws,new JsonObject{["op"]=1,["d"]=identify},timeout.Token);

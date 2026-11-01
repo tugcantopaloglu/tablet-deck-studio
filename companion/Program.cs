@@ -8,7 +8,7 @@ using System.Text.Json.Nodes;
 using System.Diagnostics;
 using System.Globalization;
 
-var flagOptions=new HashSet<string>(StringComparer.Ordinal){"--self-test","--boards-self-test","--studio-self-test","--monitor-self-test","--update-self-test","--desktop-window-self-test","--audio-smoke-test","--hardening-self-test","--no-browser","--no-tray","--tray","--after-update"};
+var flagOptions=new HashSet<string>(StringComparer.Ordinal){"--self-test","--boards-self-test","--studio-self-test","--monitor-self-test","--extended-display-self-test","--update-self-test","--desktop-window-self-test","--audio-smoke-test","--hardening-self-test","--no-browser","--no-tray","--tray","--after-update"};
 var valueOptions=new HashSet<string>(StringComparer.Ordinal){"--data-dir","--http-port","--https-port","--control-port"};
 for(var i=0;i<args.Length;i++){
     if(flagOptions.Contains(args[i]))continue;
@@ -19,6 +19,7 @@ if(args.Contains("--self-test")) { SelfTests.Run();return; }
 if(args.Contains("--boards-self-test")) {BoardStorageTests.Run();return;}
 if(args.Contains("--studio-self-test")) {await StudioTests.Run();return;}
 if(args.Contains("--monitor-self-test")) {await MonitorTests.Run();return;}
+if(args.Contains("--extended-display-self-test")) {await ExtendedDisplayTests.Run();return;}
 if(args.Contains("--update-self-test")){await UpdateTests.Run();return;}
 if(args.Contains("--desktop-window-self-test")){var testDir=Array.IndexOf(args,"--data-dir");if(testDir<0)throw new ArgumentException("An isolated test data directory is required.");await DesktopWindowTests.Run(args[testDir+1]);return;}
 if(args.Contains("--audio-smoke-test")) {await SelfTests.AudioSmokeTest();return;}
@@ -62,6 +63,8 @@ var engine=new DeckEngine(store,obs);
 using var appMixer=new AppAudioMixer();
 using var holds=new HoldKeys();
 var fastCommands=new FastCommands(store,engine,holds,appMixer);
+var computer=new ComputerCopilot(store.DirectoryPath,fastCommands.ExecuteConfigured);
+using var extendedDisplay=new ExtendedDisplay();
 await using var stateUpdates=new StateUpdates(engine);
 await using var fastControl=new FastControlServer(store,fastCommands,stateUpdates,cert,controlPort);
 var desktop=new DesktopPreferences(store.DirectoryPath);
@@ -103,7 +106,22 @@ app.Use(async (ctx,next)=>{
 app.UseDefaultFiles();app.UseStaticFiles();
 app.MapStudio(store,engine,fastCommands,autoProfiles,boardPacks,Principal,()=>pairing.Open(),NetworkAddresses,fingerprint,httpsPort,controlPort);
 app.MapPost("/api/monitor/frame",(PreviewRequest req,CancellationToken ct)=>livePreview.Frame(req,ct));
-app.MapGet("/api/board",()=>{var config=store.Config;return new {profileId=config.ProfileId,profileName=config.ProfileName,pages=config.Pages.Select(p=>new {p.Id,p.Name,p.Icon,buttons=p.Buttons.Select(a=>new{a.Id,a.Label,a.Kind,a.Icon,a.IconImage,a.Color,confirm=DeckEngine.NeedsConfirm(a),target=a.Kind is "scene" or "preview"?a.Target:"",configured=!(a.Kind is "app" or "sound" or "url" or "hotkey" or "soundpadPlay")||a.Target.Length>0})})};});
+app.MapGet("/api/computer",()=>computer.Snapshot());
+app.MapPost("/api/computer/preset",(CopilotPresetRequest req)=>{computer.SelectPreset(req.PresetId);return Results.Ok(new{ok=true});});
+app.MapPost("/api/computer/action",(CopilotActionRequest req)=>computer.Execute(req));
+app.MapGet("/api/admin/computer",()=>computer.Settings);
+app.MapPost("/api/admin/computer",(CopilotSettings settings)=>{computer.Save(settings);return Results.Ok(new{ok=true});});
+app.MapGet("/api/computer/display",()=>extendedDisplay.Status());
+app.MapPost("/api/admin/computer/display",async (JsonElement req,CancellationToken ct)=>{
+    if(req.ValueKind!=JsonValueKind.Object||!req.TryGetProperty("operation",out var choice)||choice.ValueKind!=JsonValueKind.String)throw new ArgumentException("Choose create, remove, or share.");
+    var operation=choice.GetString();
+    if(operation=="create")return await extendedDisplay.StartAsync(req.Deserialize<ExtendedDisplayStart>(DataStore.Json)??throw new ArgumentException("Choose display settings."),ct);
+    if(operation=="remove"){extendedDisplay.Stop();return extendedDisplay.Status();}
+    if(operation=="share"){if(!req.TryGetProperty("enabled",out var enabled)||enabled.ValueKind is not (JsonValueKind.True or JsonValueKind.False))throw new ArgumentException("Choose whether to share this display.");extendedDisplay.SetSharing(enabled.GetBoolean());return extendedDisplay.Status();}
+    throw new ArgumentException("Choose create, remove, or share.");
+});
+app.MapPost("/api/computer/display/frame",(ExtendedDisplayFrameRequest req,CancellationToken ct)=>extendedDisplay.FrameAsync(req,ct));
+app.MapGet("/api/board",async()=>{var config=store.Config;var live=config.Pages.Any(p=>p.LiveScenes)?await engine.State():null;return new {profileId=config.ProfileId,profileName=config.ProfileName,sceneCatalogRevision=live?["sceneCatalogRevision"]?.GetValue<string>(),pages=config.Pages.Select(p=>new {p.Id,p.Name,p.Icon,p.LiveScenes,buttons=(p.LiveScenes?LiveScenes.Buttons(live?["scenes"]):(IEnumerable<DeckAction>)p.Buttons).Select(a=>new{a.Id,a.Label,a.Kind,a.Icon,a.IconImage,a.Color,confirm=DeckEngine.NeedsConfirm(a),target=a.Kind is "scene" or "preview"?a.Target:"",configured=!(a.Kind is "app" or "sound" or "url" or "hotkey" or "soundpadPlay")||a.Target.Length>0})})};});
 app.MapGet("/api/profiles",()=>new{profiles=store.ProfileList(),warning=store.RecoveryWarning});
 app.MapPost("/api/profile",(ProfileRequest req)=>{fastCommands.ManualProfile(req.Id);return Results.Ok(new{ok=true});});
 app.MapPost("/api/admin/profiles",(ManageProfileRequest req)=>{
@@ -193,15 +211,12 @@ app.MapPost("/api/admin/obs-settings",(ObsSettingsRequest req)=>{
 });
 app.MapPost("/api/admin/import-scenes",async ()=>{
     var expectedProfile=store.Config.ProfileId;
-    var list=await obs.Call("GetSceneList");
+    await obs.Call("GetSceneList");
     fastCommands.ChangeBoard(()=>{
     if(store.Config.ProfileId!=expectedProfile)throw new InvalidOperationException("The profile changed. Reload before importing scenes.");
     var c=JsonSerializer.Deserialize<DeckConfig>(JsonSerializer.Serialize(store.Config,DataStore.Json),DataStore.Json)!;
     var page=c.Pages.FirstOrDefault(p=>p.Name=="Scenes");if(page==null) {page=new DeckPage{Name="Scenes",Icon="clapper"};c.Pages.Add(page);}
-    foreach(var scene in list["scenes"]!.AsArray()) {
-        var name=scene!["sceneName"]!.GetValue<string>();
-        if(!page.Buttons.Any(b=>b.Kind=="scene"&&b.Target==name)) page.Buttons.Add(new DeckAction{Label=name.Length>60?name[..60]:name,Kind="scene",Target=name,Icon="clapper",Color="violet"});
-    }
+    page.LiveScenes=true;
     store.Save(c);});return Results.Ok(new{ok=true});
 });
 app.MapPost("/api/admin/window",async()=>{if(tray is null)return Results.Conflict(new{error="The companion is running headlessly. Restart it normally to enable the desktop window."});await tray.OpenConsole();return Results.Ok(new{ok=true});});

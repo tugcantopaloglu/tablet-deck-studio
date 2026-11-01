@@ -45,6 +45,7 @@ public sealed class DeckEngine
                 state["scenes"]=scenes["scenes"]?.DeepClone();
                 foreach(var task in inputs){var input=await task;state["inputs"]![input.Channel]=input.Value;}
             } catch(Exception ex) {state["error"]="OBS unavailable. Enable Tools > WebSocket Server Settings, then check the password in Edit. "+ex.Message;}
+            state["sceneCatalogRevision"]=state["obsConnected"]?.GetValue<bool>()==true?LiveScenes.Revision(state["scenes"]):"offline";
             state["revision"]=Interlocked.Increment(ref snapshots);cachedState=state;cacheTime=version==Volatile.Read(ref generation)?DateTime.UtcNow:DateTime.MinValue;return WithExecution(state);
         } finally {stateGate.Release();}
     }
@@ -65,6 +66,10 @@ public sealed class DeckEngine
         }
         switch(a.Kind) {
             case "scene": await obs.Call("SetCurrentProgramScene",new{sceneName=a.Target});break;
+            case "liveScene":{
+                var list=await obs.Call("GetSceneList",ct:ct);var scene=LiveScenes.Read(list["scenes"]).FirstOrDefault(s=>s.Id==a.Target)??throw new InvalidOperationException("That OBS scene no longer exists. The live page will refresh.");
+                await obs.Call("SetCurrentProgramScene",scene.Uuid is {} uuid?new{sceneUuid=uuid}:(object)new{sceneName=scene.Name},ct);break;
+            }
             case "preview": await obs.Call("SetCurrentPreviewScene",new{sceneName=a.Target});break;
             case "transition": await obs.Call("TriggerStudioModeTransition");break;
             case "sound": WindowsActions.PlaySound(a.Target);break;

@@ -56,7 +56,7 @@ public static class SoundpadLibrary
     {
         await cacheGate.WaitAsync(ct);
         try {
-            if(!refresh&&cached is not null&&(DateTime.UtcNow-cacheAt).TotalSeconds<30)return cached;
+            if(!refresh&&cached is not null&&(DateTime.UtcNow-cacheAt).TotalSeconds<5)return cached;
             var soundXml=await Query("GetSoundlist()","sp_remote_control",ct);
             string? categoryXml=null,warning=null;
             try {categoryXml=await Query("GetCategories(true,false)","sp_remote_control",ct);}

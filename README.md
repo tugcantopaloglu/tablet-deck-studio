@@ -22,24 +22,29 @@ The low-latency transport and Android packaging fix from 1.4.1 are retained. Phy
 
 ## Features
 
+**1.12.0 adds Computer Copilot**, a separate tablet mode for editable app shortcut layouts, plus optional viewing of an independent Windows display through an already-installed compatible SudoVDA driver. Choose **Computer Copilot** in the mode selector; use **Edit Copilot settings** in the Windows app to enable controls and edit layouts. Automatic following uses foreground executable names; browser tools use manual layouts. These are keyboard shortcut presets, not deep application or AI integrations. Display creation and tablet sharing require explicit PC consent; no driver is included or installed. The display view is a silent JPEG preview capped at 4 fps, with no touch forwarding. See [Computer Copilot](#computer-copilot), [controller details](docs/COMPUTER-COPILOT.md), [optional second display](docs/EXTENDED-DISPLAY.md), and the [1.12 UI extension record](docs/UI-EXTENSION-1.12.md).
+
+**Live libraries:** an OBS scene page can now follow additions, renames, removals and scene order continuously while retaining its saved manual buttons behind a toggle. Soundpad's full library has Previous/Next and page selection in groups of 80, with automatic refresh every five seconds while open. The isolated pagination check visited all 1,421 fixture sounds; no third-party sound collection is bundled.
+
 **1.11.0 adds a standalone Windows desktop window** with its own taskbar icon, resizing and close-to-tray behavior. Reopening the desktop shortcut or tray icon restores the same window. It also fixes the timer error that blocked desktop navigation, adds rendered click/native-window regression checks, and provides matching minimal application icons for Windows and Android (including adaptive/themed Android icons). The installer creates Desktop and Start menu shortcuts. The Windows app uses Microsoft's Evergreen WebView2 Runtime; if it is missing, the app shows an official download link. See [desktop setup](docs/PC-SETUP.md).
 
 **In-app updates:** Windows options can check at app startup, download a verified Windows update and install/restart on confirmation. Optional USB APK updates support manual installation, automatic checks and a separate reopen setting. Android may require approval and briefly stops the app. Both components keep existing pairing. See the [complete update guide](docs/UPDATES.md).
 
 | Area | Controls |
 | --- | --- |
-| Scenes | Switch program scene, set Studio Mode preview, take a transition |
+| Scenes | Live OBS scene page, switch program scene, set Studio Mode preview, take a transition |
 | Audio | Two configurable OBS faders, input mute, Windows per-app playback volume/mute, PC soundboard with two synthesized demo effects |
 | Broadcast | Streaming, recording, replay-buffer save, virtual camera, Studio Mode |
 | Sources | Scene-source visibility, source-filter toggle, media restart/stop |
 | Windows | App/shortcut launching, websites, keyboard shortcuts, volume/media keys |
-| Soundpad | Search/categories, persistent favourites with stable sound identities, play to mic/speakers/both, import selected sounds as buttons on PC, stop/pause/next/previous |
+| Soundpad | Search/categories, 80-row pages with automatic refresh, persistent favourites with stable sound identities, play to mic/speakers/both, import selected sounds as buttons on PC, stop/pause/next/previous |
 | Discord and other tools | Matching app keybinds; Discord mute/deafen/screen-share setup documented |
 | Macros | Multiple steps, delays, confirmation, live step progress, cancellation, stop on first error |
 | Customization | Labels/icons/colors, ordering, multiple pages, up to 10 board profiles, current-profile JSON import/export, full-pad 24/40-button layouts |
 | Backups | Latest 20 automatic snapshots, manual backup, restore preview and confirmation, damaged-config recovery, current credentials retained on restore |
 | Connection | Persistent pinned TLS over Wi-Fi/USB, pushed state, HTTPS fallback, optional automatic USB reconnection |
 | Desktop | Windows tray, opt-in startup, update notifications, per-user installer |
+| Computer Copilot | Opt-in contextual shortcut layouts, PC binding editor, manual browser layouts, optional independent-display preview using an installed driver |
 | Hold-to-talk | Renewable key-down/key-up shortcuts with a three-second disconnect lease |
 | Voicemeeter | Native Strip/Bus gain and explicit mute/unmute through the installed remote DLL |
 
@@ -50,6 +55,7 @@ The low-latency transport and Android packaging fix from 1.4.1 are retained. Phy
 - [Wi-Fi](#wi-fi)
 - [USB](#usb)
 - [Customize the board](#customize-the-board)
+- [Computer Copilot](#computer-copilot)
 - [Action reference](#action-reference)
 - [Soundpad and Discord](#soundpad-and-discord)
 - [Examples](#examples)
@@ -67,9 +73,9 @@ The low-latency transport and Android packaging fix from 1.4.1 are retained. Phy
 
 ## First run
 
-For a managed Windows installation, download **TabletDeck-Setup.exe**, run it, and type `INSTALL` after reviewing its destination. It creates a Start menu shortcut without launching any apps. The ZIP remains available for portable use. See [installation and uninstalling](docs/DESKTOP-AND-HOLD.md#install-or-update-windows).
+For a managed Windows installation, download **TabletDeck-Setup.exe**, run it, and type `INSTALL` after reviewing its destination. It creates Desktop and Start menu shortcuts without launching any apps. The ZIP remains available for portable use. See [installation and uninstalling](docs/DESKTOP-AND-HOLD.md#install-or-update-windows).
 
-Download `TabletDeck-Studio-1.11.0.zip` from [Releases](https://github.com/tugcantopaloglu/tablet-deck-studio/releases/latest) for the complete package, or download `TabletDeck-Studio.apk` separately if you only need the Android installer. Update both components. The APK keeps the original signing certificate, so installing it over an older version preserves pairing. Third-party meme collections are user content and are not included in the public release.
+Download the versioned complete ZIP for **1.12.0** from [Releases](https://github.com/tugcantopaloglu/tablet-deck-studio/releases/latest) when published, or download `TabletDeck-Studio.apk` separately if you only need the Android installer. Update both components. The APK keeps the original signing certificate, so installing it over an older version preserves pairing. Third-party meme collections are user content and are not included in the public release.
 
 ```text
 TabletDeck-Studio/
@@ -86,9 +92,9 @@ TabletDeck-Studio/
 ```
 
 1. Extract the whole ZIP. Keep the Windows folder together: the executable needs its wwwroot, Sounds, and platform-tools folders.
-2. Run Windows/TabletDeck-Companion.exe on your streaming PC. It opens the control panel in your default browser. The companion stays in the Windows tray. Use its menu to reopen the panel or exit.
+2. Run Windows/TabletDeck-Companion.exe on your streaming PC. It opens the native Windows console and stays in the Windows tray. Closing the window leaves it running; use the tray to reopen the same session or exit.
 3. In OBS, open Tools → WebSocket Server Settings. Enable the server and keep authentication enabled. The usual port is 4455. Copy the server password.
-4. In the Windows console, choose **OBS setup**, enter the port/password, and save. Use **Find inputs** for exact microphone/desktop names. Choose **Board editor → Import OBS scenes** to add real scene names. The Main page begins with example scene names; edit them to match OBS.
+4. In the Windows console, choose **OBS setup**, enter the port/password, and save. Use **Find inputs** for exact microphone/desktop names. Choose **Board editor → Import OBS scenes** to enable a continuously synced Scenes page. Existing manual buttons remain saved; turn off **Keep this page synced with live OBS** in the editor to restore them. Other example scene buttons need names matching OBS.
 5. Install TabletDeck-Studio.apk on the tablet. You can copy the APK to the tablet and allow installation from that file source, or enable USB debugging and run Windows/Install-APK.cmd.
 6. In the Windows sidebar choose **Tablet connections**, then follow either Wi-Fi or USB below. The desktop console configures the studio; action keys remain on the tablet.
 
@@ -141,6 +147,8 @@ See Android's [ADB documentation](https://developer.android.com/tools/adb) and [
 
 Choose **Board editor** in the Windows sidebar. Select a page and button, then change its name, action, icon, and color. Add pages or buttons; drag a row by its handle to change order, or use Move earlier/later. Save changes to sync to the tablet. The Windows console does not render the tablet control grid. Adding actions and changing PC targets remain restricted to the local PC.
 
+Enable **Keep this page synced with live OBS** for a page generated from the current OBS scene collection. Additions, renames, removals and order changes update the tablet without another import. Manual button editing and arrangement are hidden for that page while live sync is on; turn it off and save to restore the retained manual buttons. Reorder live scenes in OBS. A disconnected OBS shows an empty live-page explanation rather than stale scene controls.
+
 On the tablet, choose **Edit → Arrange buttons**, drag keys to move them, then choose **Save order**. **Cancel** keeps the saved order. Actions do not run while arranging. On the PC, use the board editor’s ordering list instead. See [ordering, library, and volume instructions](docs/CONTROLS.md).
 
 Actions:
@@ -160,6 +168,19 @@ For sound effects to reach viewers, capture the PC’s playback output in OBS De
 Record and replay controls require those features to be configured in OBS. An unconfigured replay buffer or invalid scene/source/input returns the OBS error on the tablet. Defaults are examples, not a claim about your PC’s current setup. OBS and Discord launch paths can be adjusted in Edit; Discord is detected on first run when installed in its usual user folder.
 
 Export/Import saves the current profile's board JSON without the OBS password, inactive profiles, or favourites. Import replaces only the current profile after review and Save changes; imported page/button identities are regenerated. Sound files and applications are referenced by absolute PC paths; they are not copied into an export. The app does not include Elgato’s proprietary plugin marketplace or automatic support for every third-party plugin.
+
+## Computer Copilot
+
+1. In the Windows console's mode selector, choose **Computer Copilot**, then **Edit Copilot settings**.
+2. Enable **Computer Copilot**; it starts off. Edit layout names, associated `.exe` names, control labels/groups, and shortcuts, or add a tool layout. Save on the PC to sync to the tablet.
+3. On the tablet, choose **Computer Copilot** in its mode selector. Supplied layouts include Desktop, YouTube, Spotify, Codex / GitHub Copilot, Claude, DaVinci Resolve, and Photoshop.
+4. **Follow supported foreground apps** automatically chooses a uniquely matching executable. Selecting a layout on the tablet switches to manual selection; enable following again in PC settings. Browser tabs/websites are not inspected, so choose YouTube or Claude manually. Selecting a layout never opens or focuses the app.
+
+App-specific buttons require a matching foreground app. Global controls are limited to media keys and Windows app switching. Assistant-panel entries begin unassigned so you can match your local keymap; Computer Copilot has no default Send command and rejects Enter-containing shortcuts. It does not read chats or send prompts. Windows focus and input-permission limits still apply. See the [controller contract and tests](docs/COMPUTER-COPILOT.md).
+
+For an optional separate desktop, expand **Second display** on the PC, review the already-installed compatible SudoVDA driver's trust information, and explicitly accept both driver use and sharing its pixels with the paired tablet before **Create independent display** becomes available. Choose a supported resolution; if needed, set that monitor to **Extend** in Windows Display settings. Then use **Open display view** on the tablet. **Back to controls**, **Pause tablet sharing**, and **Remove extra display** stop the corresponding viewing/sharing/session activity.
+
+No virtual display driver is bundled, downloaded, or installed. The view sends only that session's independent monitor, up to 4 JPEG frames per second with no audio. Touch/mouse forwarding and full-motion remote-desktop performance are not provided. The driver needs its own trusted installation; contextual shortcuts work without it. See [requirements, limits, and verification](docs/EXTENDED-DISPLAY.md).
 
 ## Action reference
 
@@ -194,6 +215,8 @@ Supported shortcuts include letters, digits, F1–F24, CTRL, SHIFT, ALT, WIN, EN
 Yes, the board can be used with **Discord desktop streams and calls**, as well as OBS. See the detailed [integration guide](docs/INTEGRATIONS.md).
 
 **Soundpad:** keep it running on the PC, then choose **Soundpad** in the board toolbar to browse names and categories. Select a playback output and press **Play**. In the PC library, select sounds and choose **Add selected buttons** to put them on a page. You can also add a **Soundpad · play sound** action manually by its All sounds index. Use output **mic** to send an effect through Soundpad's configured microphone, **both** to hear it locally as well, or **speakers** for local-only playback. Dedicated stop, pause/resume, next, and previous controls do not need keyboard focus or an executable path.
+
+Use **Previous**, **Next**, or **Sound page** to reach the whole matching library, 80 sounds per page. Search and category changes return to the first page. The open, visible library refreshes every five seconds, retaining selection by sound identity where possible; it does not play anything automatically. A 1,421-sound library spans 18 pages, including a final page of 61 sounds.
 
 **Discord controls:** configure Toggle Mute, Toggle Deafen, or Toggle Screen Share in Discord's desktop **User Settings → Keybinds**, then create matching **Send keyboard shortcut** buttons here. Leave Discord's keybind editor before testing. The share picker or stream settings may still need confirmation in Discord. These are shortcut controls, not live Discord-state indicators. The board's Start stream button controls OBS, not Discord.
 
@@ -254,7 +277,7 @@ To remove access, use **Revoke** in the PC's Pair tablet panel. To clear the tab
 | OBS disconnected | OBS running, WebSocket enabled, correct companion port/password; normally port 4455 |
 | Pairing PIN rejected | Generate a fresh PIN; it is single-use, expires after five minutes, and locks after five wrong attempts |
 | Certificate mismatch | Use the certificate code from the intended PC's current companion; deleting its data changes its identity |
-| Invalid scene or source | Match OBS names exactly; importing scenes adds real names to the Scenes page, not the Main page |
+| Invalid scene or source | Match names for manual actions; Import OBS scenes enables the live Scenes page, while Main/manual buttons stay separate |
 | Fader needs setup | Use Edit → Find OBS inputs and configure exact Mic/Desktop input names |
 | Sound heard locally but not on stream | Capture playback output in OBS; check virtual-mixer routing and make a test recording |
 | App/sound says Set up on PC | Choose an existing absolute file path in Edit |
@@ -281,11 +304,11 @@ The PC editor is bound to loopback port 8740 and requires a random local session
 
 Settings, the OBS password, certificate private key, and device records live under %LOCALAPPDATA%/TabletDeck, protected by a directory ACL for the current Windows user and SYSTEM. The OBS password and PFX are not application-encrypted at rest; users with access to the account can read them. Android credentials are in app-private storage and Android backups are disabled. The app’s WebView loads only bundled assets, blocks external navigation and frames, sanitizes dynamic markup, and permits only the required control endpoints through its native bridge.
 
-If you close the PC browser tab, the companion keeps running. Choose Open control panel in the tray menu to reopen the authenticated editor. It does not install a service. Startup is opt-in through Desktop settings and uses the current account Run entry. Use the tray menu to open the panel or exit an existing instance.
+If you close the Windows console, the companion keeps running. Choose **Open Tablet Deck Studio** in the tray menu to restore its authenticated session. It does not install a service. Startup is opt-in through Windows options and uses the current account Run entry. Automatic USB reconnection, APK updating, and APK reopening also default off; existing saved choices are retained on update.
 
 ## Verification and limits
 
-See [Verification results](docs/VERIFICATION.txt) for build, test, and security scan results, and [the hardware report](docs/LIVE-TEST.md) for completed physical USB/Wi-Fi, OBS, and Soundpad tests. Version 1.7.0 profiles, backups, favourites, and cancellation have isolated storage/API/logic coverage, including migration, restore, corrupted files, stale responses, and keyboard-focus preservation. The new interfaces have not had rendered-layout or physical-tablet touch verification. Mocked OBS tests verify protocol behavior, not a live stream. Run a rehearsal before relying on it in a broadcast.
+See [Verification results](docs/VERIFICATION.txt) for build, test, and security scan results, and [the hardware report](docs/LIVE-TEST.md) for completed physical USB/Wi-Fi, OBS, and Soundpad tests. The [1.11](docs/UI-EXTENSION-1.11.md) and [1.12](docs/UI-EXTENSION-1.12.md) UI records distinguish isolated rendered/controller checks from actual native and hardware evidence. Computer Copilot's saved rendered checks use fake foreground/action state; live-scene checks use a mock OBS service, and the 1,421-sound pagination check uses a fixture without audio. A controlled real-driver check created and removed a 1280 × 800 independent monitor with sharing off and left both physical monitors unchanged. Actual pixel capture/delivery, tablet viewing, latency, and physical touch interaction with the new display view remain unverified. Run a rehearsal before relying on it in a broadcast.
 
 ## Build and contribute
 
@@ -295,6 +318,8 @@ See [BUILDING.md](docs/BUILDING.md) for building the Windows companion and Andro
 android/                 Manifest, resources, and Java HTTPS bridge
 companion/               C# ASP.NET Core companion
 companion/wwwroot/       Shared HTML, CSS, JavaScript, fonts, DOMPurify
+companion/ComputerCopilot.cs  Contextual shortcut settings and dispatch guards
+companion/ExtendedDisplay.cs  Optional installed-driver session and JPEG capture
 companion/Sounds/        Synthesized demo WAV files
 scripts/                 APK build and Windows USB/install helpers
 installer/               Per-user Windows setup executable source

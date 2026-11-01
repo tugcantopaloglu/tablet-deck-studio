@@ -25,6 +25,7 @@ public sealed class DeckPage
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string Name { get; set; } = "New page";
     public string Icon { get; set; } = "grid";
+    public bool LiveScenes { get; set; }
     public List<DeckAction> Buttons { get; set; } = [];
 }
 public sealed class DeckConfig

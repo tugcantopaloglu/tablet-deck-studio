@@ -1,6 +1,6 @@
 'use strict';
 let featureView='',arranging=false;
-let librarySounds=[],librarySelection=new Set(),libraryLimit=80;
+let librarySounds=[],librarySelection=new Set(),libraryLimit=80,libraryPage=0,libraryLoading=false,librarySignature='';
 let libraryFavourites=[],libraryOnlyFavourites=false;
 function favouriteView(sounds,favourites,only){
   if(!only)return sounds;
@@ -13,43 +13,51 @@ panel.addEventListener('close',()=>{if(!panel.open)featureView='';appMixerDraggi
 async function showSoundpadLibrary(){
   if(preview){notice('Connect a PC to browse its Soundpad library.');return;}
   if(dirty){notice('Save or discard your editor changes before opening the library.',true);return;}
-  featureView='library';editing=false;librarySelection=new Set();libraryLimit=80;
+  featureView='library';editing=false;librarySelection=new Set();libraryLimit=80;libraryPage=0;librarySignature='';
   openPanel('Soundpad library',`<p class="help">Search your running Soundpad library by sound name, artist, or category. Nothing plays until you press Play.</p><div class="form-grid"><label>Search sounds<input id="library-search" type="search" placeholder="Search your sounds" autocomplete="off"></label><label>Category<select id="library-category" aria-label="Category"><option value="">All sounds</option></select></label><label>Playback output<select id="library-output" aria-label="Playback output">${options({mic:'Microphone',speakers:'Speakers',both:'Speakers + microphone',default:'Soundpad default'},'mic')}</select></label>${!native?`<label>Add selected sounds to<select id="library-page" aria-label="Add selected sounds to">${pages.map(p=>`<option value="${esc(p.id)}" ${p.id===pageId?'selected':''}>${esc(p.name)}</option>`).join('')}</select></label>`:''}</div><div class="row"><button id="library-refresh" class="quiet">Refresh library</button>${!native?'<button id="library-add" class="primary" disabled>Add selected buttons</button>':''}<span id="library-count" class="help" role="status">Loading…</span></div><p id="library-status" class="help" role="status"></p><div id="library-results" class="library-results"></div><button id="library-more" class="quiet" hidden>Show more sounds</button>`);
-  $('#library-search').oninput=()=>{libraryLimit=80;renderSoundpadResults();};$('#library-category').onchange=()=>{libraryLimit=80;renderSoundpadResults();};
+  const pager=document.createElement('div');pager.className='row library-pagination';featureHtml(pager,'<button id="library-prev" class="quiet">Previous</button><label>Sound page<select id="library-page-number" aria-label="Sound page"></select></label><button id="library-next" class="quiet">Next</button><span class="help">Auto sync every 5 seconds</span>');$('#library-results').before(pager);
+  $('#library-prev').onclick=()=>{libraryPage--;renderSoundpadResults();};$('#library-next').onclick=()=>{libraryPage++;renderSoundpadResults();};$('#library-page-number').onchange=()=>{libraryPage=Number($('#library-page-number').value);renderSoundpadResults();};
+  $('#library-search').oninput=()=>{libraryPage=0;renderSoundpadResults();};$('#library-category').onchange=()=>{libraryPage=0;renderSoundpadResults();};
   const filter=document.createElement('button');filter.id='library-favourites';filter.className='quiet favourites-filter';filter.textContent='Favourites';filter.setAttribute('aria-pressed',String(libraryOnlyFavourites));$('#library-refresh').after(filter);filter.onclick=()=>{libraryOnlyFavourites=!libraryOnlyFavourites;filter.setAttribute('aria-pressed',String(libraryOnlyFavourites));libraryLimit=80;renderSoundpadResults();};
   $('#library-refresh').onclick=()=>loadSoundpadLibrary(true);
   if(typeof showRecentSounds==='function'){const recent=document.createElement('button');recent.className='quiet';recent.textContent='Recent sounds';recent.onclick=showRecentSounds;$('#library-refresh').after(recent);}
-  $('#library-more').onclick=()=>{libraryLimit+=80;renderSoundpadResults();};
+  $('#library-more').onclick=()=>{libraryPage++;renderSoundpadResults();};
   if($('#library-add'))$('#library-add').onclick=importSoundpadSelection;
   if(!native){const row=document.createElement('div');row.className='row';for(const [text,link] of [['Refresh linked indices',false],['Link old buttons',true]]){const button=document.createElement('button');button.className='quiet';button.textContent=text;button.onclick=()=>remapSoundpad(link);row.appendChild(button);}$('#library-results').before(row);}
   await loadSoundpadLibrary(false);
 }
-async function loadSoundpadLibrary(force){
+async function loadSoundpadLibrary(force,quiet=false){
+  if(libraryLoading)return;
   const generation=panelGeneration;
-  const button=$('#library-refresh');if(!button)return;button.disabled=true;$('#library-status').textContent='Reading Soundpad…';
+  const button=$('#library-refresh');if(!button)return;libraryLoading=true;button.disabled=true;if(!quiet)$('#library-status').textContent='Reading Soundpad…';
   try {
     const results=await Promise.allSettled([api('/api/soundpad/library',force?{}:undefined),api('/api/soundpad/favourites')]);if(featureView!=='library'||panelGeneration!==generation||!panel.open)return;
     if(results[1].status==='fulfilled')libraryFavourites=results[1].value.favourites;
     if(results[0].status==='rejected'){librarySounds=[];renderSoundpadResults();throw results[0].reason;}
-    const result=results[0].value;
-    librarySounds=result.sounds;const available=new Set(librarySounds.map(s=>s.index));librarySelection=new Set([...librarySelection].filter(id=>available.has(id)));
+    const result=results[0].value,focusTarget=quiet?captureLibraryFocus(null,false):null,scrollTop=$('#panel-body').scrollTop;
+    const selected=librarySounds.filter(s=>librarySelection.has(s.index));const signature=JSON.stringify([result.sounds,libraryFavourites,result.warning]);const unchanged=quiet&&librarySignature===signature;
+    librarySounds=result.sounds;librarySelection=new Set(librarySounds.filter(s=>selected.some(old=>old.key?old.key===s.key:old.index===s.index&&old.name===s.name)).map(s=>s.index));librarySignature=signature;
+    if(unchanged)return;
     const categories=[...new Set(librarySounds.flatMap(s=>s.categories))].sort((a,b)=>a.localeCompare(b));
     const category=$('#library-category').value;featureHtml($('#library-category'),'<option value="">All sounds</option>'+categories.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join(''));if(categories.includes(category))$('#library-category').value=category;
-    $('#library-status').textContent=results[1].status==='rejected'?'Favourites could not be loaded. Refresh to retry.':result.warning||'Star a sound to keep it in Favourites. Saved identities follow index changes; missing or duplicated sounds cannot play from Favourites.';renderSoundpadResults();
+    $('#library-status').textContent=results[1].status==='rejected'?'Favourites could not be loaded. Refresh to retry.':result.warning||'Star a sound to keep it in Favourites. Saved identities follow index changes; missing or duplicated sounds cannot play from Favourites.';renderSoundpadResults();if(quiet){restoreLibraryFocus(focusTarget);$('#panel-body').scrollTop=scrollTop;}
   }catch(error){if(featureView==='library'&&panelGeneration===generation&&panel.open){$('#library-status').textContent=error.message;renderSoundpadResults();}}
-  finally{if(featureView==='library'&&panelGeneration===generation&&panel.open)$('#library-refresh').disabled=false;}
+  finally{libraryLoading=false;if(featureView==='library'&&panelGeneration===generation&&panel.open)$('#library-refresh').disabled=false;}
 }
+setInterval(()=>{if(featureView==='library'&&panel.open&&!document.hidden)loadSoundpadLibrary(false,true);},5000);
 function renderSoundpadResults(){
   if(featureView!=='library')return;
   const query=$('#library-search').value.trim().toLocaleLowerCase(),category=$('#library-category').value;
   const matches=favouriteView(librarySounds,libraryFavourites,libraryOnlyFavourites).filter(s=>(!category||s.categories.includes(category))&&(!query||[s.name,s.artist,...s.categories].join(' ').toLocaleLowerCase().includes(query)));
-  $('#library-count').textContent=`${matches.length} sound${matches.length===1?'':'s'} · ${librarySelection.size} selected`;
+  const count=Math.max(1,Math.ceil(matches.length/libraryLimit));libraryPage=Math.max(0,Math.min(libraryPage,count-1));const start=libraryPage*libraryLimit,end=Math.min(start+libraryLimit,matches.length);
+  const updateCount=()=>{$('#library-count').textContent=`${matches.length?start+1:0}–${end} of ${matches.length} ${libraryOnlyFavourites?'favourite ':''}sounds · ${librarySounds.length} in Soundpad · ${librarySelection.size} selected`;};updateCount();
+  featureHtml($('#library-page-number'),Array.from({length:count},(_,i)=>`<option value="${i}" ${i===libraryPage?'selected':''}>${i+1} of ${count}</option>`).join(''));$('#library-prev').disabled=libraryPage===0;$('#library-next').disabled=libraryPage>=count-1;
   if($('#library-add'))$('#library-add').disabled=librarySelection.size===0;
   const favourites=new Set(libraryFavourites.map(f=>f.key));
-  featureHtml($('#library-results'),matches.length?matches.slice(0,libraryLimit).map(s=>`<div class="library-row">${!native&&!s.unavailable?`<input class="sound-select" type="checkbox" data-select-sound="${s.index}" aria-label="Select ${esc(s.name)}" ${librarySelection.has(s.index)?'checked':''}>`:''}<div class="library-name"><strong>${esc(s.name)}</strong><span>${esc(s.unavailable?s.reason:[s.artist,...s.categories].filter(Boolean).join(' · '))||'All sounds'} ${s.unavailable?'':`<span class="badge">#${s.index}</span>`}</span></div>${s.key?`<button class="quiet favourite-toggle ${favourites.has(s.key)?'is-favourite':''}" data-favourite-key="${esc(s.key)}" aria-pressed="${favourites.has(s.key)}" aria-label="${favourites.has(s.key)?'Remove':'Add'} favourite ${esc(s.name)}">${icon('star')}</button>`:''}<button class="quiet" data-play-sound="${s.index}" ${s.unavailable?'disabled':''} aria-label="Play ${esc(s.name)}">Play</button></div>`).join(''):`<div class="feature-empty"><strong>${libraryOnlyFavourites&&!libraryFavourites.length?'No favourites yet':'No matching sounds'}</strong><p>${libraryOnlyFavourites?'Star sounds in the full library, or try another search.':'Add sounds in Soundpad or try another search.'}</p></div>`);
-  $('#library-more').hidden=matches.length<=libraryLimit;
-  document.querySelectorAll('[data-select-sound]').forEach(input=>input.onchange=()=>{const id=Number(input.dataset.selectSound);input.checked?librarySelection.add(id):librarySelection.delete(id);$('#library-add').disabled=librarySelection.size===0;$('#library-count').textContent=`${matches.length} sounds · ${librarySelection.size} selected`;});
-  document.querySelectorAll('[data-play-sound]').forEach(button=>button.onclick=async()=>{button.disabled=true;try{const index=Number(button.dataset.playSound),sound=librarySounds.find(sound=>sound.index===index);await api('/api/soundpad/play',{index,key:sound?.key||'',output:$('#library-output').value});notice('Soundpad accepted playback.');}catch(error){notice(error.message,true);}finally{if(button.isConnected)button.disabled=false;}});
+  featureHtml($('#library-results'),matches.length?matches.slice(start,end).map(s=>`<div class="library-row">${!native&&!s.unavailable?`<input class="sound-select" type="checkbox" data-select-sound="${s.index}" aria-label="Select ${esc(s.name)}" ${librarySelection.has(s.index)?'checked':''}>`:''}<div class="library-name"><strong>${esc(s.name)}</strong><span>${esc(s.unavailable?s.reason:[s.artist,...s.categories].filter(Boolean).join(' · '))||'All sounds'} ${s.unavailable?'':`<span class="badge">#${s.index}</span>`}</span></div>${s.key?`<button class="quiet favourite-toggle ${favourites.has(s.key)?'is-favourite':''}" data-favourite-key="${esc(s.key)}" aria-pressed="${favourites.has(s.key)}" aria-label="${favourites.has(s.key)?'Remove':'Add'} favourite ${esc(s.name)}">${icon('star')}</button>`:''}<button class="quiet" data-play-sound="${s.index}" data-play-key="${esc(s.key||'')}" ${s.unavailable?'disabled':''} aria-label="Play ${esc(s.name)}">Play</button></div>`).join(''):`<div class="feature-empty"><strong>${libraryOnlyFavourites&&!libraryFavourites.length?'No favourites yet':'No matching sounds'}</strong><p>${libraryOnlyFavourites?'Star sounds in the full library, or try another search.':'Add sounds in Soundpad or try another search.'}</p></div>`);
+  $('#library-more').hidden=true;
+  document.querySelectorAll('[data-select-sound]').forEach(input=>input.onchange=()=>{const id=Number(input.dataset.selectSound);input.checked?librarySelection.add(id):librarySelection.delete(id);$('#library-add').disabled=librarySelection.size===0;updateCount();});
+  document.querySelectorAll('[data-play-sound]').forEach(button=>button.onclick=async()=>{button.disabled=true;try{await api('/api/soundpad/play',{index:Number(button.dataset.playSound),key:button.dataset.playKey||'',output:$('#library-output').value});notice('Soundpad accepted playback.');}catch(error){notice(error.message,true);}finally{if(button.isConnected)button.disabled=false;}});
   document.querySelectorAll('[data-favourite-key]').forEach(button=>button.onclick=()=>toggleSoundpadFavourite(button));
 }
 async function toggleSoundpadFavourite(button){
@@ -80,7 +88,7 @@ function restoreLibraryFocus(target){
   const candidates=[...document.querySelectorAll('['+target.attribute+']')];
   const exact=candidates.find(node=>node.dataset[target.property]===target.value);
   const linked=target.key&&candidates.find(node=>target.property==='favouriteKey'?node.dataset.favouriteKey===target.key:librarySounds.some(s=>s.index===Number(node.dataset[target.property])&&s.key===target.key));
-  ((target.key?linked:exact)||$('#library-favourites'))?.focus();
+  ((target.key?linked:exact)||$('#library-page-number')||$('#library-favourites'))?.focus({preventScroll:true});
 }
 async function importSoundpadSelection(){
   const button=$('#library-add');button.disabled=true;
@@ -124,6 +132,7 @@ function showTabletTools(){
   $('#tablet-arrange').onclick=startArrangement;$('#tablet-library').onclick=showSoundpadLibrary;$('#tablet-connection').onclick=connectionForm;
 }
 async function startArrangement(){
+  if(pages.find(p=>p.id===pageId)?.liveScenes){notice('Live scenes follow OBS order. Reorder them in OBS, or disable live sync in the PC board editor.',true);return;}
   if(preview){notice('Connect a PC to save a layout.');return;}
   if(dirty){notice('Save or discard your editor changes before arranging.',true);return;}
   try{const board=await api('/api/board');pages=board.pages;}catch(error){notice(error.message,true);return;}
@@ -179,6 +188,10 @@ function showMovePosition(page,id){
 function attachEditorReorder(){
   if(!panel.open||!$('#edit-page'))return;featureView='editor';
   const list=$('.editor-list');if(list.querySelector('.editor-sort-row'))return;const page=config.pages[selectedPage];
+  const sync=document.createElement('label');sync.className='check';featureHtml(sync,`<input id="page-live-scenes" type="checkbox" ${page.liveScenes?'checked':''}>Keep this page synced with live OBS`);$('#page-name').parentElement.after(sync);
+  const help=document.createElement('p');help.className='help';help.textContent='Live mode follows scene additions, names, removals and OBS order. Saved manual buttons are retained and return when you disable it.';sync.after(help);
+  $('#page-live-scenes').onchange=()=>{page.liveScenes=$('#page-live-scenes').checked;markDirty();renderEditor();};
+  list.hidden=!!page.liveScenes;$('.editor-form').hidden=!!page.liveScenes;$('#add-button').hidden=!!page.liveScenes;if(page.liveScenes)return;
   for(const button of list.querySelectorAll('[data-edit-index]')){
     const row=document.createElement('div');row.className='editor-sort-row';row.dataset.orderId=page.buttons[Number(button.dataset.editIndex)].id;
     button.before(row);row.appendChild(button);

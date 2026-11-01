@@ -20,6 +20,7 @@ async function refreshConsoleConnections(){
   }catch(error){$('#console-status').textContent=error.message+' Reopen the console from the companion tray if this tab has expired.';}finally{consoleRefreshPending=false;}
 }
 async function consoleNavigate(id,action){
+  if(typeof setComputerMode==='function'&&!await setComputerMode('studio'))return;
   if(dirty&&!await confirmAction('Discard unsaved changes?','Save in the current editor first, or discard these edits to continue.'))return;
   dirty=false;editing=false;if(panel.open)panel.close();if(typeof setMonitorOpen==='function')setMonitorOpen(false);
   for(const button of document.querySelectorAll('.console-nav button'))button.removeAttribute('aria-current');$('#'+id)?.setAttribute('aria-current','page');
@@ -34,6 +35,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
   if(!desktopConsole)return;
   const routes={'console-home':null,'console-editor':showEditor,'console-connections':showPairing,'console-obs':showObsSetup,'soundpad-button':showSoundpadLibrary,'console-profiles':showProfiles,'console-backups':showBackups,'console-mixer':showMixerSettings,'console-automation':showAutoProfiles,'console-packs':showBoardPacks,'monitor-toggle':()=>setMonitorOpen(true),'apps-button':showAppMixer,'studio-tools':showStudioTools,'console-options':showDesktopSettings};
   for(const [id,action] of Object.entries(routes))$('#'+id).onclick=()=>consoleNavigate(id,action);
+  $('#console-computer').onclick=async()=>{if(await setComputerMode('computer'))await showComputerSettings();};
   $('#connection').onclick=()=>consoleNavigate('console-obs',showObsSetup);$('#console-connect-first').onclick=()=>consoleNavigate('console-connections',showPairing);$('#console-edit-first').onclick=()=>consoleNavigate('console-editor',showEditor);$('#console-refresh').onclick=async()=>{await refresh(true);await refreshConsoleConnections();};
   $('#console-stop').onclick=stopConsoleCompanion;
   panel.addEventListener('close',()=>{if(!panel.open)consoleViewChanged('overview');});

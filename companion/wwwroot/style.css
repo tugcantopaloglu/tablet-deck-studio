@@ -117,3 +117,9 @@ body.execution-visible .notice{bottom:auto;top:calc(var(--header) + 12px)}
 @media(max-width:600px){.setup-row{align-items:flex-start;flex-direction:column;gap:12px}.setup-row>button{max-width:100%}}
 @media(max-width:1100px) and (min-width:761px){.topbar>.quiet{font-size:13px;gap:6px;padding:10px}.topbar .connection{font-size:14px;gap:6px}.topbar .transport,.topbar .stream-status{font-size:12px}.topbar .stream-status{gap:6px}.topbar .transport{padding-left:8px}.topbar h1{font-size:24px}}
 @media(max-width:760px){.full-pad{--pad-columns:4;--pad-rows:6}.full-pad.pad-40{--pad-columns:5;--pad-rows:8}.full-pad .topbar{flex-wrap:wrap;gap:8px}.full-pad .connection{order:0;font-size:13px;margin-right:auto}.full-pad .transport{order:0}.full-pad .stream-status{order:0;margin-right:0;font-size:12px}.full-pad .pad-toggle{margin-left:auto}.full-pad .page-tab{min-width:72px;font-size:12px;flex-direction:column;gap:2px}.full-pad .keys>.key{padding:8px 6px}.keys>.key{padding:8px 6px;gap:6px}.keys>.key>svg{width:32px;height:32px}}
+/* Large libraries keep bounded rows while every sound remains directly reachable. */
+.library-pagination{position:sticky;top:0;background:var(--canvas);padding:12px 0;border-bottom:1px solid var(--outline);z-index:2}
+.library-pagination>label{flex:0 1 160px;min-width:120px}
+.library-pagination .help{margin-left:auto}
+.panel-body label.check:has(#page-live-scenes){flex-direction:row;align-items:center;min-height:48px;margin:16px 0;gap:10px}
+#page-live-scenes{width:22px;height:22px;flex-shrink:0;accent-color:var(--cyan)}

@@ -22,7 +22,7 @@ public sealed class StateUpdates : IAsyncDisposable
                 foreach(var subscriber in subscribers.Values)subscriber.Writer.TryWrite(bytes);
             }
         });
-        heartbeat=Task.Run(async()=>{using var timer=new PeriodicTimer(TimeSpan.FromSeconds(5));while(await timer.WaitForNextTickAsync(stop.Token))Signal();});
+        heartbeat=Task.Run(async()=>{using var timer=new PeriodicTimer(TimeSpan.FromSeconds(2));while(await timer.WaitForNextTickAsync(stop.Token))Signal();});
     }
     public void Signal(){if(!subscribers.IsEmpty)changes.Writer.TryWrite(1);}
     public (Guid Id,ChannelReader<byte[]> Reader) Subscribe()

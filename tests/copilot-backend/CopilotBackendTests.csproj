@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../companion/ComputerCopilot.cs" Link="ComputerCopilot.cs" />
+    <Compile Include="../../companion/WindowsActions.cs" Link="WindowsActions.cs" />
+  </ItemGroup>
+</Project>

@@ -90,3 +90,7 @@ The connection panel showed individual recent heartbeat round-trips of 3.9 ms an
 ## Remaining checks
 
 Real OBS scene switching, recording/streaming, Soundpad playback/routing, Voicemeeter, Discord listener audio, and hold-key injection were not exercised. OBS was installed but closed; automatic approval review rejected starting/configuring it and gave no specific reason. No broadcast or recording was started. Windows tray/startup UI, a physical cable unplug/replug, long-duration stability, packet-loss behavior, and end-to-end audiovisual latency remain unverified. Accessibility hierarchy checks confirm UI structure and controls, not a pixel-level visual review.
+
+### 1.12 independent-display protocol check — 2026-11-01
+
+A temporary isolated headless companion used the already-installed SudoVDA interface to create one 1280 × 800 independent Windows desktop. Tablet sharing stayed off. The check verified unchanged physical-monitor modes/positions, removed the exact owned virtual monitor, rechecked the original two-monitor topology, and shut down its fixture. No driver installation, signing settings, screen capture, audio or application shortcut was used. This validates the installed driver's real create/remove protocol; actual tablet display viewing and latency remain unverified.

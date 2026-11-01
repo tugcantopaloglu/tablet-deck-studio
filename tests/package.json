@@ -21,7 +21,11 @@
     "test:installer-update": "node installer-update.cjs",
     "test:integration-headless": "node integration-headless.cjs",
     "test:layout": "node layout.cjs",
-    "benchmark:latency": "node latency.cjs"
+    "benchmark:latency": "node latency.cjs",
+    "test:live-sync": "node live-sync.cjs",
+    "test:copilot-ui": "node copilot-ui.cjs",
+    "test:computer-api": "node computer-api.cjs",
+    "test:soundpad-sync-ui": "node soundpad-sync-ui.cjs"
   },
   "keywords": [],
   "author": "",

@@ -19,12 +19,22 @@ internal sealed class FastCommands(DataStore store,DeckEngine engine,HoldKeys ho
     public void ChangeBoard(System.Action change){lock(configurationGate){if(engine.Execution.Status.Active is not null)throw new InvalidOperationException("Finish or cancel the running action before changing boards.");holds.ReleaseAll();change();engine.Invalidate();}}
     internal sealed record HoldLease(string Lease,int ExpiresIn=3);
     public void Release(string principal,string lease)=>holds.Release(principal,lease);
+    public async Task ExecuteConfigured(DeckAction action)
+    {
+        Task running;
+        lock(configurationGate){
+            if(maintenance)throw new InvalidOperationException("The companion is restarting for an update.");
+            if(holds.Active)throw new InvalidOperationException("Release held keys before using Computer controls.");
+            running=engine.Execute(action);
+        }
+        await running;
+    }
     public async Task<object> Action(ActionRequest request)
     {
         Task running;
         lock(configurationGate){
             if(maintenance)throw new InvalidOperationException("The companion is restarting for an update. Try again after it reconnects.");
-            var action=store.Config.Pages.SelectMany(page=>page.Buttons).FirstOrDefault(action=>action.Id==request.Id)??throw new ArgumentException("This button no longer exists. Reload the board.");
+            var action=request.Id.StartsWith(LiveScenes.Prefix,StringComparison.Ordinal)&&store.Config.Pages.Any(p=>p.LiveScenes)?LiveScenes.Action(request.Id):store.Config.Pages.SelectMany(page=>page.Buttons).FirstOrDefault(action=>action.Id==request.Id)??throw new ArgumentException("This button no longer exists. Reload the board.");
             if(DeckEngine.NeedsConfirm(action)&&!request.Confirmed)throw new InvalidOperationException("Confirm this action on the tablet.");
             running=engine.Execute(action);
         }

@@ -31,6 +31,8 @@ config.json
 runtime.lock
 desktop.json
 auto-profiles.json
+computer-copilot.json
+computer-copilot.json.tmp
 recent-sounds.json
 pack-assets/
 *.deckpack

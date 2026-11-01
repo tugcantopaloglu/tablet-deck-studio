@@ -1,3 +1,17 @@
+Tablet Deck Studio 1.12.0 - verification (2026-11-01)
+
+- Windows/Android version1.12.0; Android versionCode15, original signing certificate, minSdk26/targetSdk35. New shared Computer assets are included and checked by the APK build.
+- Computer Copilot provides seven editable starter layouts, foreground matching, manual browser layouts, saved-ID actions, context/maintenance/hold guards, separate desktop management, and native pause handling. It sends keyboard shortcuts; it does not implement native Resolve/Photoshop scripting or AI chat submission.
+- Targeted checks: 36 isolated Computer backend, 57 authenticated HTTP/API, 31 display protocol/ownership, 32 live OBS API/rendered board, 52 real-document Copilot UI, and 39 Soundpad/live-scene UI checks passed. No real input or playback in these fixtures. Existing regression suites also passed, including 41 rendered desktop plus16 offscreen native-window checks and40 monitor API/logic plus21 native-chat checks.
+- Live OBS projection follows additions, UUID renames, removals, order and current-scene state, with event refresh plus a2-second fallback. Disabling a live page restores its retained manual buttons. Soundpad uses bounded80-row pages, direct page selection/search, five-second library refresh, stable sound identities and focus/scroll recovery.
+- A controlled real Windows test created a1280x800 independent SudoVDA desktop with sharing off, then removed only its owned monitor. Both existing physical monitor positions and modes matched before/during/after. No pixels were captured or shared. This proves current installed-driver creation/removal, not tablet-view latency or native app shortcut correctness.
+- Snyk Code tool unavailable; CLI scan/rescan completed. Seven note-level findings: two existing JavaScript-enabled WebViews, four existing loopback TLS test exceptions, and an intentional fixed-loopback HTTP Host-guard test. Replacing raw HTTP with Node22 fetch was tested and would overwrite the spoofed Host, invalidating that security check. No new production warning/error finding. No findings were suppressed.
+- Fresh reviewer scored all four named corrections resolved: compact control text, selected layout visibility, changed-sync keyboard focus, actual-document screenshots with decoded app icon/header. This is a scoped verdict, not live accessibility/provider/full-studio approval.
+- Optional display is silent JPEG viewing capped at4fps, not a low-latency video/audio/touch transport. Existing compatible driver and explicit PC creation/sharing choices required; no driver installer or signing changes are included.
+- Windows/APK deployment and release payload verification are recorded separately. Automatic USB update/reopen preferences are retained; new users default to off.
+
+Previous release evidence follows.
+
 Tablet Deck Studio 1.11.0 - verification (2026-11-01)
 
 BUILD
