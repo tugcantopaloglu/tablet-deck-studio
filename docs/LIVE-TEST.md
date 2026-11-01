@@ -94,3 +94,13 @@ Real OBS scene switching, recording/streaming, Soundpad playback/routing, Voicem
 ### 1.12 independent-display protocol check — 2026-11-01
 
 A temporary isolated headless companion used the already-installed SudoVDA interface to create one 1280 × 800 independent Windows desktop. Tablet sharing stayed off. The check verified unchanged physical-monitor modes/positions, removed the exact owned virtual monitor, rechecked the original two-monitor topology, and shut down its fixture. No driver installation, signing settings, screen capture, audio or application shortcut was used. This validates the installed driver's real create/remove protocol; actual tablet display viewing and latency remain unverified.
+
+### 1.12 deployment and USB updater — 2026-11-01
+
+The Windows companion was replaced at its existing executable path with the tested1.12 release. Its first bounded shutdown wait expired without replacing files; the process then exited normally and deployment resumed with no forced termination. The desktop window responds and reports the release's exact source revision. Certificate, pairing and saved desktop preferences were preserved.
+
+The live Scenes page now projects all18 current OBS scenes. Its seven stored manual buttons were verified unchanged, and four stale starter targets on Main were mapped to their existing counterparts. No live scene switch, output start/stop, sound playback or real keyboard action was performed during this deployment. The actual Soundpad library returns1421 sounds. Computer Copilot is enabled for this user with the seven editable starter layouts; clean installations still default to off.
+
+The real USB updater downloaded an APK matching the published SHA256. Android now reports1.12.0/code15, Tablet Deck is running in the foreground, and one authenticated fast link was re-established using retained pairing. Automatic USB updating and reopening remain enabled. A later forced check correctly reported that no redundant installation was necessary. Android FLAG_SECURE prevents screenshot inspection; the black protected capture is not evidence of a blank UI. No fatal exception or missing-file/uncaught-script error appeared in the sampled app-process log.
+
+All973 automated checks passed, including final-package installer and recovery tests. The public v1.12.0 release targets295fc58a6eeb8327904dd22179a482c88afad95a; all four remote asset digests/sizes matched local outputs. This later documentation record does not change or retag the released binary source. Optional tablet display viewing, its latency, and real Resolve/Photoshop/AI shortcuts remain user-operation checks rather than claims from fixture tests.
