@@ -72,5 +72,19 @@ body.execution-visible .notice{bottom:auto;top:calc(var(--header) + 12px)}
 .full-pad .page-tab svg{width:24px;height:24px}
 .full-pad .pagination .quiet{min-height:44px;padding:6px 12px}
 .keys>.key.active,.full-pad .keys>.key.active{padding-top:22px}
+.pc-editor .topbar{flex-wrap:wrap;gap:10px 14px}
+.pc-editor:not(.execution-visible){grid-template-rows:auto minmax(0,1fr) var(--nav)}
+.pc-editor .topbar h1{font-size:26px;margin-right:4px}
+.pc-editor .topbar #pair-button{display:none}
+.setup-checks{margin:16px 0 24px}
+.setup-row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:20px 0;border-bottom:1px solid var(--outline);min-width:0}
+.setup-row>div{min-width:0;max-width:70ch}
+.setup-row h3{font-size:19px;margin:0 0 8px}
+.setup-row strong{font-size:15px;line-height:1.5;overflow-wrap:anywhere}
+.setup-row p{margin:6px 0 0;line-height:1.6}
+.setup-row>button{flex-shrink:0;white-space:normal;text-align:center;max-width:210px}
+.setup-instructions{padding-left:24px;max-width:72ch;line-height:1.7;margin:0 0 24px}
+.setup-instructions li+li{margin-top:10px}
+@media(max-width:600px){.setup-row{align-items:flex-start;flex-direction:column;gap:12px}.setup-row>button{max-width:100%}}
 @media(max-width:1100px) and (min-width:761px){.topbar>.quiet{font-size:13px;gap:6px;padding:10px}.topbar .connection{font-size:14px;gap:6px}.topbar .transport,.topbar .stream-status{font-size:12px}.topbar .stream-status{gap:6px}.topbar .transport{padding-left:8px}.topbar h1{font-size:24px}}
 @media(max-width:760px){.full-pad{--pad-columns:4;--pad-rows:6}.full-pad.pad-40{--pad-columns:5;--pad-rows:8}.full-pad .topbar{flex-wrap:wrap;gap:8px}.full-pad .connection{order:0;font-size:13px;margin-right:auto}.full-pad .transport{order:0}.full-pad .stream-status{order:0;margin-right:0;font-size:12px}.full-pad .pad-toggle{margin-left:auto}.full-pad .page-tab{min-width:72px;font-size:12px;flex-direction:column;gap:2px}.full-pad .keys>.key{padding:8px 6px}.keys>.key{padding:8px 6px;gap:6px}.keys>.key>svg{width:32px;height:32px}}

@@ -147,6 +147,15 @@ app.MapPost("/api/admin/soundpad/import",async (SoundpadImportRequest req,HttpCo
     return Results.Ok(new{ok=true});
 });
 app.MapGet("/api/admin/obs",async ()=>new {scenes=await obs.Call("GetSceneList"),inputs=await obs.Call("GetInputList")});
+app.MapPost("/api/admin/obs-settings",(ObsSettingsRequest req)=>{
+    if(req.Port is <1 or >65535||req.Password is null||req.Password.Length>512||req.MicInput is null||req.DesktopInput is null||req.MicInput.Length>200||req.DesktopInput.Length>200||req.PasswordMode is not ("keep" or "replace" or "clear"))throw new ArgumentException("Check the OBS port, password choice, and input names.");
+    fastCommands.ChangeBoard(()=>store.Modify(c=>{
+        c.ObsPort=req.Port;c.MicInput=req.MicInput.Trim();c.DesktopInput=req.DesktopInput.Trim();
+        if(req.PasswordMode=="replace")c.ObsPassword=req.Password;
+        else if(req.PasswordMode=="clear")c.ObsPassword="";
+    }));
+    return Results.Ok(new{ok=true});
+});
 app.MapPost("/api/admin/import-scenes",async ()=>{
     var expectedProfile=store.Config.ProfileId;
     var list=await obs.Call("GetSceneList");
@@ -187,6 +196,7 @@ record MuteRequest(string Channel);
 record PairRequest(string Code,string? Name);
 record RevokeRequest(string Id);
 record ConfigRequest(DeckConfig Config,bool ReplacePassword=false);
+record ObsSettingsRequest(int Port,string MicInput,string DesktopInput,string PasswordMode="keep",string Password="");
 record AppAudioRequest(string Id,double? Percent=null,bool? Muted=null);
 record LayoutRequest(PageOrder[] Pages);
 record SoundpadPlayRequest(int Index,string Output="mic",string Key="");

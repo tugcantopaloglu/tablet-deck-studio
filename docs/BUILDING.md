@@ -79,7 +79,7 @@ $output = Join-Path (Get-Location) 'dist'
 
 The script compiles resources and Java, converts classes to DEX, packages the bundled interface, aligns the APK, signs it, and verifies the result. Output: `dist/TabletDeck-Studio.apk`.
 
-App identity: `app.tabletdeck.studio`, version `1.7.0`, version code `10`, minimum SDK `26`, target SDK `35`. Increment version code for later releases. The asset checks include `boards.js` for profile and recovery controls.
+App identity: `app.tabletdeck.studio`, version `1.8.0`, version code `11`, minimum SDK `26`, target SDK `35`. Increment version code for later releases. Asset checks include `boards.js` and `desktop.js`; the latter remains inactive in Android but shares the bundled page entry.
 
 On first build, the script generates `toolchain/signing/tabletdeck.jks` and a random password file. Keep these private and preserve them to update your own APK installation later. Git ignores them. The original release's private signing key is not in this repository; a newly generated key produces a different identity and cannot update the original APK without uninstalling it first.
 
@@ -143,7 +143,7 @@ USB adds ADB reverse tunnels for ports 8743 and 8744. The PC editor uses a separ
 Assemble the complete release ZIP with SHA256SUMS.txt listing every file except itself, then embed it:
 
 ```powershell
-$payload = (Resolve-Path .\dist\TabletDeck-Studio-1.7.0.zip).Path
+$payload = (Resolve-Path .\dist\TabletDeck-Studio-1.8.0.zip).Path
 dotnet publish .\installer\TabletDeck.Setup.csproj -c Release -o .\dist\Setup "-p:PayloadArchive=$payload"
 .\dist\Setup\TabletDeck-Setup.exe --verify-payload
 ```
@@ -161,9 +161,13 @@ npm run test:headless --prefix .\tests
 npm run test:fast --prefix .\tests
 npm run test:execution --prefix .\tests
 npm run test:boards --prefix .\tests
+npm run test:desktop --prefix .\tests
+npm run test:integration-headless --prefix .\tests
 ```
 
-For the original OBS integration suite, start an isolated companion on ports 18740/18743 using `--no-browser --no-tray`, then set `$env:TABLETDECK_HEADLESS='1'` and run `node .\tests\integration.cjs`. That mode executes API/OBS fixtures and skips all browser launches. Default `npm test` still includes browser tests; do not use it when browser execution is disallowed.
+`test:integration-headless` starts and stops its own isolated companion on ports 18740/18743 with a synthetic OBS service on 19455. It uses Windows temporary storage and skips every browser launch. To manage that fixture yourself, start an isolated companion using `--no-browser --no-tray`, set `TABLETDECK_TEST_OUTPUT` to the parent of its `data` folder and `TABLETDECK_HEADLESS=1`, then run `node tests/integration.cjs`. Default `npm test` still includes browser tests; do not use it when browser execution is disallowed.
+
+The headless, fast, execution, and boards suites accept `TABLETDECK_TEST_OUTPUT` as a parent directory for isolated test data. Use a local Windows temporary folder if your checkout cannot apply the private data directory ACL. The desktop suite defaults to temporary storage. Never point fixtures at your real `%LOCALAPPDATA%\TabletDeck` directory. `JAVA_HOME` selects the JDK for the fast-link tests.
 
 The safety tests use fake keyboard sinks and HTTP fixtures. They do not inject keys, write startup settings, open streaming apps, or control Voicemeeter. JavaScript logic tests run without a browser and do not verify layout or native Android touch behavior.
 

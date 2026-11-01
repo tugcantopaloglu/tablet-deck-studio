@@ -1,5 +1,9 @@
 # Physical Android test — 2026-10-25
 
+## Version 1.8 development boundary — 2026-11-01
+
+Desktop setup has isolated API/controller checks, including OBS password modes, preservation of board/profile/pairing data, first-run behaviour, and stale navigation/save responses. No browser, app window, or computer-use surface was opened. The new desktop interface has no rendered-layout or physical keyboard/screen-reader approval. Tests did not change the running user installation, OBS, Discord, Soundpad, startup registry settings, or tablet app. See [VERIFICATION.txt](VERIFICATION.txt) for current automated coverage; the reports below describe earlier hardware sessions, not a new live rehearsal.
+
 ## Version 1.7.0 development — 2026-10-26
 
 Profiles, automatic backups/recovery, and Soundpad favourites were implemented using isolated storage/API/UI-logic fixtures. Tests include legacy migration without changing existing action IDs, new IDs for duplicated boards, stale editor/action rejection, authenticated switch/admin boundaries, all-profile restore preserving current credentials, twenty-snapshot retention, damaged-file recovery/quarantine, favourite index/rename changes, missing/ambiguous identity rejection, async view ownership, and keyboard-focus retention across rerenders. Existing OBS and transport regressions use simulated OBS. These tests did not change the user's live installation or audio setup, and no browser, CUA, or app window was opened. Rendered UI, physical tablet touch, and actual favourite-add/play flows with live Soundpad still need rehearsal.

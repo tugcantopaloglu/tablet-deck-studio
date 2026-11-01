@@ -14,7 +14,13 @@ This is a prioritized shortlist, not a delivery schedule.
 - **Automatic backups:** latest20 snapshots, manual backup, full preview and confirmed restore with current credentials, damaged-config recovery/quarantine.
 - **Soundpad favourites:** stable identities, shared persistence, filter, missing/duplicate protection, safe removal without Soundpad.
 
-## Further candidates
+## Implemented in 1.8.0
+
+- **PC setup:** visible desktop entry, guided first-run, shared connection checks and direct access to setup tools.
+- **Independent OBS settings:** save connection/audio names without resubmitting board contents; explicit password keep/replace/clear, saved-connection checks and input discovery.
+- **Navigation protection:** late setup/editor/pairing/Windows requests cannot replace a newer form or reopen a dismissed panel; Windows and OBS forms protect unsaved changes.
+
+## Next priorities
 
 1. **Recent sounds** — a bounded recent-play history separate from starred favourites.
 2. **Explicit OBS state actions** — separate start/stop and mute/unmute choices for macros, reducing accidental reversals caused by toggles.

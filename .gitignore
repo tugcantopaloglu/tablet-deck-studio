@@ -3,6 +3,7 @@
 **/obj/
 build/
 dist/
+outputs/
 toolchain/
 **/node_modules/
 *.apk

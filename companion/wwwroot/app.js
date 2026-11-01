@@ -199,10 +199,12 @@ Object.assign(targetHints,{soundpadPlay:'Index from Soundpad All sounds (1, 2, 3
 const newAction=()=>({id:crypto.randomUUID().replaceAll('-',''),label:'New button',kind:'scene',target:'',value:'',icon:'monitor',color:'violet',confirm:false,steps:[]});
 function options(items,value){return Object.entries(items).map(([v,label])=>`<option value="${esc(v)}" ${v===value?'selected':''}>${esc(label)}</option>`).join('');}
 async function showEditor(){
+  if(dirty){notice('Save or discard your changes before reopening the editor.',true);return;}
   if(native&&typeof showTabletTools==='function'){showTabletTools();return;}
   if(native){openPanel('Edit your board',`<section class="setup"><h3>Make it yours on the PC.</h3><p>Open the Windows companion’s control panel and select <strong>Edit</strong> to change buttons, add sounds and apps, create macros, or choose OBS inputs. Changes sync to this tablet automatically.</p><div class="row"><button id="tablet-connection" class="primary">Connection settings</button></div></section>`);$('#tablet-connection').onclick=connectionForm;return;}
   if(preview){notice('Design preview — open the Windows companion to edit.');return;}
-  try{config=await api('/api/admin/config');editing=true;dirty=false;selectedPage=0;selectedButton=0;renderEditor();}catch(error){notice(error.message,true);}
+  openPanel('Edit your studio','<p role="status">Loading your board…</p><p id="editor-load-error" role="alert"></p>');const generation=panelGeneration;
+  try{const result=await api('/api/admin/config');if(!panel.open||panelGeneration!==generation)return;config=result;editing=true;dirty=false;selectedPage=0;selectedButton=0;renderEditor();}catch(error){if(panel.open&&panelGeneration===generation)$('#editor-load-error').textContent=error.message;}
 }
 function renderEditor(){
   if(typeof attachEditorReorder==='function')queueMicrotask(attachEditorReorder);
@@ -249,10 +251,14 @@ function renderActionForm(a){
   }
 }
 async function showPairing(){
-  try{const info=await api('/api/admin/info');const pairing=await api('/api/admin/pairing',{});const grouped=pairing.certificateCode.match(/.{1,4}/g).join('-');
+  if(native||preview||dirty){notice('Save or discard your changes before pairing a tablet.',true);return;}
+  openPanel('Pair an Android tablet','<p role="status">Preparing tablet pairing…</p><p id="pairing-load-error" role="alert"></p>');let generation=panelGeneration;
+  const owns=()=>panel.open&&panelGeneration===generation;
+  try{const info=await api('/api/admin/info');if(!owns())return;const pairing=await api('/api/admin/pairing',{});if(!owns())return;const grouped=pairing.certificateCode.match(/.{1,4}/g).join('-');
     openPanel('Pair an Android tablet',`<section class="setup"><h3>Connect to this PC</h3><p>Install TabletDeck-Studio.apk on the tablet. Open it and enter these details. This PIN works once and expires in five minutes.</p><div class="pair-details"><p>PC Wi-Fi address</p><strong class="cert-code">${info.addresses.map(esc).join(' · ')||'No network address found. Use USB.'}</strong><p>Certificate code</p><strong class="cert-code">${esc(grouped)}</strong><p>Pairing PIN</p><strong class="pair-code">${esc(pairing.code)}</strong></div><h3>USB connection</h3><p>Connect a data cable, enable USB debugging on the tablet, approve this PC, and run <strong>USB-Connect.cmd</strong> in the Windows package. Select USB in the tablet pairing screen. After pairing, you can switch between Wi-Fi and USB without pairing again.</p><p class="help">For Wi-Fi, allow the companion through Windows Firewall on your private network. Keep port ${info.httpsPort} on the local network; internet access is not needed.</p><h3>Paired tablets</h3><div id="devices">${info.devices.length?info.devices.map(d=>`<div class="device-row"><span>${esc(d.name)}</span><button class="danger" data-revoke="${esc(d.id)}">Revoke</button></div>`).join(''):'<p>No tablets paired yet.</p>'}</div><div class="row"><button id="new-code" class="quiet">Generate a new PIN</button></div></section>`);
-    $('#new-code').onclick=showPairing;document.querySelectorAll('[data-revoke]').forEach(b=>b.onclick=async()=>{if(!await confirmAction('Revoke this tablet?','It will lose access to this PC immediately.'))return;await api('/api/admin/revoke',{id:b.dataset.revoke});await showPairing();});
-  }catch(error){notice(error.message,true);}
+    generation=panelGeneration;
+    $('#new-code').onclick=showPairing;document.querySelectorAll('[data-revoke]').forEach(b=>b.onclick=async()=>{if(!owns()||!await confirmAction('Revoke this tablet?','It will lose access to this PC immediately.')||!owns())return;try{await api('/api/admin/revoke',{id:b.dataset.revoke});if(owns())await showPairing();}catch(error){if(owns())notice(error.message,true);}});
+  }catch(error){if(owns())$('#pairing-load-error').textContent=error.message;}
 }
 function previewData(){
   const names=['Gameplay','Just chatting','Be right back','Starting','Applause','Air horn','Stop sounds','Save replay','Open OBS','Open Discord','Record','Start stream'];

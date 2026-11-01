@@ -1,37 +1,28 @@
-Tablet Deck Studio 1.7.0 - verification (2026-10-26)
+Tablet Deck Studio 1.8.0 - verification (2026-11-01)
 
 BUILD
-- Self-contained .NET 10 Windows x64 companion and installer.
-- Android app.tabletdeck.studio, version 1.7.0/versionCode 10, minSDK 26/targetSDK 35.
-- APK v2/v3 signatures verify with the original signing certificate.
-- Required bundled assets include boards.js; missing files and Windows ZIP separators are rejected before signing.
-- Permissions remain INTERNET and WAKE_LOCK. No new runtime dependency, microphone/location permission, Android backup, or cleartext traffic.
+- Self-contained .NET 10 Windows x64 companion and setup installer; Android APK version 1.8.0 / versionCode 11 / minSdk 26 / targetSdk 35.
+- Bundled UI entry, scripts, CSS, fonts and sanitizer are included locally. desktop.js is present in both packages and inactive on Android.
+- Original APK signing certificate retained; APK signatures, exact asset contents and release SHA256 manifests checked before publishing.
 
-AUTOMATED CHECKS - 277 THIS PASS
-- 28 companion self-tests.
-- 32 safety/hardening tests.
-- 29 headless API/JavaScript checks, including syntax for boards.js.
-- 33 authenticated OBS/API integration checks against simulated OBS; browser section skipped.
-- 31 persistent TLS/API/state/slider checks, including in-flight macro cancellation.
-- 9 production Java FastLink transport checks on the desktop JDK.
-- 24 execution API/UI-logic checks.
-- 32 new board-storage checks: legacy migration, IDs, duplicate/empty profiles, names/counts, stale edits, shared credentials, stable favourites, missing/ambiguous identities, all-profile restore, private backups, retention, damaged-backup skipping, quarantine/recovery, and restart.
-- 53 new authenticated HTTPS/API and UI-controller checks: admin isolation, profile switching, stale action/editor refusal, macro guard, backup preview/restore, credential preservation, missing-library favourite removal, persistence, escaped names, navigation generations, and focus retention for original/other result controls and outside controls.
-- New storage/API suites also pass against the published companion.
-- 6 isolated installer checks: payload hashes, install/update/backup, owned-file uninstall, refusal/preservation, and unchanged actual installation location.
+AUTOMATED CHECKS - 338 passed
+- 28 companion self-tests; 32 hardening self-tests; 32 profile/backup/favourite storage checks.
+- 30 headless API/JavaScript checks, 33 original OBS/API integration checks with browser section disabled, 31 persistent TLS/API/logic checks, and 9 native Java transport checks.
+- 24 execution/cancellation and 53 profiles/backups/favourites API/controller checks.
+- 60 desktop API/controller checks: local-admin/cross-origin protection, keep/replace/clear password modes and validation, secret redaction, shared setting writes that preserve boards/profiles/favourites/pairing, macro guard, password-free snapshots, first-run gating, escaped custom content, honest pairing status, read-only checks, unsaved forms, locked pending fields, dismissed-panel and stale-navigation protection, including legacy editor/pairing/Windows destinations.
+- New desktop and storage checks also pass against the published Windows executable.
+- 6 isolated installer checks: embedded payload hashes; install/update/backup; owned-file uninstall; refusal/preservation; unchanged real installation location. No shortcuts, registry changes, or app launch in installer test mode.
 
 SECURITY
-- The requested snyk_code_scan tool was unavailable. Snyk Code CLI scanned first-party code and rescanned after changes.
-- Shipping scan: zero errors, zero warnings, only the existing informational java/JavaScriptEnabled note for the bundled WebView.
-- New tablet routes use existing authentication and a restricted Android allowlist. Profile management and backup access remain local-admin only.
-- Summaries exclude PC action targets and credentials. Backup filenames use validated run-independent GUIDs; restore validates snapshot content and preserves current credentials.
-- Private runtime data, backup/quarantine files, pairing credentials, OBS passwords, certificate private keys, signing material, third-party meme audio, and device identifiers are excluded from the release.
+- The requested snyk_code_scan tool was unavailable; Snyk Code CLI scanned first-party code and rescanned the final changes.
+- Zero new findings, zero errors and warnings. Existing informational notes remain: JavaScript enabled in the bundled, restricted WebView and four pre-existing loopback test TLS exceptions. The new test code adds no TLS exception.
+- OBS settings writes are local-admin only, use existing origin protections, validate bounded inputs, and pass through the running-action guard. They modify a fresh protected copy rather than accepting board contents from the settings form.
+- Runtime secrets, user configuration, backup/quarantine files, devices, certificate private keys, signing keys and third-party meme audio are excluded from published artifacts.
 
 REVIEW AND LIMITS
-- Independent code/UX review scored the stale-response and keyboard-focus findings resolved. Documentation records inherited Studio tokens and the scoped extension; no new visual world was introduced.
-- No browser, CUA, or app window was opened during development. Rendered layout, physical tablet touch, assistive-technology behavior, and live Soundpad favourite add/play still need rehearsal. Earlier browser layout checks are not counted as rerun.
-- Tests used isolated data, synthetic sound libraries, and simulated OBS. They did not change the live board, Discord/Soundpad device routing, startup settings, or running 1.5.1 installation.
-- A normal backup restore retains the current OBS password/pairing/certificate. Exceptional recovery from a damaged config requires entering the OBS password again because snapshots exclude it; original damaged bytes are retained privately.
-- Backups keep 20 valid snapshots of board configuration/favourites and reference external files; they do not copy sound files/apps or Soundpad's native library.
-- Previous physical USB/Wi-Fi, real OBS scenes/mute, audible Soundpad playback, and user-confirmed Discord local microphone-test results are documented separately in LIVE-TEST.md. Remote Discord listener audio, live broadcast/record/replay, physical cable/reconnect stability, and Voicemeeter hardware remain unverified.
-- Windows executables remain unsigned. Update both APK and companion. Network heartbeat observations are not end-to-end latency guarantees.
+- Independent reviewer scored both findings resolved: legacy async navigation cannot replace newer forms/reopen dismissed panels; desktop wrapping uses an automatic header grid row while execution retains its four-row layout. Documentation records the inherited Studio design without introducing a new visual system.
+- No browser, CUA or app window opened. No rendered-layout, physical touch, keyboard-focus or assistive-technology approval. CSS declarations and controller fixtures do not replace those checks.
+- Tests use isolated data, synthetic sound libraries and mock OBS. They did not replace the running installation, install an APK, change Discord/Soundpad devices, write startup settings, start streams/recordings, or play user sounds.
+- The PC setup hub shows a checked snapshot. Saved pairing count is not live connection status; USB tunnel and OBS state do not measure touch-to-sound latency. Refresh checks to update it.
+- Normal backup restore retains current credentials. Exceptional damaged-config recovery requires the OBS password again because snapshots exclude it. External sound files/apps and Soundpad native library are not copied into backups.
+- Windows executables remain unsigned. Earlier hardware results and their limits are documented in LIVE-TEST.md. Real Discord listeners, long-session/cable stability and Voicemeeter hardware remain unverified.
