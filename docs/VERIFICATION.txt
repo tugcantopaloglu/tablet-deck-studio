@@ -1,3 +1,17 @@
+Tablet Deck Studio 1.13.0 - verification (2026-11-01)
+
+- Corrected the reported tablet bug: Memes was a saved76-button page, showing40 buttons per group, separate from the Soundpad library browser. Pages can now opt into the entire live Soundpad catalog with search, category filtering, direct page selection and5-second refresh. Saved manual buttons remain in configuration and return when live mode is disabled. Desktop controls source/output; only one live Soundpad page per profile.
+- Corrected Spotify/YouTube cross-control: media layouts use Windows GSMTC session objects and per-track tokens instead of global media keys or the system current-session fallback. Legacy media shortcuts in those layouts are refused server-side. UI exposes selected player/source, title, artist/artwork, playback state, progress/seek and capabilities. Spotify volume matches its exact app audio session; browser volume is explicitly all tabs. Ambiguous browser players and audio outputs require a user choice.
+- Context controls now use compact tool strips and an actual relative frame jog based on configured shortcuts. The jog does not claim to read a Resolve timeline/playhead. Release, focus loss, mode changes and backgrounding stop gestures. Android paused-write exceptions are restricted to releasing a real hold lease.
+- Targeted checks:54 fake-platform media/session/timeline checks;48 actual-document media UI checks;40 controller/legacy-key guards;66 HTTP/API authentication/settings/control guards;35 live Soundpad backend and37 rendered checks with2007 synthetic sounds;52 existing Copilot UI and39 library/live-scene UI checks. Regression suites also passed, including43 monitor API/logic plus21 native chat checks,41 desktop rendered/API plus16 offscreen WebView2 checks, and existing storage/fast-link/execution/update suites.
+- Windows target is net10.0-windows10.0.19041.0, WindowsSdkPackageVersion10.0.19041.57. SDK and C#/WinRT notices accompany the runtime. Android1.13.0/code16 keeps original signing, minSdk26/targetSdk35 and bounded resource/API allowlists.
+- Snyk Code tool unavailable; CLI scan/rescan has the same seven note-level findings documented for1.12, no new error/warning findings. A fixed-loopback raw HTTP test remains necessary to verify Host-header enforcement; it is not a remote plaintext control route.
+- Read-only Windows media probe verified advertised Chrome metadata/artwork/timeline and stable session IDs. No Spotify session was advertised; user chose to continue without live Spotify testing. Simultaneous-player isolation is verified by fake independent players, not by a live playback rehearsal. No playback was changed during validation.
+- Fresh review scored both compactness/readability fixes resolved at800px and390px. It accepts the scoped UI corrections and truthful session/jog presentation; it does not certify physical tablet appearance, real media isolation or native Resolve/Photoshop integration.
+- Published package/physical deployment evidence follows separately. No extra audio or converted duplicate source files are imported merely to increase the library count.
+
+Previous release evidence follows.
+
 Tablet Deck Studio 1.12.0 - verification (2026-11-01)
 
 - Windows/Android version1.12.0; Android versionCode15, original signing certificate, minSdk26/targetSdk35. New shared Computer assets are included and checked by the APK build.

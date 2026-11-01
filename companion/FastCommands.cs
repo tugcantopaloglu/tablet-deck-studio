@@ -29,12 +29,23 @@ internal sealed class FastCommands(DataStore store,DeckEngine engine,HoldKeys ho
         }
         await running;
     }
+    public async Task ExecuteExternal(string label,Func<CancellationToken,Task> operation)
+    {
+        Task running;
+        lock(configurationGate){
+            if(maintenance)throw new InvalidOperationException("The companion is restarting for an update.");
+            if(holds.Active)throw new InvalidOperationException("Release held keys before using player controls.");
+            var action=new DeckAction{Kind="mediaSession",Label=label};
+            running=engine.Execution.Run(action,ct=>{engine.Execution.Step(action);return operation(ct);});
+        }
+        await running;
+    }
     public async Task<object> Action(ActionRequest request)
     {
         Task running;
         lock(configurationGate){
             if(maintenance)throw new InvalidOperationException("The companion is restarting for an update. Try again after it reconnects.");
-            var action=request.Id.StartsWith(LiveScenes.Prefix,StringComparison.Ordinal)&&store.Config.Pages.Any(p=>p.LiveScenes)?LiveScenes.Action(request.Id):store.Config.Pages.SelectMany(page=>page.Buttons).FirstOrDefault(action=>action.Id==request.Id)??throw new ArgumentException("This button no longer exists. Reload the board.");
+            var action=request.Id.StartsWith(LiveSoundpad.Prefix,StringComparison.Ordinal)?LiveSoundpad.Action(request.Id,store.Config):request.Id.StartsWith(LiveScenes.Prefix,StringComparison.Ordinal)&&store.Config.Pages.Any(p=>p.LiveScenes)?LiveScenes.Action(request.Id):store.Config.Pages.SelectMany(page=>page.Buttons).FirstOrDefault(action=>action.Id==request.Id)??throw new ArgumentException("This button no longer exists. Reload the board.");
             if(DeckEngine.NeedsConfirm(action)&&!request.Confirmed)throw new InvalidOperationException("Confirm this action on the tablet.");
             running=engine.Execute(action);
         }

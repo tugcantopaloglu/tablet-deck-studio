@@ -132,10 +132,11 @@ function showTabletTools(){
   $('#tablet-arrange').onclick=startArrangement;$('#tablet-library').onclick=showSoundpadLibrary;$('#tablet-connection').onclick=connectionForm;
 }
 async function startArrangement(){
-  if(pages.find(p=>p.id===pageId)?.liveScenes){notice('Live scenes follow OBS order. Reorder them in OBS, or disable live sync in the PC board editor.',true);return;}
+  if(pages.find(p=>p.id===pageId)?.liveScenes||pages.find(p=>p.id===pageId)?.liveSoundpad){notice('Live pages follow their source library. Disable live sync in the PC board editor to arrange saved manual buttons.',true);return;}
   if(preview){notice('Connect a PC to save a layout.');return;}
   if(dirty){notice('Save or discard your editor changes before arranging.',true);return;}
   try{const board=await api('/api/board');pages=board.pages;}catch(error){notice(error.message,true);return;}
+  if(pages.find(p=>p.id===pageId)?.liveScenes||pages.find(p=>p.id===pageId)?.liveSoundpad){notice('This page now follows a live source. Arrange its saved buttons after disabling live sync on the PC.',true);return;}
   panel.close();arranging=true;document.body.classList.add('arranging');$('#soundpad-button').hidden=true;$('#pair-button').hidden=true;$('#arrange-cancel').hidden=false;$('#edit-button').textContent='Save order';renderBoard();notice('Drag buttons, or tap one to choose its position. Actions stay off until you finish.');
 }
 function endArrangement(){arranging=false;document.body.classList.remove('arranging');$('#soundpad-button').hidden=false;$('#pair-button').hidden=native||preview;$('#arrange-cancel').hidden=true;featureHtml($('#edit-button'),icon('settings')+'<span>Edit</span>');}
@@ -190,8 +191,12 @@ function attachEditorReorder(){
   const list=$('.editor-list');if(list.querySelector('.editor-sort-row'))return;const page=config.pages[selectedPage];
   const sync=document.createElement('label');sync.className='check';featureHtml(sync,`<input id="page-live-scenes" type="checkbox" ${page.liveScenes?'checked':''}>Keep this page synced with live OBS`);$('#page-name').parentElement.after(sync);
   const help=document.createElement('p');help.className='help';help.textContent='Live mode follows scene additions, names, removals and OBS order. Saved manual buttons are retained and return when you disable it.';sync.after(help);
-  $('#page-live-scenes').onchange=()=>{page.liveScenes=$('#page-live-scenes').checked;markDirty();renderEditor();};
-  list.hidden=!!page.liveScenes;$('.editor-form').hidden=!!page.liveScenes;$('#add-button').hidden=!!page.liveScenes;if(page.liveScenes)return;
+  $('#page-live-scenes').onchange=()=>{page.liveScenes=$('#page-live-scenes').checked;if(page.liveScenes)page.liveSoundpad=false;markDirty();renderEditor();};
+  const soundSync=document.createElement('label');soundSync.className='check';featureHtml(soundSync,`<input id="page-live-soundpad" type="checkbox" ${page.liveSoundpad?'checked':''}>Use the full live Soundpad library on this page`);help.after(soundSync);
+  const soundHelp=document.createElement('p');soundHelp.className='help';soundHelp.textContent='Every loaded Soundpad sound becomes a pad button, with search, categories and page selection. One live Soundpad page per profile; enabling this restores manual buttons on the previous live Soundpad page. Saved buttons are retained.';soundSync.after(soundHelp);
+  $('#page-live-soundpad').onchange=()=>{page.liveSoundpad=$('#page-live-soundpad').checked;if(page.liveSoundpad){page.liveScenes=false;for(const other of config.pages)if(other!==page)other.liveSoundpad=false;}markDirty();renderEditor();};
+  if(page.liveSoundpad){const output=document.createElement('label');featureHtml(output,`Soundpad playback output<select id="page-soundpad-output"><option value="mic">Discord / microphone</option><option value="both">Speakers and microphone</option><option value="speakers">Speakers only</option></select>`);soundHelp.after(output);$('#page-soundpad-output').value=page.liveSoundpadOutput||'mic';$('#page-soundpad-output').onchange=()=>{page.liveSoundpadOutput=$('#page-soundpad-output').value;markDirty();};}
+  const live=!!page.liveScenes||!!page.liveSoundpad;list.hidden=live;$('.editor-form').hidden=live;$('#add-button').hidden=live;if(live)return;
   for(const button of list.querySelectorAll('[data-edit-index]')){
     const row=document.createElement('div');row.className='editor-sort-row';row.dataset.orderId=page.buttons[Number(button.dataset.editIndex)].id;
     button.before(row);row.appendChild(button);

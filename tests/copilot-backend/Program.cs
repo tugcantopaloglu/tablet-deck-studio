@@ -35,8 +35,12 @@ try {
     await RejectAsync(()=>controller.Execute(Request(state,"brush")),"manual app-specific shortcut refuses mismatched foreground app");
     current=new("Photoshop.exe",true,103,24);state=controller.Snapshot();await controller.Execute(Request(state,"brush"));Check(calls[^1].Target=="B","manual preset works after matching app has focus");
     controller.Save(controller.Settings with{Automatic=true});current=new("chrome.exe",true,104,25);state=controller.Snapshot();Check(state.DetectedPresetId==""&&state.ActivePresetId=="photoshop","shared browser process never guesses YouTube versus Claude");
-    controller.SelectPreset("youtube");state=controller.Snapshot();await controller.Execute(Request(state,"back"));Check(calls[^1].Target=="J","manual YouTube preset accepts configured browser executables");
-    current=new("",false);state=controller.Snapshot();await controller.Execute(Request(state,"media-play"));Check(calls[^1].Target=="PLAYPAUSE","global media key works without foreground access");
+    var beforeMedia=calls.Count;controller.SelectPreset("youtube");state=controller.Snapshot();await RejectAsync(()=>controller.Execute(Request(state,"back")),"YouTube layout refuses legacy player keys and requires targeted session controls");
+    await RejectAsync(()=>controller.Execute(Request(state,"media-play")),"YouTube layout cannot fall back to a system-wide media key");
+    controller.SelectPreset("spotify");current=new("Spotify.exe",true,105,26);state=controller.Snapshot();await RejectAsync(()=>controller.Execute(Request(state,"media-play")),"Spotify layout cannot send a play/pause key to YouTube");
+    await RejectAsync(()=>controller.Execute(Request(state,"volume-up")),"Spotify layout cannot change system volume");Check(calls.Count==beforeMedia,"refused player shortcuts never reach the keyboard sink");
+    controller.SelectPreset("desktop");current=new("",false);state=controller.Snapshot();await controller.Execute(Request(state,"media-play"));Check(calls[^1].Target=="PLAYPAUSE","explicit Desktop global media key works without foreground access");
+    controller.SelectPreset("youtube");state=controller.Snapshot();
     await RejectAsync(()=>controller.Execute(Request(state,"back")),"local browser shortcut refuses unavailable foreground");
     var leaked=controller.Settings;leaked.Presets[0]=leaked.Presets[0] with{Label="Changed externally"};Check(controller.Settings.Presets[0].Label=="Desktop","settings snapshots cannot mutate saved configuration");
     Reject(()=>controller.Save(Bind(defaults,"CTRL+ENTER")),"chat sending shortcut is rejected");

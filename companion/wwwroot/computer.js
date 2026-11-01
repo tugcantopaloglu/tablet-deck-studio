@@ -2,11 +2,16 @@
 // Contextual controls use saved companion bindings. Choosing a layout never launches an app.
 let computerMode='studio',computerSnapshot=null,computerReachable=false,computerReadPending=false,computerChoosing=false,computerEpoch=0,computerSignature='',computerSuspended=false,computerRailScroll=0,computerRailPreset='';
 let computerDisplayPanel=null,computerDisplaySnapshot=null,computerDisplayReading=false,computerDisplayWanted=false,computerDisplayEpoch=0,computerDisplayTimer=null,computerDisplayPending=false,computerDisplaySignature='';
+let computerJog=null;
 const computerNode=id=>document.getElementById(id);
 function computerText(tag,className,text){const node=document.createElement(tag);if(className)node.className=className;if(text!==undefined)node.textContent=text;return node;}
 function computerIcon(kind){
-  const paths={desktop:'M3 4h18v12H3z M8 21h8 M12 16v5',youtube:'M9 7l8 5-8 5z',spotify:'M4 8c5-3 11-3 16 0 M6 12c4-2 8-2 12 0 M8 16c3-1 5-1 8 0',coding:'M8 5l-6 7 6 7 M16 5l6 7-6 7 M14 3l-4 18',resolve:'M3 5h18v14H3z M7 9v6 M12 9v6 M17 9v6',photoshop:'M4 3h16v18H4z M8 16V8h4a3 3 0 010 6H8',claude:'M12 3v18 M3 12h18 M6 6l12 12 M6 18L18 6',custom:'M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M14 17h6 M17 14v6'};
+  const paths={desktop:'M3 4h18v12H3z M8 21h8 M12 16v5',youtube:'M9 7l8 5-8 5z',spotify:'M4 8c5-3 11-3 16 0 M6 12c4-2 8-2 12 0 M8 16c3-1 5-1 8 0',coding:'M8 5l-6 7 6 7 M16 5l6 7-6 7 M14 3l-4 18',resolve:'M3 5h18v14H3z M7 9v6 M12 9v6 M17 9v6',photoshop:'M4 3h16v18H4z M8 16V8h4a3 3 0 010 6H8',claude:'M12 3v18 M3 12h18 M6 6l12 12 M6 18L18 6',save:'M4 3h13l3 3v15H4z M8 3v6h8V3 M8 21v-7h8v7',search:'M10 3a7 7 0 110 14 7 7 0 010-14 M15 15l6 6',undo:'M8 5L3 10l5 5 M3 10h11a6 6 0 010 12',redo:'M16 5l5 5-5 5 M21 10H10a6 6 0 000 12',reverse:'M17 4L5 12l12 8z',play:'M7 4l12 8-12 8z',stop:'M5 5h14v14H5z',left:'M5 4v16 M18 5l-9 7 9 7',right:'M19 4v16 M6 5l9 7-9 7',copy:'M8 8h13v13H8z M16 8V3H3v13h5',brush:'M14 3l7 7-10 10-7-7z M4 13l-2 9 9-2',move:'M12 2v20 M2 12h20 M8 6l4-4 4 4 M8 18l4 4 4-4 M6 8l-4 4 4 4 M18 8l4 4-4 4',custom:'M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M14 17h6 M17 14v6'};
   const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',paths[kind]||paths.custom);svg.appendChild(path);return svg;
+}
+function computerToolIcon(control,preset){
+  const key=control.shortcut.toUpperCase(),known={'CTRL+S':'save','CTRL+F':'search','CTRL+Z':'undo','CTRL+Y':'redo','CTRL+SHIFT+Z':'redo','CTRL+C':'copy','LEFT':'left','RIGHT':'right'};
+  if(known[key])return computerIcon(known[key]);if(preset.id==='resolve'&&['J','K','L'].includes(key))return computerIcon({J:'reverse',K:'stop',L:'play'}[key]);if(preset.id==='photoshop'&&['B','V','Z'].includes(key))return computerIcon({B:'brush',V:'move',Z:'search'}[key]);if(key==='CTRL+SHIFT+P')return computerIcon('coding');return null;
 }
 function revealComputerPreset(rail,presetId,force=false){
   rail.scrollLeft=computerRailScroll;
@@ -15,7 +20,7 @@ function revealComputerPreset(rail,presetId,force=false){
 }
 function computerNavigationAllowed(){
   if(computerSuspended)return false;
-  if(computerChoosing||busy||executionStatus?.active||(typeof hasActiveHold==='function'&&hasActiveHold())){notice('Finish the running action and release held keys first.',true);return false;}
+  if(computerChoosing||busy||executionStatus?.active||window.MediaTouchBar?.isBusy()||(typeof hasActiveHold==='function'&&hasActiveHold())){notice('Finish the running action and release held keys first.',true);return false;}
   if(typeof arranging!=='undefined'&&arranging){notice('Save or cancel your button order first.',true);return false;}
   return true;
 }
@@ -30,9 +35,10 @@ async function setComputerMode(value){
   if(next===computerMode){if(selector)selector.value=computerMode;return true;}
   if(!computerNavigationAllowed()){if(selector)selector.value=computerMode;return false;}
   if(dirty){if(!await confirmAction('Discard changes?','Your unsaved changes will be lost when you change modes.')){if(selector)selector.value=computerMode;return false;}if(!computerNavigationAllowed()){if(selector)selector.value=computerMode;return false;}dirty=false;}
-  editing=false;if(panel.open)panel.close();stopComputerDisplayView();
+  editing=false;if(panel.open)panel.close();stopComputerDisplayView();stopComputerJog();if(next==='studio')window.MediaTouchBar?.unmount();
   if(typeof setMonitorOpen==='function'&&typeof monitorOpen!=='undefined'&&monitorOpen)setMonitorOpen(false);
   computerMode=next;computerEpoch++;computerSignature='';document.body.classList.toggle('computer-mode',next==='computer');
+  if(typeof updateState==='function')updateState();
   syncComputerConsoleMode();
   if(selector)selector.value=next;computerNode('computer-workspace').hidden=next!=='computer';
   try{localStorage.setItem('deckAppMode',next);}catch{}
@@ -60,6 +66,7 @@ async function chooseComputerPreset(id){
 async function runComputerControl(presetId,controlId,button){
   const snapshot=computerSnapshot,preset=computerActivePreset(snapshot),control=preset?.controls.find(item=>item.id===controlId);
   if(preview){notice('Connect your tablet to the running companion to use Computer Copilot.');return;}
+  if(['spotify','youtube'].includes(presetId))return;
   if(!computerNavigationAllowed()||dirty||editing||panel.open||computerMode!=='computer')return;
   if(!preset||preset.id!==presetId||!control||!computerCanRun(control,preset,snapshot)){notice('Open the matching app on the PC, then refresh these controls.',true);return;}
   busy=true;executionPending=control.label;button.disabled=true;button.classList.add('pressed');renderExecution();
@@ -70,12 +77,14 @@ function renderComputer(error=''){
   const host=computerNode('computer-workspace');if(!host||computerMode!=='computer')return;
   if(busy)return;
   const snapshot=computerSnapshot,preset=computerActivePreset(),desktop=typeof desktopConsole!=='undefined'&&desktopConsole;
+  if(window.MediaTouchBar?.isInteracting(preset?.id))return;
   const signature=JSON.stringify([snapshot?.settings,snapshot?.activePresetId,snapshot?.foreground,snapshot?.status,snapshot?.capabilities,computerReachable,computerSuspended,desktop,error]);
   if(signature===computerSignature)return;computerSignature=signature;
   const focused=document.activeElement?.dataset?.computerFocus;
   const previousRail=host.querySelector('.computer-apps');if(previousRail)computerRailScroll=previousRail.scrollLeft;
   host.replaceChildren();host.className='computer-workspace';host.setAttribute('aria-label','Computer Copilot');
-  const heading=computerText('header','computer-heading'),copy=computerText('div');copy.append(computerText('h2','',desktop?'Computer Copilot':'Your app, within reach.'));copy.append(computerText('p','',desktop?'Set up contextual controls here. Run them from your tablet.':'Choose an app layout. Shortcuts go to the matching app on your PC.'));heading.append(copy);
+  const heading=computerText('header','computer-heading'),copy=computerText('div');copy.append(computerText('h2','','Computer Copilot'));if(desktop)copy.append(computerText('p','','Set up contextual controls here. Run them from your tablet.'));heading.append(copy);
+  heading.hidden=native&&!desktop;
   const tools=computerText('div','computer-tools'),refreshButton=computerText('button','quiet','Refresh');refreshButton.type='button';refreshButton.dataset.computerFocus='refresh';refreshButton.onclick=refreshComputer;tools.append(refreshButton);
   if(!native){const settings=computerText('button','primary','Edit Copilot settings');settings.type='button';settings.onclick=showComputerSettings;tools.append(settings);}heading.append(tools);host.append(heading);
   const status=computerText('p','computer-status',error?'Connection lost. '+error+' Refresh to reconnect.':!snapshot?'Checking your PC…':!snapshot.settings.enabled?'Computer Copilot is off. Enable it in the Windows app’s Copilot settings.':snapshot.status||'Ready');status.id='computer-status';status.setAttribute('role','status');host.append(status);
@@ -83,18 +92,33 @@ function renderComputer(error=''){
   if(desktop){renderComputerManagement(host,snapshot);return;}
   const rail=computerText('nav','computer-apps');rail.setAttribute('aria-label','App control layouts');
   for(const item of snapshot.settings.presets){const button=computerText('button','computer-app');button.type='button';button.append(computerIcon(item.id),computerText('span','',item.label));button.setAttribute('aria-pressed',String(item.id===preset?.id));button.dataset.computerFocus='preset-'+item.id;button.onclick=()=>chooseComputerPreset(item.id);rail.append(button);}host.append(rail);
-  const context=computerText('div','computer-context');context.append(computerIcon(preset?.id),computerText('h3','',preset?.label||'Choose a layout'));const observed=snapshot.foreground?.available?snapshot.foreground.application:'No foreground app detected';context.append(computerText('span','',observed+(snapshot.settings.automatic?' · Automatic context':' · Manual layout')));host.append(context);
-  if(preset){
-    const match=computerMatchesForeground(preset),groups=new Map();
-    if(!match&&preset.controls.some(control=>!control.global)){const note=computerText('p','computer-focus-note','Open '+preset.label+' on the PC to use its shortcuts. Global media and app switching controls remain available.');host.append(note);}
-    for(const control of preset.controls){const name=control.group||'Controls';if(!groups.has(name))groups.set(name,[]);groups.get(name).push(control);}
-    const bank=computerText('div','computer-bank');for(const [name,controls] of groups){const group=computerText('section','computer-group');group.append(computerText('h4','',name));const keys=computerText('div','computer-keys'+(controls.length===3?' computer-keys-three':''));for(const control of controls){const button=computerText('button','computer-control');button.type='button';button.disabled=!computerCanRun(control,preset);button.append(computerText('span','computer-control-label',control.label),computerText('span','computer-shortcut',control.shortcut||'No shortcut'));button.dataset.computerFocus='control-'+control.id;button.onclick=()=>runComputerControl(preset.id,control.id,button);keys.append(button);}group.append(keys);bank.append(group);}host.append(bank);
-    if(!preset.controls.length)host.append(computerText('p','computer-empty','No controls in this layout. Add bindings in the Windows app’s Copilot settings.'));
-  }
+  const context=computerText('div','computer-context');context.append(computerIcon(preset?.id),computerText('h3','',preset?.label||'Choose a layout'));const observed=snapshot.foreground?.available?snapshot.foreground.application:'No foreground app detected';context.append(computerText('span','',['spotify','youtube'].includes(preset?.id)?'Controls the selected player':observed+(snapshot.settings.automatic?' · Automatic context':' · Manual layout')));host.append(context);
+  if(preset&&['spotify','youtube'].includes(preset.id)){
+    if(window.MediaTouchBar)window.MediaTouchBar.attach(host,preset.id,{request:api,notice,isActive:()=>computerMode==='computer'&&!computerSuspended&&!document.hidden&&!panel.open&&computerActivePreset()?.id===preset.id,isEnabled:()=>computerReachable&&computerSnapshot?.settings.enabled===true&&!preview,canWrite:computerNavigationAllowed});
+    else host.append(computerText('p','computer-empty','Media controls could not load. Reopen the tablet app.'));
+  }else{window.MediaTouchBar?.unmount();if(preset)renderComputerTools(host,preset);}
   appendComputerDisplayStatus(host,snapshot);
   revealComputerPreset(rail,preset?.id);
   if(focused){const target=[...host.querySelectorAll('[data-computer-focus]')].find(node=>node.dataset.computerFocus===focused);target?.focus({preventScroll:true});}
 }
+function renderComputerTools(host,preset){
+  const match=computerMatchesForeground(preset),groups=new Map();if(!match&&preset.controls.some(control=>!control.global))host.append(computerText('p','computer-focus-note','Open '+preset.label+' on the PC to use its app shortcuts.'));
+  if(preset.id==='resolve')renderComputerJog(host,preset);
+  for(const control of preset.controls){const name=control.group||'Controls';if(!groups.has(name))groups.set(name,[]);groups.get(name).push(control);}
+  const bank=computerText('div','computer-bank');for(const [name,controls] of groups){const group=computerText('section','computer-group');group.append(computerText('h4','',name));const keys=computerText('div','computer-keys');for(const control of controls){const button=computerText('button','computer-control');button.type='button';button.disabled=!computerCanRun(control,preset);const glyph=computerToolIcon(control,preset);if(glyph){button.classList.add('has-control-icon');button.append(glyph);}button.append(computerText('span','computer-control-label',control.label),computerText('span','computer-shortcut',control.shortcut||'Assign on PC'));button.dataset.computerFocus='control-'+control.id;button.onclick=()=>runComputerControl(preset.id,control.id,button);keys.append(button);}group.append(keys);bank.append(group);}host.append(bank);
+  if(!preset.controls.length)host.append(computerText('p','computer-empty','No controls in this layout. Add bindings in the Windows app’s Copilot settings.'));
+}
+function renderComputerJog(host,preset){
+  const previous=preset.controls.find(control=>control.shortcut.toUpperCase()==='LEFT'&&!control.global),next=preset.controls.find(control=>control.shortcut.toUpperCase()==='RIGHT'&&!control.global);if(!previous||!next)return;
+  const section=computerText('section','computer-jog'),label=computerText('label','','Frame jog'),input=document.createElement('input'),output=computerText('output','','Drag to step through frames');input.type='range';input.min='-4';input.max='4';input.step='1';input.value='0';input.setAttribute('aria-label','Frame jog');input.disabled=!computerCanRun(previous,preset)||!computerCanRun(next,preset);label.append(input);section.append(label,output);host.append(section);
+  input.oninput=()=>{output.textContent=Number(input.value)<0?'Previous frames':Number(input.value)>0?'Next frames':'Drag to step through frames';if(!computerJog){if(!computerNavigationAllowed()||!Number(input.value)||input.disabled)return;const gesture={input,output,presetId:preset.id,previous,next,contextToken:computerSnapshot.contextToken,active:true};computerJog=gesture;busy=true;executionPending='Jog timeline';renderExecution();runComputerJog(gesture);}};
+  input.onpointerdown=event=>{if(typeof event.pointerId==='number')input.setPointerCapture(event.pointerId);};input.onpointerup=input.onpointercancel=input.onlostpointercapture=input.onblur=()=>stopComputerJog();input.onkeyup=event=>{if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(event.key))stopComputerJog();};
+}
+async function runComputerJog(gesture){
+  try{while(gesture.active&&!computerSuspended&&!document.hidden&&!panel.open&&computerMode==='computer'&&computerActivePreset()?.id===gesture.presetId){const direction=Number(gesture.input.value);if(!direction)break;const control=direction<0?gesture.previous:gesture.next;await api('/api/computer/action',{presetId:gesture.presetId,controlId:control.id,contextToken:gesture.contextToken});if(!gesture.active)break;await new Promise(resolve=>setTimeout(resolve,Math.max(100,340-Math.abs(direction)*60)));}}
+  catch(error){if(!computerSuspended)notice(error.message,true);}finally{if(computerJog===gesture)computerJog=null;gesture.input.value='0';gesture.output.textContent='Drag to step through frames';busy=false;executionPending='';renderExecution();await pollExecutionOnce();await refreshComputer();}
+}
+function stopComputerJog(){if(computerJog){computerJog.active=false;computerJog.input.value='0';computerJog.output.textContent='Drag to step through frames';}}
 function appendComputerDisplayStatus(host,snapshot){
   if(!computerDisplayPanel){
     computerDisplayPanel=computerText('details','computer-display');computerDisplayPanel.id='computer-display';computerDisplayPanel.append(computerText('summary','','Second display'));
@@ -188,6 +212,9 @@ function renderComputerSettings(settings,selected){
     catch(error){if(owns())computerNode('computer-settings-error').textContent=error.message;}
     finally{saving=false;if(owns()){for(const node of computerNode('panel-body').querySelectorAll('input,select,button'))node.disabled=false;if(computerNode('computer-remove-preset'))computerNode('computer-remove-preset').disabled=presets.length<2;}}
   };
+  if(preset&&['spotify','youtube'].includes(preset.id)){
+    computerNode('computer-binding-list').hidden=true;computerNode('computer-add-control').hidden=true;computerNode('computer-remove-preset').before(computerText('p','help','Playback, progress and app volume use the selected Windows media player. Legacy playback and system-volume shortcuts are unavailable in this layout.'));
+  }
 }
 function initializeComputerCopilot(){
   if(!computerNode('computer-workspace'))return;
@@ -200,8 +227,9 @@ function initializeComputerCopilot(){
   panel.addEventListener('close',()=>{if(!panel.open&&computerMode==='computer'){syncComputerConsoleMode();computerSignature='';refreshComputer();}});
   document.addEventListener('visibilitychange',()=>{if(document.hidden)computerSuspend();else computerResume();});
   window.addEventListener('pagehide',computerSuspend);
+  window.addEventListener('blur',()=>{stopComputerJog();window.MediaTouchBar?.suspend();});
   window.addEventListener('resize',()=>{const rail=computerNode('computer-workspace').querySelector('.computer-apps');if(computerMode==='computer'&&rail){computerRailScroll=rail.scrollLeft;revealComputerPreset(rail,computerActivePreset()?.id,true);}});
 }
-function computerSuspend(){computerSuspended=true;computerEpoch++;computerSignature='';stopComputerDisplayView();renderComputer();}
-function computerResume(){computerSuspended=false;computerSignature='';renderComputer();refreshComputer();}
+function computerSuspend(){computerSuspended=true;computerEpoch++;computerSignature='';stopComputerJog();window.MediaTouchBar?.suspend();stopComputerDisplayView();renderComputer();}
+function computerResume(){computerSuspended=false;computerSignature='';renderComputer();refreshComputer();window.MediaTouchBar?.refresh();}
 document.addEventListener('DOMContentLoaded',initializeComputerCopilot,{once:true});

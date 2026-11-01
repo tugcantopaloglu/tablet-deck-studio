@@ -25,7 +25,10 @@
     "test:live-sync": "node live-sync.cjs",
     "test:copilot-ui": "node copilot-ui.cjs",
     "test:computer-api": "node computer-api.cjs",
-    "test:soundpad-sync-ui": "node soundpad-sync-ui.cjs"
+    "test:soundpad-sync-ui": "node soundpad-sync-ui.cjs",
+    "test:media-touchbar-ui": "node media-touchbar-ui.cjs",
+    "test:live-soundpad-board": "node live-soundpad-board.cjs",
+    "test:media-sessions": "dotnet run --project media-sessions/MediaSessionTests.csproj -c Release"
   },
   "keywords": [],
   "author": "",

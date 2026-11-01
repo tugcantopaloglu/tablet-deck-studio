@@ -8,7 +8,7 @@ using System.Text.Json.Nodes;
 using System.Diagnostics;
 using System.Globalization;
 
-var flagOptions=new HashSet<string>(StringComparer.Ordinal){"--self-test","--boards-self-test","--studio-self-test","--monitor-self-test","--extended-display-self-test","--update-self-test","--desktop-window-self-test","--audio-smoke-test","--hardening-self-test","--no-browser","--no-tray","--tray","--after-update"};
+var flagOptions=new HashSet<string>(StringComparer.Ordinal){"--self-test","--boards-self-test","--studio-self-test","--monitor-self-test","--extended-display-self-test","--live-soundpad-self-test","--update-self-test","--desktop-window-self-test","--audio-smoke-test","--hardening-self-test","--no-browser","--no-tray","--tray","--after-update"};
 var valueOptions=new HashSet<string>(StringComparer.Ordinal){"--data-dir","--http-port","--https-port","--control-port"};
 for(var i=0;i<args.Length;i++){
     if(flagOptions.Contains(args[i]))continue;
@@ -20,6 +20,7 @@ if(args.Contains("--boards-self-test")) {BoardStorageTests.Run();return;}
 if(args.Contains("--studio-self-test")) {await StudioTests.Run();return;}
 if(args.Contains("--monitor-self-test")) {await MonitorTests.Run();return;}
 if(args.Contains("--extended-display-self-test")) {await ExtendedDisplayTests.Run();return;}
+if(args.Contains("--live-soundpad-self-test")) {await LiveSoundpadTests.Run();return;}
 if(args.Contains("--update-self-test")){await UpdateTests.Run();return;}
 if(args.Contains("--desktop-window-self-test")){var testDir=Array.IndexOf(args,"--data-dir");if(testDir<0)throw new ArgumentException("An isolated test data directory is required.");await DesktopWindowTests.Run(args[testDir+1]);return;}
 if(args.Contains("--audio-smoke-test")) {await SelfTests.AudioSmokeTest();return;}
@@ -64,6 +65,7 @@ using var appMixer=new AppAudioMixer();
 using var holds=new HoldKeys();
 var fastCommands=new FastCommands(store,engine,holds,appMixer);
 var computer=new ComputerCopilot(store.DirectoryPath,fastCommands.ExecuteConfigured);
+using var mediaSessions=new MediaSessions();
 using var extendedDisplay=new ExtendedDisplay();
 await using var stateUpdates=new StateUpdates(engine);
 await using var fastControl=new FastControlServer(store,fastCommands,stateUpdates,cert,controlPort);
@@ -109,6 +111,15 @@ app.MapPost("/api/monitor/frame",(PreviewRequest req,CancellationToken ct)=>live
 app.MapGet("/api/computer",()=>computer.Snapshot());
 app.MapPost("/api/computer/preset",(CopilotPresetRequest req)=>{computer.SelectPreset(req.PresetId);return Results.Ok(new{ok=true});});
 app.MapPost("/api/computer/action",(CopilotActionRequest req)=>computer.Execute(req));
+app.MapGet("/api/computer/media",async(CancellationToken ct)=>computer.Settings.Enabled?await mediaSessions.Snapshot(ct):new MediaSessionsSnapshot([],"Enable Computer Copilot in the PC settings first."));
+app.MapPost("/api/computer/media/action",async(MediaSessionActionRequest req)=>{
+    await fastCommands.ExecuteExternal("Control selected player",async ct=>{
+        var current=computer.Snapshot();
+        if(!current.Settings.Enabled||current.ActivePresetId!=req.PresetId||req.PresetId is not ("spotify" or "youtube"))throw new InvalidOperationException("Select the matching player layout on the tablet before controlling it.");
+        await mediaSessions.Execute(req,ct);
+    });
+    return Results.Ok(new{ok=true});
+});
 app.MapGet("/api/admin/computer",()=>computer.Settings);
 app.MapPost("/api/admin/computer",(CopilotSettings settings)=>{computer.Save(settings);return Results.Ok(new{ok=true});});
 app.MapGet("/api/computer/display",()=>extendedDisplay.Status());
@@ -121,7 +132,20 @@ app.MapPost("/api/admin/computer/display",async (JsonElement req,CancellationTok
     throw new ArgumentException("Choose create, remove, or share.");
 });
 app.MapPost("/api/computer/display/frame",(ExtendedDisplayFrameRequest req,CancellationToken ct)=>extendedDisplay.FrameAsync(req,ct));
-app.MapGet("/api/board",async()=>{var config=store.Config;var live=config.Pages.Any(p=>p.LiveScenes)?await engine.State():null;return new {profileId=config.ProfileId,profileName=config.ProfileName,sceneCatalogRevision=live?["sceneCatalogRevision"]?.GetValue<string>(),pages=config.Pages.Select(p=>new {p.Id,p.Name,p.Icon,p.LiveScenes,buttons=(p.LiveScenes?LiveScenes.Buttons(live?["scenes"]):(IEnumerable<DeckAction>)p.Buttons).Select(a=>new{a.Id,a.Label,a.Kind,a.Icon,a.IconImage,a.Color,confirm=DeckEngine.NeedsConfirm(a),target=a.Kind is "scene" or "preview"?a.Target:"",configured=!(a.Kind is "app" or "sound" or "url" or "hotkey" or "soundpadPlay")||a.Target.Length>0})})};});
+app.MapGet("/api/board",async(CancellationToken ct)=>{
+    var config=store.Config;var live=config.Pages.Any(p=>p.LiveScenes)?await engine.State():null;
+    SoundpadLibraryResult? library=null;string? soundpadWarning=null;
+    if(config.Pages.Any(p=>p.LiveSoundpad))try{library=await SoundpadLibrary.Get(false,ct);soundpadWarning=library.Warning;}catch(Exception ex) when(ex is IOException or InvalidOperationException){soundpadWarning=ex.Message;}
+    var sounds=library?.Sounds.ToDictionary(s=>s.Index)??[];
+    var identities=library?.Sounds.GroupBy(s=>s.Key).ToDictionary(g=>g.Key,g=>g.Count())??[];
+    return new {profileId=config.ProfileId,profileName=config.ProfileName,sceneCatalogRevision=live?["sceneCatalogRevision"]?.GetValue<string>(),pages=config.Pages.Select(p=>{
+        var actions=p.LiveSoundpad?LiveSoundpad.Buttons(p,library):p.LiveScenes?LiveScenes.Buttons(live?["scenes"]):(IEnumerable<DeckAction>)p.Buttons;
+        return new {p.Id,p.Name,p.Icon,p.LiveScenes,p.LiveSoundpad,soundpadWarning=p.LiveSoundpad?soundpadWarning:null,buttons=actions.Select(a=>{
+            LibrarySound? sound=null;if(p.LiveSoundpad&&int.TryParse(a.Target,out var index))sounds.TryGetValue(index,out sound);
+            return new{a.Id,a.Label,a.Kind,a.Icon,a.IconImage,a.Color,confirm=DeckEngine.NeedsConfirm(a),target=a.Kind is "scene" or "preview"?a.Target:"",categories=sound?.Categories??[],searchText=sound is null?"":sound.Name+" "+sound.Artist,configured=p.LiveSoundpad?sound is {Key.Length:64}&&identities[sound.Key]==1:!(a.Kind is "app" or "sound" or "url" or "hotkey" or "soundpadPlay")||a.Target.Length>0};
+        })};
+    })};
+});
 app.MapGet("/api/profiles",()=>new{profiles=store.ProfileList(),warning=store.RecoveryWarning});
 app.MapPost("/api/profile",(ProfileRequest req)=>{fastCommands.ManualProfile(req.Id);return Results.Ok(new{ok=true});});
 app.MapPost("/api/admin/profiles",(ManageProfileRequest req)=>{

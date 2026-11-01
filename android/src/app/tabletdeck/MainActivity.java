@@ -44,9 +44,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class MainActivity extends Activity {
     private static final String UI_HOST="app.tabletdeck.local";
-    private static final Set<String> GET_PATHS=new HashSet<>(Arrays.asList("/api/computer","/api/computer/display","/api/ping","/api/mixer","/api/soundpad/recent","/api/profiles","/api/soundpad/favourites","/api/board","/api/state","/api/execution","/api/apps","/api/soundpad/library"));
-    private static final Set<String> POST_PATHS=new HashSet<>(Arrays.asList("/api/computer/action","/api/computer/preset","/api/computer/display/frame","/api/monitor/frame","/api/ping","/api/profile-lock","/api/soundpad/recent/clear","/api/profile","/api/soundpad/favourites","/api/cancel","/api/hold","/api/action","/api/audio","/api/mute","/api/apps","/api/layout","/api/soundpad/play","/api/soundpad/library"));
-    private static final Set<String> UI_ASSETS=new HashSet<>(Arrays.asList("/computer.js","/computer.css","/index.html","/app.js","/features.js","/boards.js","/desktop.js","/studio.js","/monitor.js","/hardening.js","/latency.js","/style.css","/fonts/Manrope.ttf","/vendor/purify.min.js"));
+    private static final Set<String> GET_PATHS=new HashSet<>(Arrays.asList("/api/computer/media","/api/computer","/api/computer/display","/api/ping","/api/mixer","/api/soundpad/recent","/api/profiles","/api/soundpad/favourites","/api/board","/api/state","/api/execution","/api/apps","/api/soundpad/library"));
+    private static final Set<String> POST_PATHS=new HashSet<>(Arrays.asList("/api/computer/media/action","/api/computer/action","/api/computer/preset","/api/computer/display/frame","/api/monitor/frame","/api/ping","/api/profile-lock","/api/soundpad/recent/clear","/api/profile","/api/soundpad/favourites","/api/cancel","/api/hold","/api/action","/api/audio","/api/mute","/api/apps","/api/layout","/api/soundpad/play","/api/soundpad/library"));
+    private static final Set<String> UI_ASSETS=new HashSet<>(Arrays.asList("/soundpad-board.js","/media-touchbar.js","/media-touchbar.css","/computer.js","/computer.css","/index.html","/app.js","/features.js","/boards.js","/desktop.js","/studio.js","/monitor.js","/hardening.js","/latency.js","/style.css","/fonts/Manrope.ttf","/vendor/purify.min.js"));
     private WebView web;
     private ChatPane chatPane;
     private SharedPreferences preferences;
@@ -128,7 +128,7 @@ public final class MainActivity extends Activity {
             final String requestedPath;final JSONObject request;
             try{request=new JSONObject(message);requestedPath=request.getString("path");}catch(Exception ignored){return;}
             if(requestedPath.equals("/native/chat")){runOnUiThread(()->{try{deliver(request.getInt("id"),chatPane.command(request.getJSONObject("body")));}catch(Exception ex){try{deliver(request.getInt("id"),new JSONObject().put("error",ex.getMessage()));}catch(Exception ignored){}}});return;}
-            (requestedPath.equals("/api/monitor/frame")||requestedPath.equals("/api/computer/display/frame")?previews:request.optString("method","POST").equals("POST")&&(fastPath(requestedPath)||requestedPath.equals("/api/computer/action"))?controls:network).execute(()->{
+            (requestedPath.equals("/api/monitor/frame")||requestedPath.equals("/api/computer/display/frame")?previews:request.optString("method","POST").equals("POST")&&(fastPath(requestedPath)||requestedPath.equals("/api/computer/action")||requestedPath.equals("/api/computer/media/action"))?controls:network).execute(()->{
                 int id=0;JSONObject result;
                 try {
                     id=request.getInt("id");
@@ -148,7 +148,8 @@ public final class MainActivity extends Activity {
                     else {
                         if(!(method.equals("GET")&&GET_PATHS.contains(path))&&!(method.equals("POST")&&POST_PATHS.contains(path)))throw new Exception("This request is not allowed from the tablet.");
                         String token=preferences.getString("token","");if(token.isEmpty())throw new Exception("Pair this tablet with your PC first.");
-                        if(paused&&(fastPath(path)||path.equals("/api/computer/action")||path.equals("/api/computer/preset")||path.equals("/api/computer/display/frame"))&&!body.optString("operation").equals("release"))throw new Exception("Controls are paused while the tablet app is in the background.");
+                        boolean releasingHold=path.equals("/api/hold")&&body.optString("operation").equals("release");
+                        if(paused&&(fastPath(path)||path.equals("/api/computer/action")||path.equals("/api/computer/media/action")||path.equals("/api/computer/preset")||path.equals("/api/computer/display/frame"))&&!releasingHold)throw new Exception("Controls are paused while the tablet app is in the background.");
                         if(method.equals("POST")&&fastPath(path)&&fastLink!=null&&fastLink.connected()){
                             fastPending.put(id,Boolean.TRUE);
                             try{if(fastLink.send(request.toString()))return;fastPending.remove(id);}catch(Exception ex){fastPending.remove(id);throw new Exception("Connection lost before confirmation. The action may have run; it was not repeated.",ex);}

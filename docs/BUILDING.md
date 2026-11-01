@@ -4,7 +4,7 @@ Use a prebuilt release if you only want to use the app. These instructions are f
 
 ## Prerequisites
 
-- .NET SDK 10.0 or newer for the companion.
+- .NET SDK 10.0 or newer for the companion; Windows 10 version 2004/build 19041 or newer. The Windows SDK .NET reference pack is pinned to 10.0.19041.57 and restored by the SDK for the media-session APIs.
 - **PowerShell 7**, invoked as `pwsh`, for the APK build. Windows PowerShell 5.1 can run the release USB/install helpers, but the APK script uses modern .NET cryptography APIs.
 - JDK 17, Android platform 35, and Android build-tools 35.0.0 for the APK.
 - Node.js 22+ and Chrome for the optional integration tests.
@@ -164,6 +164,7 @@ The installer uses a fixed per-user destination. `--test-mode --quiet` installs 
 .\dist\Windows\TabletDeck-Companion.exe --boards-self-test
 .\dist\Windows\TabletDeck-Companion.exe --studio-self-test --no-browser --no-tray
 .\dist\Windows\TabletDeck-Companion.exe --monitor-self-test --no-browser --no-tray
+.\dist\Windows\TabletDeck-Companion.exe --live-soundpad-self-test
 $env:TABLETDECK_COMPANION = (Resolve-Path .\dist\Windows\TabletDeck-Companion.exe).Path
 npm run test:headless --prefix .\tests
 npm run test:fast --prefix .\tests
@@ -174,6 +175,9 @@ npm run test:studio --prefix .\tests
 npm run test:studio-ui --prefix .\tests
 npm run test:monitor --prefix .\tests
 npm run test:monitor-ui --prefix .\tests
+npm run test:live-soundpad-board --prefix .\tests
+npm run test:media-sessions --prefix .\tests
+npm run test:media-touchbar-ui --prefix .\tests
 npm run test:integration-headless --prefix .\tests
 ```
 

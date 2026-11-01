@@ -18,6 +18,7 @@ Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\monitor.js') -Des
 Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\hardening.js') -Destination (Join-Path $taskBuild 'assets\www')
 Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\latency.js') -Destination (Join-Path $taskBuild 'assets\www')
 Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\computer.js'),(Join-Path $taskRoot 'companion\wwwroot\computer.css') -Destination (Join-Path $taskBuild 'assets\www')
+Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\media-touchbar.js'),(Join-Path $taskRoot 'companion\wwwroot\media-touchbar.css'),(Join-Path $taskRoot 'companion\wwwroot\soundpad-board.js') -Destination (Join-Path $taskBuild 'assets\www')
 Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\fonts') -Destination (Join-Path $taskBuild 'assets\www') -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\vendor') -Destination (Join-Path $taskBuild 'assets\www') -Recurse -Force
 New-Item -ItemType Directory -Force -Path (Join-Path $taskBuild 'assets\licenses') | Out-Null
@@ -37,7 +38,7 @@ $taskArchive=[System.IO.Compression.ZipFile]::OpenRead((Join-Path $taskBuild 'un
 try {
  $taskEntries=@($taskArchive.Entries | ForEach-Object FullName)
  if(@($taskEntries | Where-Object { $_.Contains('\') }).Count){throw 'APK contains Windows path separators.'}
- foreach($taskAsset in @('index.html','app.js','features.js','boards.js','desktop.js','studio.js','monitor.js','hardening.js','latency.js','computer.js','computer.css','style.css','fonts/Manrope.ttf','vendor/purify.min.js')){
+ foreach($taskAsset in @('index.html','app.js','features.js','boards.js','desktop.js','studio.js','monitor.js','hardening.js','latency.js','computer.js','computer.css','media-touchbar.js','media-touchbar.css','soundpad-board.js','style.css','fonts/Manrope.ttf','vendor/purify.min.js')){
   if($taskEntries -notcontains ('assets/www/'+$taskAsset)){throw "APK asset is missing: $taskAsset"}
  }
  foreach($taskLicense in @('ZXING-LICENSE.txt','QRCODER-LICENSE.txt')){if($taskEntries -notcontains ('assets/licenses/'+$taskLicense)){throw "APK license is missing: $taskLicense"}}

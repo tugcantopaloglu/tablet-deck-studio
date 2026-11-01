@@ -123,3 +123,10 @@ body.execution-visible .notice{bottom:auto;top:calc(var(--header) + 12px)}
 .library-pagination .help{margin-left:auto}
 .panel-body label.check:has(#page-live-scenes){flex-direction:row;align-items:center;min-height:48px;margin:16px 0;gap:10px}
 #page-live-scenes{width:22px;height:22px;flex-shrink:0;accent-color:var(--cyan)}
+.soundpad-board-toolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.6fr) auto;gap:8px;align-items:center;flex-shrink:0}
+.soundpad-board-toolbar input,.soundpad-board-toolbar select,#soundpad-board-page{min-width:0;min-height:48px;padding:10px 12px;border:1px solid var(--outline);border-radius:10px;background:var(--surface);color:var(--ink);font-size:16px;max-width:100%}
+#soundpad-board-count{grid-column:1/-1;margin:0;font-variant-numeric:tabular-nums}
+.panel-body label.check:has(#page-live-soundpad){flex-direction:row;align-items:center;min-height:48px;margin:16px 0;gap:10px}
+#page-live-soundpad{width:22px;height:22px;flex-shrink:0;accent-color:var(--cyan)}
+@media(max-width:760px){.soundpad-board-toolbar{grid-template-columns:minmax(0,1fr) auto}.soundpad-board-toolbar>input{grid-column:1/-1}.soundpad-board-toolbar .quiet{padding:8px 12px}#soundpad-board-page{font-size:13px;padding:8px;min-width:0}}
+#soundpad-board-search::placeholder{color:var(--secondary);opacity:1}

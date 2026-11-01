@@ -1,0 +1,8 @@
+Microsoft Windows SDK .NET targeting pack
+Package: Microsoft.Windows.SDK.NET.Ref 10.0.19041.57
+Runtime files: Microsoft.Windows.SDK.NET.dll and WinRT.Runtime.dll
+
+The SDK package declares its license at https://aka.ms/WinSDKLicenseURL.
+The unmodified linked Microsoft license is included as WINDOWS-SDK-LICENSE.rtf.
+C#/WinRT's Microsoft MIT notice is included as CSWINRT-LICENSE.txt;
+source: https://github.com/microsoft/CsWinRT/blob/master/LICENSE.

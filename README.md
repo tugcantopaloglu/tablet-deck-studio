@@ -22,7 +22,9 @@ The low-latency transport and Android packaging fix from 1.4.1 are retained. Phy
 
 ## Features
 
-**1.12.0 adds Computer Copilot**, a separate tablet mode for editable app shortcut layouts, plus optional viewing of an independent Windows display through an already-installed compatible SudoVDA driver. Choose **Computer Copilot** in the mode selector; use **Edit Copilot settings** in the Windows app to enable controls and edit layouts. Automatic following uses foreground executable names; browser tools use manual layouts. These are keyboard shortcut presets, not deep application or AI integrations. Display creation and tablet sharing require explicit PC consent; no driver is included or installed. The display view is a silent JPEG preview capped at 4 fps, with no touch forwarding. See [Computer Copilot](#computer-copilot), [controller details](docs/COMPUTER-COPILOT.md), [optional second display](docs/EXTENDED-DISPLAY.md), and the [1.12 UI extension record](docs/UI-EXTENSION-1.12.md).
+**1.13.0 correction:** Spotify and browser layouts now use a selected Windows media session with its real title, artwork when supplied, playback progress and supported transport/seek controls. Spotify commands target Spotify rather than the Windows global media player. Browser players need an explicit selection because Windows does not identify the website. Other app layouts use compact shortcut strips, with a relative frame jog for configured Resolve shortcuts. A **live Soundpad page** also brings the full library into the Memes pad itself, beyond the 24/40 keys visible in one group. See [targeted media controls](docs/MEDIA-CONTROLS.md), [Memes setup](#put-the-whole-soundpad-library-on-memes), and the [1.13 extension record](docs/UI-EXTENSION-1.13.md). Source versions are updated; packaging, publication and deployment are still pending.
+
+**1.12.0 introduced Computer Copilot**, a separate tablet mode for editable app shortcut layouts, plus optional viewing of an independent Windows display through an already-installed compatible SudoVDA driver. Choose **Computer Copilot** in the mode selector; use **Edit Copilot settings** in the Windows app to enable controls and edit layouts. Automatic following uses foreground executable names; browser tools use manual layouts. The initial shortcut-only media layouts are replaced by targeted media controls in the 1.13 correction above; other presets remain keyboard shortcuts, without deep application or AI integration. Display creation and tablet sharing require explicit PC consent; no driver is included or installed. The display view is a silent JPEG preview capped at 4 fps, with no touch forwarding. See [Computer Copilot](#computer-copilot), [controller details](docs/COMPUTER-COPILOT.md), [optional second display](docs/EXTENDED-DISPLAY.md), and the [1.12 UI extension record](docs/UI-EXTENSION-1.12.md).
 
 **Live libraries:** an OBS scene page can now follow additions, renames, removals and scene order continuously while retaining its saved manual buttons behind a toggle. Soundpad's full library has Previous/Next and page selection in groups of 80, with automatic refresh every five seconds while open. The isolated pagination check visited all 1,421 fixture sounds; no third-party sound collection is bundled.
 
@@ -37,14 +39,14 @@ The low-latency transport and Android packaging fix from 1.4.1 are retained. Phy
 | Broadcast | Streaming, recording, replay-buffer save, virtual camera, Studio Mode |
 | Sources | Scene-source visibility, source-filter toggle, media restart/stop |
 | Windows | App/shortcut launching, websites, keyboard shortcuts, volume/media keys |
-| Soundpad | Search/categories, 80-row pages with automatic refresh, persistent favourites with stable sound identities, play to mic/speakers/both, import selected sounds as buttons on PC, stop/pause/next/previous |
+| Soundpad | Live Memes pad from the full library, search/categories and page jump; separate 80-row library browser; favourites; mic/speakers/both output; selected-button import and transport |
 | Discord and other tools | Matching app keybinds; Discord mute/deafen/screen-share setup documented |
 | Macros | Multiple steps, delays, confirmation, live step progress, cancellation, stop on first error |
 | Customization | Labels/icons/colors, ordering, multiple pages, up to 10 board profiles, current-profile JSON import/export, full-pad 24/40-button layouts |
 | Backups | Latest 20 automatic snapshots, manual backup, restore preview and confirmation, damaged-config recovery, current credentials retained on restore |
 | Connection | Persistent pinned TLS over Wi-Fi/USB, pushed state, HTTPS fallback, optional automatic USB reconnection |
 | Desktop | Windows tray, opt-in startup, update notifications, per-user installer |
-| Computer Copilot | Opt-in contextual shortcut layouts, PC binding editor, manual browser layouts, optional independent-display preview using an installed driver |
+| Computer Copilot | Opt-in targeted Spotify/browser media controls, compact editable shortcut strips and relative Resolve jog, optional independent-display preview using an installed driver |
 | Hold-to-talk | Renewable key-down/key-up shortcuts with a three-second disconnect lease |
 | Voicemeeter | Native Strip/Bus gain and explicit mute/unmute through the installed remote DLL |
 
@@ -67,7 +69,7 @@ The low-latency transport and Android packaging fix from 1.4.1 are retained. Phy
 ## Requirements
 
 - Android 8.0 or newer, with an up-to-date Android System WebView / Chrome. Landscape tablet is the primary layout.
-- Windows 10 or 11, x64. The companion includes its .NET runtime; Node, Python, Android Studio, and .NET installation are not required to use it.
+- Windows 10 version 2004 (build 19041) or newer, or Windows 11, x64 for the 1.13 source. The companion includes its .NET runtime; Node, Python, Android Studio, and .NET installation are not required to use it.
 - For OBS controls: OBS Studio 28 or newer with WebSocket server enabled. Soundpad and other non-OBS actions also work with OBS closed.
 - For Soundpad actions: Soundpad installed and running on the Windows PC under the same account as the companion.
 
@@ -75,7 +77,7 @@ The low-latency transport and Android packaging fix from 1.4.1 are retained. Phy
 
 For a managed Windows installation, download **TabletDeck-Setup.exe**, run it, and type `INSTALL` after reviewing its destination. It creates Desktop and Start menu shortcuts without launching any apps. The ZIP remains available for portable use. See [installation and uninstalling](docs/DESKTOP-AND-HOLD.md#install-or-update-windows).
 
-Download the versioned complete ZIP for **1.12.0** from [Releases](https://github.com/tugcantopaloglu/tablet-deck-studio/releases/latest) when published, or download `TabletDeck-Studio.apk` separately if you only need the Android installer. Update both components. The APK keeps the original signing certificate, so installing it over an older version preserves pairing. Third-party meme collections are user content and are not included in the public release.
+Download the versioned complete ZIP for **1.13.0** from [Releases](https://github.com/tugcantopaloglu/tablet-deck-studio/releases/latest) when published, or download `TabletDeck-Studio.apk` separately if you only need the Android installer. Update both components. The APK keeps the original signing certificate, so installing it over an older version preserves pairing. Third-party meme collections are user content and are not included in the public release.
 
 ```text
 TabletDeck-Studio/
@@ -176,7 +178,11 @@ Export/Import saves the current profile's board JSON without the OBS password, i
 3. On the tablet, choose **Computer Copilot** in its mode selector. Supplied layouts include Desktop, YouTube, Spotify, Codex / GitHub Copilot, Claude, DaVinci Resolve, and Photoshop.
 4. **Follow supported foreground apps** automatically chooses a uniquely matching executable. Selecting a layout on the tablet switches to manual selection; enable following again in PC settings. Browser tabs/websites are not inspected, so choose YouTube or Claude manually. Selecting a layout never opens or focuses the app.
 
-App-specific buttons require a matching foreground app. Global controls are limited to media keys and Windows app switching. Assistant-panel entries begin unassigned so you can match your local keymap; Computer Copilot has no default Send command and rejects Enter-containing shortcuts. It does not read chats or send prompts. Windows focus and input-permission limits still apply. See the [controller contract and tests](docs/COMPUTER-COPILOT.md).
+For **Spotify**, start media in the Spotify desktop app, then choose its player in **Playback target** if prompted. The surface shows the actual track title, artist/album information, artwork when available, elapsed/total time, and supported Previous/Play/Pause/Next/seek controls. These commands address that Spotify session; they do not fall back to YouTube or another player when Spotify is missing. The selected player must advertise the relevant capability.
+
+For **YouTube**, select the intended browser title/source in **Playback target**. Windows reports a browser player, not its URL or website, so this layout cannot prove it is YouTube. The seek slider sends a final position for the track you began dragging; a changed track or replaced session rejects stale input. **Spotify volume** controls an exact matching app output. **Browser volume (all tabs)** affects the browser's application output, including other tabs; choose an audio output if several match. It never silently substitutes system volume.
+
+Other layouts remain configurable shortcuts that require the matching foreground app, presented in compact context strips. Resolve's **Frame jog** repeats the configured previous/next frame shortcuts while dragged and returns to center on release; it does not read Resolve's native playhead or provide an absolute timeline position. Desktop global media/app-switch controls retain their global meaning. Assistant-panel entries begin unassigned so you can match your local keymap; Computer Copilot has no default Send command and rejects Enter-containing shortcuts. It does not read chats or send prompts. Windows focus and input-permission limits still apply. See the [controller contract](docs/COMPUTER-COPILOT.md) and [targeted media details](docs/MEDIA-CONTROLS.md).
 
 For an optional separate desktop, expand **Second display** on the PC, review the already-installed compatible SudoVDA driver's trust information, and explicitly accept both driver use and sharing its pixels with the paired tablet before **Create independent display** becomes available. Choose a supported resolution; if needed, set that monitor to **Extend** in Windows Display settings. Then use **Open display view** on the tablet. **Back to controls**, **Pause tablet sharing**, and **Remove extra display** stop the corresponding viewing/sharing/session activity.
 
@@ -217,6 +223,14 @@ Yes, the board can be used with **Discord desktop streams and calls**, as well a
 **Soundpad:** keep it running on the PC, then choose **Soundpad** in the board toolbar to browse names and categories. Select a playback output and press **Play**. In the PC library, select sounds and choose **Add selected buttons** to put them on a page. You can also add a **Soundpad · play sound** action manually by its All sounds index. Use output **mic** to send an effect through Soundpad's configured microphone, **both** to hear it locally as well, or **speakers** for local-only playback. Dedicated stop, pause/resume, next, and previous controls do not need keyboard focus or an executable path.
 
 Use **Previous**, **Next**, or **Sound page** to reach the whole matching library, 80 sounds per page. Search and category changes return to the first page. The open, visible library refreshes every five seconds, retaining selection by sound identity where possible; it does not play anything automatically. A 1,421-sound library spans 18 pages, including a final page of 61 sounds.
+
+### Put the whole Soundpad library on Memes
+
+1. In the Windows sidebar choose **Board editor**. Select **Memes** in the editor's page dropdown, or add a page with that name in the current profile.
+2. Enable **Use the full live Soundpad library on this page**. Choose **Soundpad playback output**: **Discord / microphone**, **Speakers and microphone**, or **Speakers only**. Save changes.
+3. On the tablet stay in **Stream Studio** and choose the **Memes** page. Use **Search all Soundpad sounds**, **Soundpad category**, and **Jump to sound page** or the group navigation to reach every loaded sound. Full pad's 24/40 setting controls how many keys fit at once, not how many sounds exist.
+
+The development source library contains 1,421 entries; live pages support up to 5,000. You do not need thousands of saved buttons, duplicate imports, or multiple profiles. One page per profile can follow Soundpad; enabling another transfers live mode to that page. The pad refreshes about every five seconds while active. Existing manual Memes buttons remain saved and return if you disable live Soundpad and save. Live OBS and live Soundpad cannot both supply the same page. Soundpad must stay running; an unavailable source shows recovery guidance. Microphone output still depends on Soundpad's configured mic and the receiving app's audio settings.
 
 **Discord controls:** configure Toggle Mute, Toggle Deafen, or Toggle Screen Share in Discord's desktop **User Settings → Keybinds**, then create matching **Send keyboard shortcut** buttons here. Leave Discord's keybind editor before testing. The share picker or stream settings may still need confirmation in Discord. These are shortcut controls, not live Discord-state indicators. The board's Start stream button controls OBS, not Discord.
 
@@ -308,11 +322,13 @@ If you close the Windows console, the companion keeps running. Choose **Open Tab
 
 ## Verification and limits
 
-See [Verification results](docs/VERIFICATION.txt) for build, test, and security scan results, and [the hardware report](docs/LIVE-TEST.md) for completed physical USB/Wi-Fi, OBS, and Soundpad tests. The [1.11](docs/UI-EXTENSION-1.11.md) and [1.12](docs/UI-EXTENSION-1.12.md) UI records distinguish isolated rendered/controller checks from actual native and hardware evidence. Computer Copilot's saved rendered checks use fake foreground/action state; live-scene checks use a mock OBS service, and the 1,421-sound pagination check uses a fixture without audio. A controlled real-driver check created and removed a 1280 × 800 independent monitor with sharing off and left both physical monitors unchanged. Actual pixel capture/delivery, tablet viewing, latency, and physical touch interaction with the new display view remain unverified. Run a rehearsal before relying on it in a broadcast.
+See [Verification results](docs/VERIFICATION.txt) for build, test, and security scan results, and [the hardware report](docs/LIVE-TEST.md) for completed physical USB/Wi-Fi, OBS, and Soundpad tests. The [1.11](docs/UI-EXTENSION-1.11.md), [1.12](docs/UI-EXTENSION-1.12.md), and [1.13](docs/UI-EXTENSION-1.13.md) UI records distinguish isolated rendered/controller checks from actual native and hardware evidence. Media controls use fake-player playback tests; the successful real Chrome probe read metadata only, with no live Spotify session available. The new live-Memes test uses 2,007 fixture entries, not a claim about the user's actual library or real audio. A controlled real-driver check created and removed a 1280 × 800 independent monitor with sharing off and left both physical monitors unchanged. Actual pixel capture/delivery, tablet viewing, latency, and physical touch interaction with the new display view remain unverified. Run a rehearsal before relying on it in a broadcast.
 
 ## Build and contribute
 
 See [BUILDING.md](docs/BUILDING.md) for building the Windows companion and Android APK, signing-key handling, assembling a distribution, and running the isolated integration tests. Private release signing keys are deliberately excluded from this repository.
+
+The Windows source targets `net10.0-windows10.0.19041.0` and pins `WindowsSdkPackageVersion` to `10.0.19041.57` for media-session APIs. The SDK reference package is restored during the source build; it is not an extra end-user installation requirement. The source identity is 1.13.0, with Android version code 16.
 
 ```text
 android/                 Manifest, resources, and Java HTTPS bridge
@@ -320,6 +336,8 @@ companion/               C# ASP.NET Core companion
 companion/wwwroot/       Shared HTML, CSS, JavaScript, fonts, DOMPurify
 companion/ComputerCopilot.cs  Contextual shortcut settings and dispatch guards
 companion/ExtendedDisplay.cs  Optional installed-driver session and JPEG capture
+companion/MediaSessions.cs  Selected Windows player metadata and transport
+companion/LiveSoundpad.cs  Runtime Soundpad pad entries without bulk saved buttons
 companion/Sounds/        Synthesized demo WAV files
 scripts/                 APK build and Windows USB/install helpers
 installer/               Per-user Windows setup executable source
@@ -332,5 +350,7 @@ For changes, fork the repository, create a branch, run the relevant checks, and 
 ## Third-party notices
 
 Manrope is distributed under the [SIL Open Font License](companion/wwwroot/fonts/OFL.txt). DOMPurify is vendored with its [license](companion/wwwroot/vendor/DOMPurify-LICENSE.txt). Windows audio-session access uses [NAudio under the MIT license](companion/Licenses/NAudio.txt). OBS and Discord vector marks are from [Simple Icons under CC0](companion/wwwroot/vendor/Simple-Icons-CC0.txt); trademarks belong to their owners. Release packages retain Android platform-tools and Microsoft .NET notices.
+
+Windows media references retain the [Windows SDK terms](companion/Licenses/WINDOWS-SDK-LICENSE.rtf) and [CsWinRT MIT license](companion/Licenses/CSWINRT-LICENSE.txt).
 
 No project-wide open-source license has been assigned. Public visibility does not replace the licenses of the third-party components above. This project is not affiliated with or endorsed by Elgato, OBS, Discord, Google, or Microsoft.

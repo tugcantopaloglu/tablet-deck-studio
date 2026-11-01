@@ -120,18 +120,22 @@ function renderBoard(){
   if(desktopConsole){if(typeof renderConsoleSummary==='function')renderConsoleSummary();return;}
   if(typeof hasActiveHold==='function'&&hasActiveHold())return;
   const page=pages.find(p=>p.id===pageId)||pages[0];if(!page)return;pageId=page.id;
-  const capacity=boardCapacity(),total=Math.max(1,Math.ceil(page.buttons.length/capacity));if(slice>=total)slice=total-1;
+  const visible=typeof soundpadBoardButtons==='function'?soundpadBoardButtons(page):page.buttons;
+  const focusedSound=typeof rememberSoundpadBoardFocus==='function'?rememberSoundpadBoardFocus(page):null;
+  const capacity=boardCapacity(),total=Math.max(1,Math.ceil(visible.length/capacity));if(slice>=total)slice=total-1;
   const keys=$('#keys');keys.replaceChildren();
-  for(const a of page.buttons.slice(slice*capacity,slice*capacity+capacity)){
+  for(const a of visible.slice(slice*capacity,slice*capacity+capacity)){
     const button=document.createElement('button');button.className='key '+(['violet','amber','red','blue'].includes(a.color)?a.color:'blue');button.dataset.id=a.id;
     const active=a.kind==='scene'&&state.obsConnected&&a.target===state.scene;
     button.classList.toggle('active',active);button.setAttribute('aria-label',labelFor(a)+(active?', active':''));button.title=labelFor(a);
-    button.innerHTML=DOMPurify.sanitize(actionIcon(a)+`<span class="key-label">${esc(labelFor(a))}</span>`+(active?'<span class="active-tag">ACTIVE</span>':a.configured===false?'<small>Set up on PC</small>':''));
+    button.innerHTML=DOMPurify.sanitize(actionIcon(a)+`<span class="key-label">${esc(labelFor(a))}</span>`+(active?'<span class="active-tag">ACTIVE</span>':a.configured===false?`<small>${page.liveSoundpad?'Unavailable':'Set up on PC'}</small>`:''));
     button.onclick=()=>trigger(a,button);keys.appendChild(button);
   }
-  if(page.buttons.length===0){const empty=document.createElement('div');empty.className='empty-key';empty.innerHTML=DOMPurify.sanitize(icon(page.icon)+(page.liveScenes?'<strong>No live OBS scenes available</strong><span>Connect OBS in Windows setup. This page follows its current scene collection automatically.</span>':'<strong>No buttons yet</strong><span>Add actions using Edit in the Windows companion.</span>'));keys.appendChild(empty);}
+  if(visible.length===0){const empty=document.createElement('div');empty.className='empty-key';empty.innerHTML=DOMPurify.sanitize(icon(page.icon)+(page.liveSoundpad?(page.buttons.length?'<strong>No matching sounds</strong><span>Clear the search or choose All categories to see every sound.</span>':'<strong>No live Soundpad sounds available</strong><span>Keep Soundpad running on the PC. This page follows its entire loaded library automatically.</span>'):page.liveScenes?'<strong>No live OBS scenes available</strong><span>Connect OBS in Windows setup. This page follows its current scene collection automatically.</span>':'<strong>No buttons yet</strong><span>Add actions using Edit in the Windows companion.</span>'));keys.appendChild(empty);}
   const pagination=$('#pagination');pagination.hidden=total<=1;pagination.innerHTML=DOMPurify.sanitize(`<button id="prev-keys" class="quiet" ${slice===0?'disabled':''}>Previous</button><span>Page ${slice+1} of ${total}</span><button id="next-keys" class="quiet" ${slice===total-1?'disabled':''}>Next</button>`);
   $('#prev-keys').onclick=()=>{slice--;renderBoard();};$('#next-keys').onclick=()=>{slice++;renderBoard();};
+  if(typeof soundpadBoardPagination==='function')soundpadBoardPagination(page,total);
+  if(typeof restoreSoundpadBoardFocus==='function')restoreSoundpadBoardFocus(focusedSound);
   const nav=$('#pages');nav.replaceChildren();
   const profileButton=document.createElement('button');profileButton.className='page-tab profile-launch';profileButton.id='profiles-button';profileButton.title='Profiles · '+activeProfileName;profileButton.setAttribute('aria-label','Profiles · '+activeProfileName);profileButton.innerHTML=DOMPurify.sanitize(icon('grid')+'<span>Profiles</span>');profileButton.onclick=()=>showProfiles();nav.appendChild(profileButton);
   for(const p of pages){const button=document.createElement('button');button.className='page-tab'+(p.id===pageId?' selected':'');button.setAttribute('aria-current',p.id===pageId?'page':'false');button.innerHTML=DOMPurify.sanitize(icon(p.icon==='home'&&p.id===pageId?'homeFilled':p.icon)+`<span>${esc(p.name)}</span>`);button.onclick=()=>{pageId=p.id;slice=0;renderBoard();};nav.appendChild(button);}
@@ -141,7 +145,7 @@ function renderBoard(){
 async function trigger(a,button){
   if(preview){notice('Design preview — pair a tablet to use real controls.');return;}
   if(busy){notice('An action is still running.');return;}
-  if(a.configured===false){notice('Set this button’s file, app, or shortcut using Edit on the PC.',true);return;}
+  if(a.configured===false){notice(a.id.startsWith('live-soundpad:')?'This sound has no unique file identity in Soundpad. Check duplicated or missing entries, then refresh.':'Set this button’s file, app, or shortcut using Edit on the PC.',true);return;}
   let confirmed=false;if(a.confirm){confirmed=await confirmAction(labelFor(a)+'?',a.kind==='stream'?'This changes the stream broadcast in OBS.':'Run this action on your streaming PC?');if(!confirmed)return;}
   busy=true;button.disabled=true;button.classList.add('pressed');
   executionPending=labelFor(a);renderExecution();
@@ -159,8 +163,9 @@ function updateState(){
   if(typeof syncSceneCatalog==='function')syncSceneCatalog();
   if(state.profileId&&activeProfileId!==state.profileId)lastBoard=0;
   if(state.execution)acceptExecution(state.execution);
-  $('#obs-dot').classList.toggle('connected',!!state.obsConnected);$('#obs-status').textContent=state.pcConnected===false?'PC disconnected':state.obsConnected?'OBS connected':'OBS disconnected';
-  $('#connection').title=state.error||'Connection settings';$('#transport').textContent=preview?'Preview':native?(connection.mode==='usb'?'USB':'Wi-Fi'):'PC editor';
+  const computerSurface=document.body.classList.contains('computer-mode');
+  $('#obs-dot').classList.toggle('connected',computerSurface?state.pcConnected===true:!!state.obsConnected);$('#obs-status').textContent=computerSurface?(state.pcConnected===false?'PC disconnected':state.pcConnected===true?'PC connected':'Connecting to PC'):state.pcConnected===false?'PC disconnected':state.obsConnected?'OBS connected':'OBS disconnected';
+  $('#connection').title=computerSurface?(state.pcConnected===false?state.error||'Reconnect the PC':'Connection settings'):state.error||'Connection settings';$('#transport').textContent=preview?'Preview':native?(connection.mode==='usb'?'USB':'Wi-Fi'):'PC editor';
   $('#stream-status').innerHTML=DOMPurify.sanitize(`<span class="dot ${state.obsConnected&&state.streaming?'live':''}"></span>${!state.obsConnected?'Stream unknown':state.streaming?'Streaming live':state.recording?'Recording':'Stream offline'}`);
   if(desktopConsole){if(typeof renderConsoleSummary==='function')renderConsoleSummary();return;}
   for(const ch of ['mic','desktop']){
@@ -185,7 +190,7 @@ function updateState(){
 async function refresh(force=false){
   if(refreshing||preview||(!force&&(document.hidden||panel.open)))return;refreshing=true;
   try{
-    if((typeof arranging==='undefined'||!arranging)&&(force||Date.now()-lastBoard>10000)){const board=await api('/api/board');if(typeof board.sceneCatalogRevision==='string')liveCatalogRevision=board.sceneCatalogRevision;const signature=JSON.stringify([board.profileId,board.profileName,board.pages]);if(signature!==boardSignature){if(activeProfileId!==board.profileId){pageId='';slice=0;}activeProfileId=board.profileId||'';activeProfileName=board.profileName||'Default';pages=board.pages;boardSignature=signature;boardRevision++;if(typeof hasActiveHold!=='function'||!hasActiveHold())renderBoard();}lastBoard=Date.now();}
+    if((typeof arranging==='undefined'||!arranging)&&(force||Date.now()-lastBoard>(pages.some(p=>p.liveSoundpad)?5000:10000))){const board=await api('/api/board');if(typeof board.sceneCatalogRevision==='string')liveCatalogRevision=board.sceneCatalogRevision;const signature=JSON.stringify([board.profileId,board.profileName,board.pages]);if(signature!==boardSignature){if(activeProfileId!==board.profileId){pageId='';slice=0;}activeProfileId=board.profileId||'';activeProfileName=board.profileName||'Default';pages=board.pages;boardSignature=signature;boardRevision++;if(typeof hasActiveHold!=='function'||!hasActiveHold())renderBoard();}lastBoard=Date.now();}
     if(force||typeof hasLiveState!=='function'||!hasLiveState()){const next=await api('/api/state');if(typeof acceptDeckState==='function')acceptDeckState(next);else state=next;}state.pcConnected=true;updateState();
   }catch(error){state={pcConnected:false,obsConnected:false,inputs:{},error:error.message};updateState();if(force)notice(error.message,true);}
   finally{refreshing=false;}

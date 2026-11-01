@@ -92,7 +92,7 @@ public sealed class ComputerCopilot
         var active=settings.Automatic&&detected.Length>0?detected:settings.ManualPresetId;
         var nextKey=$"{revision}:{active}:{current.Application}:{current.Available}:{current.WindowId}:{current.ProcessId}";
         if(contextKey!=nextKey){contextKey=nextKey;token=Guid.NewGuid().ToString("N");}
-        var status=loadWarning.Length>0?loadWarning:!settings.Enabled?"Computer controls are off. Enable them in the PC settings.":!current.Available?"Cannot read the foreground app. Global media and app-switching controls remain available.":settings.Automatic&&detected.Length>0?"Controls follow the foreground app.":"Manual preset. Focus the matching PC app before using its controls.";
+        var status=loadWarning.Length>0?loadWarning:!settings.Enabled?"Computer controls are off. Enable them in the PC settings.":active=="spotify"?"Live controls target Spotify's own player session.":active=="youtube"?"Choose the browser player by its current title. Controls affect only that selected session.":!current.Available?"Cannot read the foreground app. Global media and app-switching controls remain available.":settings.Automatic&&detected.Length>0?"Controls follow the foreground app.":"Manual preset. Focus the matching PC app before using its controls.";
         return new(Clone(settings),new(current.Application,current.Available),detected,active,token,status,new(true,false,false,"A real extra Windows desktop requires a separately installed virtual or indirect display driver and tablet transport. This controller does not install a driver or create a display."));
     }
     public CopilotSnapshot Snapshot(){lock(gate)return SnapshotLocked();}
@@ -108,6 +108,7 @@ public sealed class ComputerCopilot
                 if(request.ContextToken!=state.ContextToken||request.PresetId!=state.ActivePresetId)throw new InvalidOperationException("The foreground app or controls changed. Refresh before tapping again.");
                 var preset=settings.Presets.Single(p=>p.Id==request.PresetId);
                 var control=preset.Controls.FirstOrDefault(c=>c.Id==request.ControlId)??throw new ArgumentException("This control no longer exists. Refresh the controls.");
+                if(preset.Id is "spotify" or "youtube"&&(control.Global||control.Group is "Media" or "Player" or "Volume"))throw new InvalidOperationException("Use the selected player's live controls. Global media shortcuts are disabled in Spotify and YouTube layouts.");
                 if(control.Shortcut.Length==0)throw new InvalidOperationException("Assign this shortcut in the PC settings first.");
                 if(!control.Global&&(!state.Foreground.Available||!preset.Applications.Contains(state.Foreground.Application,StringComparer.OrdinalIgnoreCase)))throw new InvalidOperationException("Focus a matching PC app before using this control.");
                 action=new DeckAction{Id="copilot-"+preset.Id+"-"+control.Id,Kind="hotkey",Label=control.Label,Target=Normalize(control.Shortcut),Icon="keyboard",Color="blue"};

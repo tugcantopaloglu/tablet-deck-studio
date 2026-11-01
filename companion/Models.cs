@@ -26,6 +26,8 @@ public sealed class DeckPage
     public string Name { get; set; } = "New page";
     public string Icon { get; set; } = "grid";
     public bool LiveScenes { get; set; }
+    public bool LiveSoundpad { get; set; }
+    public string LiveSoundpadOutput { get; set; } = "mic";
     public List<DeckAction> Buttons { get; set; } = [];
 }
 public sealed class DeckConfig
@@ -163,9 +165,11 @@ public sealed partial class DataStore
     }
     private static void ValidatePages(List<DeckPage> pages,HashSet<string> ids,HashSet<string> pageIds)
     {
+        if(pages is not null&&pages.Count(p=>p?.LiveSoundpad==true)>1)throw new ArgumentException("Choose one live Soundpad page per profile.");
         if(pages is null||pages.Count is <1 or >30)throw new ArgumentException("Each profile needs 1–30 pages.");
         foreach(var page in pages)
         {
+            if(page is not null&&(page.LiveScenes&&page.LiveSoundpad||page.LiveSoundpadOutput is not ("mic" or "speakers" or "both")))throw new ArgumentException("Choose one live source per page and a valid Soundpad output.");
             if(page is null||string.IsNullOrWhiteSpace(page.Id)||!pageIds.Add(page.Id)||string.IsNullOrWhiteSpace(page.Name)||page.Name.Length>30||page.Buttons is null||page.Buttons.Count>120) throw new ArgumentException("Each page needs a unique identity, name, and at most 120 buttons.");
             foreach(var action in page.Buttons)
             {
