@@ -38,5 +38,6 @@ document.addEventListener('DOMContentLoaded',async()=>{
   $('#console-stop').onclick=stopConsoleCompanion;
   panel.addEventListener('close',()=>{if(!panel.open)consoleViewChanged('overview');});
   await refresh(true);await refreshConsoleConnections();
+  if(new URLSearchParams(location.search).get('section')==='updates')await consoleNavigate('console-options',showDesktopSettings);
 });
 setInterval(()=>{if(desktopConsole&&!document.hidden&&!panel.open)refreshConsoleConnections();},5000);

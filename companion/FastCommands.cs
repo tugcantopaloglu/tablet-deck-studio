@@ -8,6 +8,11 @@ internal sealed class FastCommands(DataStore store,DeckEngine engine,HoldKeys ho
     private readonly object configurationGate=new();
     private readonly Dictionary<string,DateTimeOffset> profileLocks=new();
     private DateTimeOffset manualProfileUntil;
+    private bool maintenance;
+    public bool Maintenance{get{lock(configurationGate)return maintenance;}}
+    public bool CanUpdateTablet{get{lock(configurationGate)return !maintenance&&engine.Execution.Status.Active is null&&!holds.Active&&!profileLocks.Any(p=>p.Key!="admin"&&p.Value>DateTimeOffset.UtcNow);}}
+    public void BeginMaintenance(){lock(configurationGate){if(engine.Execution.Status.Active is not null||holds.Active)throw new InvalidOperationException("Finish the running action and release held keys before installing.");maintenance=true;}}
+    public void EndMaintenance(){lock(configurationGate)maintenance=false;}
     public void ProfileLock(string principal,bool active){lock(configurationGate){foreach(var key in profileLocks.Where(p=>p.Value<DateTimeOffset.UtcNow).Select(p=>p.Key).ToArray())profileLocks.Remove(key);if(active)profileLocks[principal]=DateTimeOffset.UtcNow.AddSeconds(12);else profileLocks.Remove(principal);}}
     public void ManualProfile(string id){lock(configurationGate){ChangeBoard(()=>store.SwitchProfile(id));manualProfileUntil=DateTimeOffset.UtcNow.AddSeconds(30);}}
     public bool AutoProfile(string id){lock(configurationGate){if(engine.Execution.Status.Active is not null||holds.Active||DateTimeOffset.UtcNow<manualProfileUntil||profileLocks.Values.Any(until=>until>DateTimeOffset.UtcNow))return false;if(store.Config.ProfileId!=id){store.SwitchProfile(id);engine.Invalidate();}return true;}}
@@ -18,6 +23,7 @@ internal sealed class FastCommands(DataStore store,DeckEngine engine,HoldKeys ho
     {
         Task running;
         lock(configurationGate){
+            if(maintenance)throw new InvalidOperationException("The companion is restarting for an update. Try again after it reconnects.");
             var action=store.Config.Pages.SelectMany(page=>page.Buttons).FirstOrDefault(action=>action.Id==request.Id)??throw new ArgumentException("This button no longer exists. Reload the board.");
             if(DeckEngine.NeedsConfirm(action)&&!request.Confirmed)throw new InvalidOperationException("Confirm this action on the tablet.");
             running=engine.Execute(action);
@@ -29,11 +35,12 @@ internal sealed class FastCommands(DataStore store,DeckEngine engine,HoldKeys ho
         if(request.Operation=="release"){holds.Release(principal,request.Lease);return new{ok=true};}
         if(request.Operation=="renew"){holds.Renew(principal,request.Lease);return new{ok=true};}
         if(request.Operation!="begin")throw new ArgumentException("Unknown hold operation.");
-        lock(configurationGate){var action=store.Config.Pages.SelectMany(page=>page.Buttons).FirstOrDefault(action=>action.Id==request.Id);if(action?.Kind!="holdHotkey")throw new ArgumentException("Choose a configured hold shortcut button.");return new HoldLease(holds.Begin(principal,action.Target));}
+        lock(configurationGate){if(maintenance)throw new InvalidOperationException("The companion is restarting for an update.");var action=store.Config.Pages.SelectMany(page=>page.Buttons).FirstOrDefault(action=>action.Id==request.Id);if(action?.Kind!="holdHotkey")throw new ArgumentException("Choose a configured hold shortcut button.");return new HoldLease(holds.Begin(principal,action.Target));}
     }
     public static bool Supports(string path)=>path is "/api/action" or "/api/audio" or "/api/mute" or "/api/hold" or "/api/apps" or "/api/ping" or "/api/cancel";
     public async Task<object> Execute(string path,JsonElement body,string principal)
     {
+        if(Maintenance&&path is not ("/api/ping" or "/api/cancel" or "/api/hold"))throw new InvalidOperationException("The companion is restarting for an update.");
         switch(path) {
             case "/api/ping":return new{pong=true};
             case "/api/cancel":return new{cancelled=engine.Execution.Cancel((body.Deserialize<CancelRequest>(DataStore.Json)??throw new ArgumentException("Missing cancellation request.")).Id)};

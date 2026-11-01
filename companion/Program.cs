@@ -8,7 +8,7 @@ using System.Text.Json.Nodes;
 using System.Diagnostics;
 using System.Globalization;
 
-var flagOptions=new HashSet<string>(StringComparer.Ordinal){"--self-test","--boards-self-test","--studio-self-test","--monitor-self-test","--desktop-window-self-test","--audio-smoke-test","--hardening-self-test","--no-browser","--no-tray","--tray"};
+var flagOptions=new HashSet<string>(StringComparer.Ordinal){"--self-test","--boards-self-test","--studio-self-test","--monitor-self-test","--update-self-test","--desktop-window-self-test","--audio-smoke-test","--hardening-self-test","--no-browser","--no-tray","--tray","--after-update"};
 var valueOptions=new HashSet<string>(StringComparer.Ordinal){"--data-dir","--http-port","--https-port","--control-port"};
 for(var i=0;i<args.Length;i++){
     if(flagOptions.Contains(args[i]))continue;
@@ -19,6 +19,7 @@ if(args.Contains("--self-test")) { SelfTests.Run();return; }
 if(args.Contains("--boards-self-test")) {BoardStorageTests.Run();return;}
 if(args.Contains("--studio-self-test")) {await StudioTests.Run();return;}
 if(args.Contains("--monitor-self-test")) {await MonitorTests.Run();return;}
+if(args.Contains("--update-self-test")){await UpdateTests.Run();return;}
 if(args.Contains("--desktop-window-self-test")){var testDir=Array.IndexOf(args,"--data-dir");if(testDir<0)throw new ArgumentException("An isolated test data directory is required.");await DesktopWindowTests.Run(args[testDir+1]);return;}
 if(args.Contains("--audio-smoke-test")) {await SelfTests.AudioSmokeTest();return;}
 if(args.Contains("--hardening-self-test")) {await HardeningTests.Run();return;}
@@ -66,6 +67,8 @@ await using var fastControl=new FastControlServer(store,fastCommands,stateUpdate
 var desktop=new DesktopPreferences(store.DirectoryPath);
 using var usb=new UsbReconnect(desktop,httpsPort,controlPort);
 using var updates=new ReleaseUpdates();
+using var selfUpdate=new SelfUpdate(store.DirectoryPath,updates);
+using var usbApkUpdate=new UsbApkUpdate(store.DirectoryPath,desktop,updates,()=>fastCommands.CanUpdateTablet);
 using var autoProfiles=new AutoProfiles(store.DirectoryPath,id=>store.ProfileList().Any(p=>p.Id==id),fastCommands.AutoProfile);
 var boardPacks=new BoardPacks(store);
 using var backgroundStop=new CancellationTokenSource();
@@ -86,6 +89,7 @@ app.Use(async (ctx,next)=>{
         if(ctx.Request.Headers["Sec-Fetch-Site"]=="cross-site") {ctx.Response.StatusCode=403;return;}
         if(ctx.Request.Path.StartsWithSegments("/api/admin")&&!IsAdmin(ctx)) {ctx.Response.StatusCode=403;return;}
         if(ctx.Request.Path!="/api/pair"&&!IsAuthorized(ctx)) {ctx.Response.StatusCode=401;await ctx.Response.WriteAsJsonAsync(new{error="Pair this tablet with the companion first."});return;}
+        if(fastCommands.Maintenance&&ctx.Request.Method!="GET"&&ctx.Request.Path!="/api/hold"&&ctx.Request.Path!="/api/cancel"){ctx.Response.StatusCode=409;await ctx.Response.WriteAsJsonAsync(new{error="The companion is restarting for an update."});return;}
         try {await next(ctx);} catch(Exception ex) when(ex is not OutOfMemoryException) {
             ctx.Response.StatusCode=ex is JsonException or ArgumentException ? 400 : 409;
             await ctx.Response.WriteAsJsonAsync(new {error=ex is OperationCanceledException?"The action timed out. Check OBS and try again.":ex.Message});
@@ -149,9 +153,19 @@ app.MapPost("/api/pair",(PairRequest req)=>{
 app.MapGet("/api/admin/info",()=>new {httpPort,httpsPort,controlPort,fingerprint,certificateCode=fingerprint[..24],addresses=NetworkAddresses(),lanAddresses=NetworkLanAddresses(),connectedTablets=fastControl.ConnectedDevices,dataDirectory=store.DirectoryPath,devices=store.Devices.Select(d=>new{d.Id,d.Name,d.Added,lastSeen=store.LastSeen(d),fastConnected=fastControl.Connected(d.TokenHash)})});
 app.MapPost("/api/admin/pairing",()=>new{code=pairing.Open(),expiresIn=300,certificateCode=fingerprint[..24]});
 app.MapPost("/api/admin/revoke",(RevokeRequest req)=>{var owner=store.Devices.FirstOrDefault(device=>device.Id==req.Id)?.TokenHash;store.Revoke(req.Id);if(owner is not null){holds.ReleaseOwner(owner);fastControl.Revoke(owner);}return Results.Ok(new{ok=true});});
-app.MapGet("/api/admin/desktop",()=>new{settings=desktop.Get(),startWithWindows=DesktopPreferences.StartsWithWindows(),usbStatus=usb.Status,update=updates.Status});
+app.MapGet("/api/admin/desktop",()=>new{settings=desktop.Get(),startWithWindows=DesktopPreferences.StartsWithWindows(),usbStatus=usb.Status,update=updates.Status,installation=selfUpdate.Status,tabletUpdate=usbApkUpdate.Status});
 app.MapPost("/api/admin/desktop",(DesktopRequest req)=>{DesktopPreferences.Validate(req.Settings);if(req.StartWithWindows is not null)DesktopPreferences.SetStartup(req.StartWithWindows.Value);desktop.Save(req.Settings);return Results.Ok(new{ok=true});});
 app.MapPost("/api/admin/updates",async (CancellationToken ct)=>await updates.Check(true,ct));
+app.MapGet("/api/admin/updates/status",()=>selfUpdate.Status);
+app.MapPost("/api/admin/updates/download",()=>selfUpdate.BeginDownload());
+app.MapGet("/api/admin/updates/tablet",()=>usbApkUpdate.Status);
+app.MapPost("/api/admin/updates/tablet",(InstallUpdateRequest req)=>{if(!req.Confirmed)throw new ArgumentException("Confirm the optional USB APK update first.");return usbApkUpdate.Begin(true);});
+app.MapPost("/api/admin/updates/install",(InstallUpdateRequest req,HttpContext ctx,IHostApplicationLifetime lifetime)=>{
+    if(!req.Confirmed)throw new ArgumentException("Confirm installation and restart first.");
+    if(usbApkUpdate.Status.Phase is "checking" or "downloading" or "installing")throw new InvalidOperationException("Wait for the tablet update to finish before restarting Windows.");fastCommands.BeginMaintenance();
+    try{if(usbApkUpdate.Status.Phase is "checking" or "downloading" or "installing")throw new InvalidOperationException("Wait for the tablet update to finish before restarting Windows.");selfUpdate.LaunchInstaller();}catch{fastCommands.EndMaintenance();throw;}
+    ctx.Response.OnCompleted(()=>{lifetime.StopApplication();return Task.CompletedTask;});return Results.Ok(new{ok=true});
+});
 app.MapPost("/api/admin/soundpad/remap",async (RemapRequest req,HttpContext ctx)=>{if(req.LinkLegacy&&!req.Confirmed)throw new ArgumentException("Verify existing Soundpad indices before linking old buttons.");return SoundpadBindings.Remap(store,await SoundpadLibrary.Get(true,ctx.RequestAborted),req.LinkLegacy);});
 app.MapGet("/api/admin/config",()=>{
     var current=store.Config;var result=JsonSerializer.SerializeToNode(current,DataStore.Json)!.AsObject();result.Remove("profiles");result.Remove("favourites");result["obsPassword"]="";result["passwordConfigured"]=current.ObsPassword.Length>0;return result;
@@ -192,7 +206,7 @@ app.MapPost("/api/admin/import-scenes",async ()=>{
 });
 app.MapPost("/api/admin/window",async()=>{if(tray is null)return Results.Conflict(new{error="The companion is running headlessly. Restart it normally to enable the desktop window."});await tray.OpenConsole();return Results.Ok(new{ok=true});});
 app.MapPost("/api/admin/shutdown",(IHostApplicationLifetime lifetime)=>{lifetime.StopApplication();return Results.Ok(new{ok=true});});
-var panel=$"http://127.0.0.1:{httpPort}/desktop.html#admin={adminToken}";
+var panel=$"http://127.0.0.1:{httpPort}/desktop.html"+(args.Contains("--after-update")?"?section=updates":"")+$"#admin={adminToken}";
 File.WriteAllText(Path.Combine(store.DirectoryPath,"admin-session.json"),JsonSerializer.Serialize(new{token=adminToken,httpPort,httpsPort},DataStore.Json));
 app.Lifetime.ApplicationStarted.Register(()=>{
     try{fastControl.Start();}catch(SocketException){Console.Error.WriteLine("Fast control port is unavailable. HTTPS fallback remains active.");}
@@ -200,6 +214,7 @@ app.Lifetime.ApplicationStarted.Register(()=>{
     Console.WriteLine($"Tablet encrypted port: {httpsPort}. Tray menu > Exit, or Ctrl+C, closes the companion.");
     if(!args.Contains("--no-tray")&&(args.Contains("--tray")||!args.Contains("--no-browser")))tray=new DesktopTray(panel,store.DirectoryPath,desktop,updates,()=>app.Lifetime.StopApplication(),!args.Contains("--no-browser"));
     usb.Start();
+    usbApkUpdate.Start();
     autoProfiles.Start();
 });
 var updateLoop=Task.Run(async()=>{while(!backgroundStop.IsCancellationRequested){try{if(desktop.Get().UpdateNotifications)await updates.Check(false,backgroundStop.Token);await Task.Delay(TimeSpan.FromMinutes(15),backgroundStop.Token);}catch(OperationCanceledException){break;}}});
@@ -226,6 +241,7 @@ record SoundpadPlayRequest(int Index,string Output="mic",string Key="");
 record SoundpadImportRequest(string PageId,int[] Indices,string Output="mic");
 record HoldRequest(string Operation,string Id="",string Lease="");
 record DesktopRequest(DesktopSettings Settings,bool? StartWithWindows=null);
+record InstallUpdateRequest(bool Confirmed=false);
 record RemapRequest(bool LinkLegacy=false,bool Confirmed=false);
 sealed class Pairing
 {

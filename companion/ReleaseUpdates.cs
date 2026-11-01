@@ -4,6 +4,7 @@ using System.Text.Json;
 namespace TabletDeck;
 
 public sealed record ReleaseStatus(string CurrentVersion,string? LatestVersion,bool Available,string Url,string? Error=null);
+public sealed record InstallerRelease(string Version,string Url,long Size,string Sha256);
 public sealed class ReleaseUpdates : IDisposable
 {
     public const string ReleasesUrl="https://github.com/tugcantopaloglu/tablet-deck-studio/releases";
@@ -16,6 +17,30 @@ public sealed class ReleaseUpdates : IDisposable
     public ReleaseUpdates():this(new HttpClient(new HttpClientHandler{AllowAutoRedirect=false}),typeof(ReleaseUpdates).Assembly.GetName().Version?.ToString(3)??"1.3.0") { }
     internal ReleaseUpdates(HttpClient client,string version){this.client=client;this.version=version;status=new(version,null,false,ReleasesUrl);client.Timeout=TimeSpan.FromSeconds(8);client.DefaultRequestHeaders.UserAgent.ParseAdd("TabletDeck-Studio/"+version);client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));}
     public ReleaseStatus Status=>Volatile.Read(ref status);
+    internal static InstallerRelease ParseInstaller(string json,string current)
+        =>ParseAsset(json,current,"TabletDeck-Setup.exe",250L*1024*1024);
+    internal static InstallerRelease ParseAsset(string json,string current,string name,long limit)
+    {
+        var status=Parse(json,current);if(!status.Available)throw new IOException("The installed version is already current.");
+        using var document=JsonDocument.Parse(json);var release=document.RootElement;var tag=release.GetProperty("tag_name").GetString()??"";
+        var stable=Version.Parse(status.LatestVersion!);if(tag!="v"+status.LatestVersion||stable.Build<0||stable.Revision>=0)throw new IOException("Unsupported release tag.");
+        if(name is not ("TabletDeck-Setup.exe" or "TabletDeck-Studio.apk"))throw new IOException("Unsupported update asset.");
+        var assets=release.GetProperty("assets").EnumerateArray().Where(a=>a.GetProperty("name").GetString()==name).ToArray();
+        if(assets.Length!=1)throw new IOException("This release does not include a Windows updater.");var asset=assets[0];
+        var expected=$"https://github.com/tugcantopaloglu/tablet-deck-studio/releases/download/{tag}/{name}";
+        var size=asset.GetProperty("size").GetInt64();var digest=asset.GetProperty("digest").GetString()??"";
+        if(asset.GetProperty("browser_download_url").GetString()!=expected||size<1024||size>limit||!digest.StartsWith("sha256:",StringComparison.Ordinal)||digest.Length!=71||!digest[7..].All(Uri.IsHexDigit))throw new IOException("The release asset has invalid download or checksum metadata.");
+        return new(status.LatestVersion!,expected,size,digest[7..].ToUpperInvariant());
+    }
+    public Task<InstallerRelease> Installer(CancellationToken ct=default)=>Asset("TabletDeck-Setup.exe",version,250L*1024*1024,ct);
+    public Task<InstallerRelease> Apk(CancellationToken ct=default)=>Asset("TabletDeck-Studio.apk","0.0.0",64L*1024*1024,ct);
+    private async Task<InstallerRelease> Asset(string name,string current,long limit,CancellationToken ct)
+    {
+        using var response=await client.GetAsync("https://api.github.com/repos/tugcantopaloglu/tablet-deck-studio/releases/latest",HttpCompletionOption.ResponseHeadersRead,ct);response.EnsureSuccessStatusCode();
+        await using var stream=await response.Content.ReadAsStreamAsync(ct);using var bytes=new MemoryStream();var buffer=new byte[8192];int count;
+        while((count=await stream.ReadAsync(buffer,ct))>0){bytes.Write(buffer,0,count);if(bytes.Length>256*1024)throw new IOException("Release response exceeds the size limit.");}
+        return ParseAsset(System.Text.Encoding.UTF8.GetString(bytes.ToArray()),current,name,limit);
+    }
     internal static ReleaseStatus Parse(string json,string current)
     {
         using var document=JsonDocument.Parse(json);var release=document.RootElement;

@@ -13,3 +13,5 @@ body.desktop-console,body.desktop-console.studio-tools-ready,body.desktop-consol
 .console-sidebar>.danger{margin-top:20px;width:100%;font-size:13px}
 .console-brand>img{display:block;margin-bottom:12px}
 .desktop-console :is(input,textarea)::placeholder{color:var(--secondary);opacity:1}
+.update-options{margin-top:32px;padding-top:24px;border-top:1px solid var(--outline)}
+.update-options>h3{margin:24px 0 12px}.desktop-console .update-options>.check{display:flex;flex-direction:row;align-items:center;gap:12px;white-space:normal;margin:12px 0;min-height:48px}.update-options>.check>input{flex-shrink:0}

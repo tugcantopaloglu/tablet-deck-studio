@@ -11,11 +11,14 @@ var install=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Loc
 var testMode=args.Contains("--test-mode");
 if(testMode)install=Path.Combine(Path.GetTempPath(),"TabletDeckStudioSetupTests","TabletDeckStudio");
 try {
+    var flags=new HashSet<string>(StringComparer.Ordinal){"--uninstall","--test-mode","--no-shortcuts","--verify-payload","--quiet","--update-running","--restart"};var values=new HashSet<string>(StringComparer.Ordinal){"--wait-pid","--expected-exe","--expected-version"};
+    for(var index=0;index<args.Length;index++){if(flags.Contains(args[index]))continue;if(values.Contains(args[index])&&index+1<args.Length&&!args[index+1].StartsWith("--",StringComparison.Ordinal)){index++;continue;}throw new IOException("Unknown or incomplete installer option. No files were changed.");}
     if(args.Contains("--uninstall")){Uninstall(install,testMode||args.Contains("--no-shortcuts"));return;}
     using var payload=Assembly.GetExecutingAssembly().GetManifestResourceStream("TabletDeck.Payload.zip")??throw new IOException("Installer payload is missing. Build with -p:PayloadArchive=FULL_ZIP_PATH.");
     using var archive=new ZipArchive(payload,ZipArchiveMode.Read);
     var entries=Verify(archive);
     if(args.Contains("--verify-payload")){Console.WriteLine("PASS embedded payload paths and SHA-256 checksums ("+entries.Count+" files).");return;}
+    if(args.Contains("--update-running")){RunningUpdate.Apply(entries,args,testMode,Inside);return;}
     if(!args.Contains("--quiet")) {
         Console.WriteLine("Tablet Deck Studio installer\nInstall to: "+install+"\nExit the companion from its tray menu before updating. No apps are launched by this installer.\nType INSTALL to continue, or close this window:");
         if(Console.ReadLine()!="INSTALL")return;

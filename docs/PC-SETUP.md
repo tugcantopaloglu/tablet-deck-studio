@@ -8,6 +8,8 @@ The desktop window uses the [Microsoft Edge WebView2 Evergreen Runtime](https://
 
 The Windows console opens its overview. The tablet keeps its control board, Full pad and arrangement tools. The older PC setup panel remains available through More tools for compatibility; the sidebar is the current entry point.
 
+**Windows options** also contains verified Windows download/install controls and optional manual/automatic USB APK updating. The sticky Save button applies preferences; download/install actions have their own status and confirmation. See [Windows and Android updates](UPDATES.md).
+
 ## Pair a tablet
 
 Choose **Tablet connections**. Install the APK on Android and enter the address, certificate code, and single-use PIN shown on the PC, or use Show pairing QR. PINs expire after five minutes; generate another if needed. Pairing is shared across profiles.

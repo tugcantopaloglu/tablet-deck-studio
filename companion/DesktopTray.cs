@@ -12,9 +12,11 @@ public sealed class DesktopTray : IDisposable
     private readonly TaskCompletionSource<Forms.Control> ready=new(TaskCreationOptions.RunContinuationsAsynchronously);
     private DesktopConsole? console;
     private readonly string editor,dataDirectory;
+    private readonly Action checkOnOpen;
     public DesktopTray(string editor,string dataDirectory,DesktopPreferences preferences,ReleaseUpdates updates,Action stop,bool openWindow=false)
     {
         this.editor=editor;this.dataDirectory=dataDirectory;
+        checkOnOpen=()=>{if(preferences.Get().UpdateNotifications)_=updates.Check(false);};
         thread=new Thread(()=>{
             Forms.Application.EnableVisualStyles();
             using var control=new Forms.Control();_ = control.Handle;dispatcher=control;
@@ -27,7 +29,7 @@ public sealed class DesktopTray : IDisposable
             using var appIcon=AppIcon.Load();
             using var icon=new Forms.NotifyIcon{Text="Tablet Deck Studio",Icon=appIcon,ContextMenuStrip=menu,Visible=true};
             icon.DoubleClick+=(_,_)=>ShowConsole();
-            void Notify(ReleaseStatus result){if(control.IsDisposed)return;control.BeginInvoke(new Action(()=>{icon.BalloonTipTitle="Tablet Deck update";icon.BalloonTipText=result.Error??(result.Available?"Version "+result.LatestVersion+" is available. Open Desktop settings to view the release.":"You have the latest stable version.");icon.ShowBalloonTip(8000);}));}
+            void Notify(ReleaseStatus result){if(control.IsDisposed)return;control.BeginInvoke(new Action(()=>{icon.BalloonTipTitle="Tablet Deck update";icon.BalloonTipText=result.Error??(result.Available?"Version "+result.LatestVersion+" is available. Open Windows options to download and install.":"You have the latest stable version.");icon.ShowBalloonTip(8000);}));}
             updates.Found+=Notify;
             menu.Items.Add("Check for updates",null,async (_,_)=>Notify(await updates.Check(true)));
             menu.Items.Add("Exit",null,(_,_)=>stop());
@@ -37,7 +39,7 @@ public sealed class DesktopTray : IDisposable
         }){IsBackground=true,Name="Tablet Deck tray"};
         thread.SetApartmentState(ApartmentState.STA);thread.Start();
     }
-    private void ShowConsole(){if(console is null||console.IsDisposed)console=new DesktopConsole(editor,dataDirectory);console.Open();}
+    private void ShowConsole(){if(console is null||console.IsDisposed)console=new DesktopConsole(editor,dataDirectory);console.Open();checkOnOpen();}
     public async Task OpenConsole(){var control=await ready.Task.WaitAsync(TimeSpan.FromSeconds(5));control.BeginInvoke(new Action(ShowConsole));}
     public void Dispose(){try{dispatcher?.BeginInvoke(new Action(Forms.Application.ExitThread));}catch(InvalidOperationException){}thread.Join(2000);}
 }

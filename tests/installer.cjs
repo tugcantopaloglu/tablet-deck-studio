@@ -10,6 +10,7 @@ const realInstall=path.join(process.env.LOCALAPPDATA,'Programs','TabletDeckStudi
 const signature=()=>fs.existsSync(realInstall)?fs.statSync(realInstall).mtimeMs:null;const before=signature();
 let passed=0;function check(value,label){assert.ok(value,label);passed++;console.log('PASS '+label);}
 function run(args){return spawnSync(setup,args,{windowsHide:true,encoding:'utf8',timeout:60000});}
+const invalid=run(['--test-mode','--quiet','--unknown-option']);check(invalid.status!==0&&!fs.existsSync(parent),'unknown installer option cannot silently perform an installation');
 let result=run(['--verify-payload']);check(result.status===0&&result.stdout.includes('PASS embedded payload'),'embedded package checksums verify');
 result=run(['--test-mode','--quiet']);check(result.status===0&&fs.existsSync(path.join(install,'Windows','TabletDeck-Companion.exe'))&&fs.existsSync(path.join(install,'.tabletdeck-install.json')),'isolated install creates managed files without launching app');
 fs.writeFileSync(path.join(install,'personal-test.txt'),'preserve');result=run(['--test-mode','--quiet']);

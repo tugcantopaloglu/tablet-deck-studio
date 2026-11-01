@@ -8,7 +8,7 @@ function favouriteView(sounds,favourites,only){
 }
 let appSessions=[],appMixerLoading=false,appMixerDragging=false;
 const featureHtml=(element,html)=>{element.innerHTML=DOMPurify.sanitize(html);};
-panel.addEventListener('close',()=>{featureView='';appMixerDragging=false;});
+panel.addEventListener('close',()=>{if(!panel.open)featureView='';appMixerDragging=false;});
 
 async function showSoundpadLibrary(){
   if(preview){notice('Connect a PC to browse its Soundpad library.');return;}

@@ -24,6 +24,8 @@ The low-latency transport and Android packaging fix from 1.4.1 are retained. Phy
 
 **1.11.0 adds a standalone Windows desktop window** with its own taskbar icon, resizing and close-to-tray behavior. Reopening the desktop shortcut or tray icon restores the same window. It also fixes the timer error that blocked desktop navigation, adds rendered click/native-window regression checks, and provides matching minimal application icons for Windows and Android (including adaptive/themed Android icons). The installer creates Desktop and Start menu shortcuts. The Windows app uses Microsoft's Evergreen WebView2 Runtime; if it is missing, the app shows an official download link. See [desktop setup](docs/PC-SETUP.md).
 
+**In-app updates:** Windows options can check at app startup, download a verified Windows update and install/restart on confirmation. Optional USB APK updates support manual installation, automatic checks and a separate reopen setting. Android may require approval and briefly stops the app. Both components keep existing pairing. See the [complete update guide](docs/UPDATES.md).
+
 | Area | Controls |
 | --- | --- |
 | Scenes | Switch program scene, set Studio Mode preview, take a transition |

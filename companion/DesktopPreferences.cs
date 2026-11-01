@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace TabletDeck;
 
-public sealed record DesktopSettings(bool UsbReconnect=false,string UsbSerial="",bool UpdateNotifications=false);
+public sealed record DesktopSettings(bool UsbReconnect=false,string UsbSerial="",bool UpdateNotifications=false,bool UsbApkUpdates=false,bool UsbApkReopen=false);
 public sealed class DesktopPreferences
 {
     private readonly string path;
