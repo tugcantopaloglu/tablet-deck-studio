@@ -11,3 +11,5 @@ body.desktop-console,body.desktop-console.studio-tools-ready,body.desktop-consol
 .desktop-console .live-monitor.video-only,.desktop-console .live-monitor.chat-only{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
 .desktop-console .live-monitor.video-only .monitor-video,.desktop-console .live-monitor.chat-only .monitor-chat{grid-column:1;grid-row:2}
 .console-sidebar>.danger{margin-top:20px;width:100%;font-size:13px}
+.console-brand>img{display:block;margin-bottom:12px}
+.desktop-console :is(input,textarea)::placeholder{color:var(--secondary);opacity:1}

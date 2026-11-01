@@ -15,6 +15,7 @@
     "test:studio-ui": "node studio-ui.cjs",
     "test:monitor": "node monitor.cjs",
     "test:monitor-ui": "node monitor-ui.cjs",
+    "test:desktop-rendered": "node desktop-rendered.cjs",
     "test:integration-headless": "node integration-headless.cjs",
     "test:layout": "node layout.cjs",
     "benchmark:latency": "node latency.cjs"

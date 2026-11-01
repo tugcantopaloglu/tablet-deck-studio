@@ -8,7 +8,7 @@ using System.Text.Json.Nodes;
 using System.Diagnostics;
 using System.Globalization;
 
-var flagOptions=new HashSet<string>(StringComparer.Ordinal){"--self-test","--boards-self-test","--studio-self-test","--monitor-self-test","--audio-smoke-test","--hardening-self-test","--no-browser","--no-tray","--tray"};
+var flagOptions=new HashSet<string>(StringComparer.Ordinal){"--self-test","--boards-self-test","--studio-self-test","--monitor-self-test","--desktop-window-self-test","--audio-smoke-test","--hardening-self-test","--no-browser","--no-tray","--tray"};
 var valueOptions=new HashSet<string>(StringComparer.Ordinal){"--data-dir","--http-port","--https-port","--control-port"};
 for(var i=0;i<args.Length;i++){
     if(flagOptions.Contains(args[i]))continue;
@@ -19,6 +19,7 @@ if(args.Contains("--self-test")) { SelfTests.Run();return; }
 if(args.Contains("--boards-self-test")) {BoardStorageTests.Run();return;}
 if(args.Contains("--studio-self-test")) {await StudioTests.Run();return;}
 if(args.Contains("--monitor-self-test")) {await MonitorTests.Run();return;}
+if(args.Contains("--desktop-window-self-test")){var testDir=Array.IndexOf(args,"--data-dir");if(testDir<0)throw new ArgumentException("An isolated test data directory is required.");await DesktopWindowTests.Run(args[testDir+1]);return;}
 if(args.Contains("--audio-smoke-test")) {await SelfTests.AudioSmokeTest();return;}
 if(args.Contains("--hardening-self-test")) {await HardeningTests.Run();return;}
 string Option(string name,string fallback) {var i=Array.IndexOf(args,name);return i>=0&&i+1<args.Length?args[i+1]:fallback;}
@@ -45,7 +46,7 @@ var adminToken=Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
 var pairing=new Pairing();
 using var singleton=AcquireLock(Path.Combine(store.DirectoryPath,"runtime.lock"));
 if(singleton is null) {
-    if(!args.Contains("--no-browser"))try{using var current=JsonDocument.Parse(File.ReadAllText(Path.Combine(store.DirectoryPath,"admin-session.json")));var port=current.RootElement.GetProperty("httpPort").GetInt32();var token=current.RootElement.GetProperty("token").GetString()??"";if(port is <1 or >65535||token.Length!=64||!token.All(Uri.IsHexDigit))throw new ArgumentException("Invalid local console session.");Process.Start(new ProcessStartInfo($"http://127.0.0.1:{port}/desktop.html#admin={token}"){UseShellExecute=true});}catch(Exception ex) when(ex is not OutOfMemoryException){Console.Error.WriteLine("The companion is running, but its console could not be opened. Restart the companion if the tray is unavailable.");}
+    if(!args.Contains("--no-browser"))try{using var current=JsonDocument.Parse(File.ReadAllText(Path.Combine(store.DirectoryPath,"admin-session.json")));var port=current.RootElement.GetProperty("httpPort").GetInt32();var token=current.RootElement.GetProperty("token").GetString()??"";if(port is <1 or >65535||token.Length!=64||!token.All(Uri.IsHexDigit))throw new ArgumentException("Invalid local console session.");using var client=new HttpClient{Timeout=TimeSpan.FromSeconds(5)};client.DefaultRequestHeaders.Add("X-Deck-Admin",token);using var response=await client.PostAsync($"http://127.0.0.1:{port}/api/admin/window",new StringContent("{}",System.Text.Encoding.UTF8,"application/json"));response.EnsureSuccessStatusCode();}catch(Exception ex) when(ex is not OutOfMemoryException){Console.Error.WriteLine("The companion is running, but its desktop window could not be opened. Stop the headless companion and start it normally to enable the tray and window.");}
     else Console.Error.WriteLine("Tablet Deck is already running. No second service was started.");
     return;
 }
@@ -189,6 +190,7 @@ app.MapPost("/api/admin/import-scenes",async ()=>{
     }
     store.Save(c);});return Results.Ok(new{ok=true});
 });
+app.MapPost("/api/admin/window",async()=>{if(tray is null)return Results.Conflict(new{error="The companion is running headlessly. Restart it normally to enable the desktop window."});await tray.OpenConsole();return Results.Ok(new{ok=true});});
 app.MapPost("/api/admin/shutdown",(IHostApplicationLifetime lifetime)=>{lifetime.StopApplication();return Results.Ok(new{ok=true});});
 var panel=$"http://127.0.0.1:{httpPort}/desktop.html#admin={adminToken}";
 File.WriteAllText(Path.Combine(store.DirectoryPath,"admin-session.json"),JsonSerializer.Serialize(new{token=adminToken,httpPort,httpsPort},DataStore.Json));
@@ -196,10 +198,9 @@ app.Lifetime.ApplicationStarted.Register(()=>{
     try{fastControl.Start();}catch(SocketException){Console.Error.WriteLine("Fast control port is unavailable. HTTPS fallback remains active.");}
     Console.WriteLine($"Tablet Deck Studio is running. PC editor: http://127.0.0.1:{httpPort}");
     Console.WriteLine($"Tablet encrypted port: {httpsPort}. Tray menu > Exit, or Ctrl+C, closes the companion.");
-    if(!args.Contains("--no-tray")&&(args.Contains("--tray")||!args.Contains("--no-browser")))tray=new DesktopTray(panel,desktop,updates,()=>app.Lifetime.StopApplication());
+    if(!args.Contains("--no-tray")&&(args.Contains("--tray")||!args.Contains("--no-browser")))tray=new DesktopTray(panel,store.DirectoryPath,desktop,updates,()=>app.Lifetime.StopApplication(),!args.Contains("--no-browser"));
     usb.Start();
     autoProfiles.Start();
-    if(!args.Contains("--no-browser")) Process.Start(new ProcessStartInfo(panel){UseShellExecute=true});
 });
 var updateLoop=Task.Run(async()=>{while(!backgroundStop.IsCancellationRequested){try{if(desktop.Get().UpdateNotifications)await updates.Check(false,backgroundStop.Token);await Task.Delay(TimeSpan.FromMinutes(15),backgroundStop.Token);}catch(OperationCanceledException){break;}}});
 try {await app.RunAsync();} finally {backgroundStop.Cancel();await updateLoop;tray?.Dispose();holds.ReleaseAll();VoicemeeterClient.Shutdown();WindowsActions.StopSounds();cert.Dispose();}

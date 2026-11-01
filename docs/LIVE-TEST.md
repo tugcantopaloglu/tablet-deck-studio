@@ -2,6 +2,14 @@
 
 ## Version 1.10 development and connection investigation — 2026-11-01
 
+### Version1.11 follow-up on the same date
+
+The user reported dead desktop controls. A real headless Chromium session against the current console reproduced `TypeError: Illegal invocation` in PreviewLoop.stop: a stored native clearTimeout function was invoked with the PreviewLoop receiver. The callback defaults now use wrappers; a late dialog close event is also prevented from hiding a newly opened editor. All existing checks were rerun, with31 additional rendered/API checks and16 native offscreen WebView2 checks. Content captures cover1280×860 and900×620; native frame/taskbar appearance was not visually inspected. The reviewer's one placeholder-contrast finding was fixed and scored resolved after recapture.
+
+APK1.11.0/code14 was installed over the existing app and confirmed via Android package metadata. The running companion was stopped through its protected endpoint and replaced at its existing firewall-allowed path, then launched as a native Windows app. Process metadata confirmed a responsive window titled Tablet Deck Studio; no initialization error was logged. Desktop and Start menu shortcuts were updated with the new ICO. Board configuration, saved pairing, certificate and desktop preference hashes were unchanged. The app's window/close/reopen behavior was exercised separately in the isolated native fixture. Android launcher icon appearance, current1.11 app connection/controls, live OBS preview and provider rendering were not physically approved in this pass; the APK update stops the Android activity until the user reopens it.
+
+### Earlier1.10 investigation
+
 Dedicated Windows management UI, opt-in silent OBS preview and public Twitch/Kick viewers have isolated protocol/API/native-policy/controller checks. No provider page, live preview capture or rendered interface was opened during development. Actual provider behavior and camera/touch/focus/hardware rehearsal remain unverified. See MONITORING.md and VERIFICATION.txt.
 
 The connected tablet was authorized and had version1.5.1. Both USB tunnels were absent; restoring them made raw tablet-to-PC TCP8743 and8744 probes succeed. PC used Ethernet and tablet Wi-Fi on the same IPv4 subnet, a supported topology. Wi-Fi probes to the companion timed out. Windows already had app allow rules; user then ran the prepared Administrator helper adding a program/port-specific LocalSubnet rule. Rule presence alone is not proof of Wi-Fi success.

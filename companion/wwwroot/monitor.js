@@ -6,7 +6,7 @@ function loadMonitor(){try{return validateMonitor(JSON.parse(localStorage.getIte
 function chatUrls(provider,name,parent){const channel=monitorChannel(provider,name);if(!channel)throw Error('Add a '+provider+' channel in Monitor settings.');if(!/^[a-zA-Z0-9.-]+$/.test(parent))throw Error('Unsupported chat parent hostname.');return provider==='twitch'?{embed:`https://www.twitch.tv/embed/${channel}/chat?parent=${encodeURIComponent(parent)}&darkpopout`,popout:`https://www.twitch.tv/popout/${channel}/chat?popout=`}:{embed:`https://kick.com/popout/${channel}/chat`,popout:`https://kick.com/popout/${channel}/chat`};}
 // One in-flight frame, no queue/replay. Old requests cannot resurrect a closed preview.
 class PreviewLoop{
-  constructor(fetchFrame,render,error,schedule=setTimeout,cancel=clearTimeout,now=()=>performance.now()){Object.assign(this,{fetchFrame,render,error,schedule,cancel,now});this.active=false;this.paused=true;this.pending=false;this.generation=0;this.failures=0;this.timer=null;}
+  constructor(fetchFrame,render,error,schedule=(callback,delay)=>setTimeout(callback,delay),cancel=timer=>clearTimeout(timer),now=()=>performance.now()){Object.assign(this,{fetchFrame,render,error,schedule,cancel,now});this.active=false;this.paused=true;this.pending=false;this.generation=0;this.failures=0;this.timer=null;}
   start(config){this.config={...config};this.active=true;this.failures=0;this.resume();}
   stop(){this.active=false;this.paused=true;this.generation++;this.cancel(this.timer);}
   pause(){this.paused=true;this.generation++;this.cancel(this.timer);}

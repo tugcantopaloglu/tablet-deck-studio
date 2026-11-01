@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
   for(const [id,action] of Object.entries(routes))$('#'+id).onclick=()=>consoleNavigate(id,action);
   $('#connection').onclick=()=>consoleNavigate('console-obs',showObsSetup);$('#console-connect-first').onclick=()=>consoleNavigate('console-connections',showPairing);$('#console-edit-first').onclick=()=>consoleNavigate('console-editor',showEditor);$('#console-refresh').onclick=async()=>{await refresh(true);await refreshConsoleConnections();};
   $('#console-stop').onclick=stopConsoleCompanion;
-  panel.addEventListener('close',()=>consoleViewChanged('overview'));
+  panel.addEventListener('close',()=>{if(!panel.open)consoleViewChanged('overview');});
   await refresh(true);await refreshConsoleConnections();
 });
 setInterval(()=>{if(desktopConsole&&!document.hidden&&!panel.open)refreshConsoleConnections();},5000);

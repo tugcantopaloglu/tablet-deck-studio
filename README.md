@@ -22,6 +22,8 @@ The low-latency transport and Android packaging fix from 1.4.1 are retained. Phy
 
 ## Features
 
+**1.11.0 adds a standalone Windows desktop window** with its own taskbar icon, resizing and close-to-tray behavior. Reopening the desktop shortcut or tray icon restores the same window. It also fixes the timer error that blocked desktop navigation, adds rendered click/native-window regression checks, and provides matching minimal application icons for Windows and Android (including adaptive/themed Android icons). The installer creates Desktop and Start menu shortcuts. The Windows app uses Microsoft's Evergreen WebView2 Runtime; if it is missing, the app shows an official download link. See [desktop setup](docs/PC-SETUP.md).
+
 | Area | Controls |
 | --- | --- |
 | Scenes | Switch program scene, set Studio Mode preview, take a transition |
@@ -65,7 +67,7 @@ The low-latency transport and Android packaging fix from 1.4.1 are retained. Phy
 
 For a managed Windows installation, download **TabletDeck-Setup.exe**, run it, and type `INSTALL` after reviewing its destination. It creates a Start menu shortcut without launching any apps. The ZIP remains available for portable use. See [installation and uninstalling](docs/DESKTOP-AND-HOLD.md#install-or-update-windows).
 
-Download `TabletDeck-Studio-1.10.0.zip` from [Releases](https://github.com/tugcantopaloglu/tablet-deck-studio/releases/latest) for the complete package, or download `TabletDeck-Studio.apk` separately if you only need the Android installer. Update both the APK and companion for profiles, backups, favourites, progress, and cancellation. The APK keeps the original signing certificate, so installing it over an older version preserves pairing. Third-party meme collections are user content and are not included in the public release.
+Download `TabletDeck-Studio-1.11.0.zip` from [Releases](https://github.com/tugcantopaloglu/tablet-deck-studio/releases/latest) for the complete package, or download `TabletDeck-Studio.apk` separately if you only need the Android installer. Update both components. The APK keeps the original signing certificate, so installing it over an older version preserves pairing. Third-party meme collections are user content and are not included in the public release.
 
 ```text
 TabletDeck-Studio/

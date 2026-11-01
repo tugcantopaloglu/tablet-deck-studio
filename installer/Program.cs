@@ -17,7 +17,7 @@ try {
     var entries=Verify(archive);
     if(args.Contains("--verify-payload")){Console.WriteLine("PASS embedded payload paths and SHA-256 checksums ("+entries.Count+" files).");return;}
     if(!args.Contains("--quiet")) {
-        Console.WriteLine("Tablet Deck Studio 1.4 installer\nInstall to: "+install+"\nClose the companion before updating. No apps are launched by this installer.\nType INSTALL to continue, or close this window:");
+        Console.WriteLine("Tablet Deck Studio installer\nInstall to: "+install+"\nExit the companion from its tray menu before updating. No apps are launched by this installer.\nType INSTALL to continue, or close this window:");
         if(Console.ReadLine()!="INSTALL")return;
     }
     var parent=Directory.GetParent(install)?.FullName??throw new IOException("Choose an application folder, not a drive root.");
@@ -73,13 +73,14 @@ static InstallManifest ReadManifest(string root)
 }
 static void Shortcut(string root,bool create)
 {
-    var shortcut=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs),"Tablet Deck Studio.lnk");
     var type=Type.GetTypeFromProgID("WScript.Shell")??throw new IOException("Windows shortcut support is unavailable.");
-    dynamic shell=Activator.CreateInstance(type)!;dynamic link=shell.CreateShortcut(shortcut);
+    dynamic shell=Activator.CreateInstance(type)!;
     var target=Path.Combine(root,"Windows","TabletDeck-Companion.exe");
-    if(create){link.TargetPath=target;link.WorkingDirectory=Path.GetDirectoryName(target);link.Description="Tablet Deck Studio control board";link.Save();}
-    else if(File.Exists(shortcut)&&string.Equals((string)link.TargetPath,target,StringComparison.OrdinalIgnoreCase))File.Delete(shortcut);
-    System.Runtime.InteropServices.Marshal.FinalReleaseComObject(link);System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shell);
+    try{foreach(var folder in new[]{Environment.GetFolderPath(Environment.SpecialFolder.Programs),Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory)}){
+        var shortcut=Path.Combine(folder,"Tablet Deck Studio.lnk");dynamic link=shell.CreateShortcut(shortcut);
+        try{if(create){if(File.Exists(shortcut)&&!Path.GetFileName((string)link.TargetPath).Equals("TabletDeck-Companion.exe",StringComparison.OrdinalIgnoreCase))throw new IOException("An unrelated shortcut already uses the Tablet Deck name.");link.TargetPath=target;link.WorkingDirectory=Path.GetDirectoryName(target);link.Description="Tablet Deck Studio desktop app";link.IconLocation=Path.Combine(root,"Windows","TabletDeck.ico")+",0";link.WindowStyle=7;link.Save();}
+        else if(File.Exists(shortcut)&&string.Equals((string)link.TargetPath,target,StringComparison.OrdinalIgnoreCase))File.Delete(shortcut);}finally{System.Runtime.InteropServices.Marshal.FinalReleaseComObject(link);}
+    }}finally{System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shell);}
 }
 static void Uninstall(string root,bool noShortcuts)
 {

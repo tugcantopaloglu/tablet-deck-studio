@@ -32,6 +32,10 @@ An additional real Windows audio smoke test creates a silent playback session, a
 
 Run the companion without `--self-test` to open the editor and tray. Use `--no-browser --no-tray` for server-only tests. Developer options are `--no-browser`, `--data-dir PATH`, `--http-port NUMBER`, and `--https-port NUMBER`. The shipping Android app uses HTTPS port 8743; alternate ports are for isolated development tests.
 
+Version1.11 hosts the editor in a WinForms WebView2 window; the Evergreen Runtime must be installed separately. Microsoft.Web.WebView2 SDK1.0.4314.35 is pinned, with only Core/WinForms referenced and the loader included in publish. Run `scripts/Build-Icons.ps1` after changing assets/app-icon.svg; check in the resulting ICO/PNG/favicon and matching Android vectors. Both Windows projects embed the ICO. To publish while a development companion is running, use an isolated `-p:OutputPath=ABSOLUTE_BUILD_FOLDER` as well as `-o ABSOLUTE_PUBLISH_FOLDER`; the latter alone still builds in bin and can collide with the running executable.
+
+`npm --prefix tests run test:desktop-rendered` starts an isolated service and headless Chromium, then an offscreen native WebView2 test. It performs31 rendered/API and16 native checks, including the real timer callback receiver failure, sequential panel navigation, unsaved navigation, close/reopen and host policies. It captures content at1280×860 and900×620 without contacting providers or modifying the live installation. Set TABLETDECK_COMPANION to the built/published executable and TABLETDECK_CHROME if Chrome is installed elsewhere. The CLI `--desktop-window-self-test --data-dir PATH` requires that runner's marked temporary fixture; it is not a normal launch mode.
+
 ## Prepare the Android toolchain
 
 Exact official archive URLs and SHA-256 values are in [toolchain-downloads.json](../scripts/toolchain-downloads.json). In PowerShell 7, from the repository root:
@@ -79,7 +83,7 @@ $output = Join-Path (Get-Location) 'dist'
 
 The script compiles resources and Java, converts classes to DEX, packages the bundled interface, aligns the APK, signs it, and verifies the result. Output: `dist/TabletDeck-Studio.apk`.
 
-App identity: `app.tabletdeck.studio`, version `1.10.0`, version code `13`, minimum SDK `26`, target SDK `35`. Increment version code for later releases. The build verifies every index script/stylesheet against the native UI_ASSETS allowlist, as well as APK paths and license assets. Desktop-only desktop.html/console.js/console.css are served on PC loopback, not loaded into the privileged Android view. Camera permission remains optional and QR-only.
+App identity: `app.tabletdeck.studio`, version `1.11.0`, version code `14`, minimum SDK `26`, target SDK `35`. Increment version code for later releases. The build verifies every index script/stylesheet against the native UI_ASSETS allowlist, as well as APK paths and license assets. Desktop-only desktop.html/console.js/console.css are served on PC loopback, not loaded into the privileged Android view. Camera permission remains optional and QR-only.
 
 On first build, the script generates `toolchain/signing/tabletdeck.jks` and a random password file. Keep these private and preserve them to update your own APK installation later. Git ignores them. The original release's private signing key is not in this repository; a newly generated key produces a different identity and cannot update the original APK without uninstalling it first.
 
@@ -143,7 +147,7 @@ USB adds ADB reverse tunnels for ports 8743 and 8744. The PC editor uses a separ
 Assemble the complete release ZIP with SHA256SUMS.txt listing every file except itself, then embed it:
 
 ```powershell
-$payload = (Resolve-Path .\dist\TabletDeck-Studio-1.10.0.zip).Path
+$payload = (Resolve-Path .\dist\TabletDeck-Studio-1.11.0.zip).Path
 dotnet publish .\installer\TabletDeck.Setup.csproj -c Release -o .\dist\Setup "-p:PayloadArchive=$payload"
 .\dist\Setup\TabletDeck-Setup.exe --verify-payload
 ```
