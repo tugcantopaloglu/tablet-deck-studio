@@ -87,15 +87,15 @@ public sealed class ObsClient : IAsyncDisposable
             if(ReferenceEquals(socket,ws))Changed?.Invoke();
         }
     }
-    public async Task<JsonObject> Call(string type,object? data=null)
+    public async Task<JsonObject> Call(string type,object? data=null,CancellationToken ct=default)
     {
-        await Ensure();
+        await Ensure().WaitAsync(ct);
         var ws=socket ?? throw new IOException("OBS is not connected.");
         var id=Guid.NewGuid().ToString("N");
         var tcs=new TaskCompletionSource<JsonObject>(TaskCreationOptions.RunContinuationsAsynchronously);
         pending[id]=new(ws,tcs);
         try {
-            using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var timeout=CancellationTokenSource.CreateLinkedTokenSource(ct);timeout.CancelAfter(TimeSpan.FromSeconds(5));
             await Send(ws,new JsonObject{["op"]=6,["d"]=new JsonObject{["requestType"]=type,["requestId"]=id,["requestData"]=data is null ? new JsonObject():JsonSerializer.SerializeToNode(data,DataStore.Json)}},timeout.Token);
             var response=await tcs.Task.WaitAsync(timeout.Token);
             if(response["requestStatus"]?["result"]?.GetValue<bool>()!=true)

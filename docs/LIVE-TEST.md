@@ -1,5 +1,19 @@
 # Physical Android test — 2026-10-25
 
+## Version 1.10 development and connection investigation — 2026-11-01
+
+Dedicated Windows management UI, opt-in silent OBS preview and public Twitch/Kick viewers have isolated protocol/API/native-policy/controller checks. No provider page, live preview capture or rendered interface was opened during development. Actual provider behavior and camera/touch/focus/hardware rehearsal remain unverified. See MONITORING.md and VERIFICATION.txt.
+
+The connected tablet was authorized and had version1.5.1. Both USB tunnels were absent; restoring them made raw tablet-to-PC TCP8743 and8744 probes succeed. PC used Ethernet and tablet Wi-Fi on the same IPv4 subnet, a supported topology. Wi-Fi probes to the companion timed out. Windows already had app allow rules; user then ran the prepared Administrator helper adding a program/port-specific LocalSubnet rule. Rule presence alone is not proof of Wi-Fi success.
+
+Before the retest/update, Android disappeared from Windows PnP/ADB; it remained undetected after the reported cable reconnection, and no wireless-debug service appeared. APK installation was not performed and Wi-Fi could not be retested from the tablet. Physical data cable/port/USB-mode/driver access remains required; do not describe this as resolved Wi-Fi or a verified app-level pairing.
+
+Automatic USB reconnect was enabled for the known tablet and missing ADB binaries supplied to the current headless companion. That action preserved board content and startup settings. Current firmware-independent device status distinguishes installed package/tunnels, saved pairings, authenticated activity and active fast links.
+
+The tablet subsequently reappeared as authorized. An in-place APK update succeeded; Android package metadata confirmed version1.10.0/code13. The PC companion was stopped through its authenticated shutdown endpoint, allowed to exit, updated at its existing firewall-allowed executable path and restarted with `--no-browser --no-tray`. Its version and served desktop management document were checked. Hashes of config.json, devices.json, companion.pfx and desktop.json were unchanged; the existing pairing was retained.
+
+After that update, fresh tablet-side TCP probes passed for both USB reverse endpoints (127.0.0.1:8743/8744) and both Ethernet LAN endpoints (192.168.1.21:8743/8744). This verifies current network reachability across Ethernet/Wi-Fi after the bounded repair. It does not independently verify TLS pinning, authenticated app controls, preview/chat rendering or audible output. The user was asked to open the updated tablet app and confirm its Wi-Fi status; no app window was opened by the agent.
+
 ## Version 1.9 development boundary — 2026-11-01
 
 All eight requested studio additions have isolated storage, mock-OBS/API, native QR and controller checks. Real camera scanning, foreground-app switching, rendered layout, touch, keyboard/screen-reader use, live OBS/Soundpad and hardware rehearsal remain unverified. Live video and Twitch/Kick chat are a following phase.

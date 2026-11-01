@@ -134,8 +134,8 @@ async function saveArrangement(){
   $('#edit-button').disabled=true;
   try{await api('/api/layout',{pages:pages.map(p=>({id:p.id,buttonIds:p.buttons.map(b=>b.id)}))});endArrangement();await refresh(true);notice('Button order saved.');}catch(error){notice(error.message,true);}finally{$('#edit-button').disabled=false;}
 }
-$('#arrange-cancel').onclick=async()=>{endArrangement();await refresh(true);};
-$('#soundpad-button').onclick=showSoundpadLibrary;$('#apps-button').onclick=showAppMixer;
+if($('#arrange-cancel'))$('#arrange-cancel').onclick=async()=>{endArrangement();await refresh(true);};
+if($('#soundpad-button'))$('#soundpad-button').onclick=showSoundpadLibrary;if($('#apps-button'))$('#apps-button').onclick=showAppMixer;
 
 function bindPointerOrder(container,selector,handleSelector,commit,tap){
   let drag=null;
@@ -188,6 +188,6 @@ function attachEditorReorder(){
   const toolbar=document.createElement('div');toolbar.className='row feature-editor-tools';
   const browse=document.createElement('button');browse.className='quiet';browse.textContent='Browse Soundpad';browse.onclick=showSoundpadLibrary;
   const arrange=document.createElement('button');arrange.className='quiet';arrange.textContent='Arrange board';arrange.onclick=startArrangement;
-  toolbar.appendChild(browse);toolbar.appendChild(arrange);$('.editor-layout').before(toolbar);
+  toolbar.appendChild(browse);if(typeof desktopConsole==='undefined'||!desktopConsole)toolbar.appendChild(arrange);$('.editor-layout').before(toolbar);
   const desktop=document.createElement('button');desktop.className='quiet';desktop.textContent='Desktop settings';desktop.onclick=showDesktopSettings;toolbar.appendChild(desktop);
 }

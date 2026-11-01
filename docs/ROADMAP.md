@@ -31,11 +31,17 @@ This is a prioritized shortlist, not a delivery schedule.
 - Expanded OBS mixer with two main plus eight additional configured inputs.
 - Reviewed portable profile packs with selected sound assets, embedded icons, checksum/ZIP validation and inactive imports.
 
-## Following phase
+## Implemented in 1.10.0
 
-1. **Live video preview** — choose a local preview transport and resolution/frame-rate budget; measure preview delay separately from control latency.
-2. **Twitch and Kick chat preview** — verify supported APIs/embeds and account permissions, then design moderation and reconnect behavior. No account tokens or placeholder integrations are shipped in 1.9.
-3. Rendered and hardware rehearsals for all newly added flows before relying on them in a broadcast.
+- Separate Windows management console, inline editors and sidebar; tablet retains its action board.
+- Opt-in silent OBS JPEG preview with a separate OBS connection, bounded capture budget, cache/cancellation and lifecycle guards.
+- Editable Twitch/Kick channel viewers: desktop provider frames/popout fallback and isolated bridge-less native view.
+- Android script allowlist coherence checks; physical LAN addresses first; saved pairing, recent activity, fast-link and USB app status distinguished.
+- Bounded local-subnet Wi-Fi repair helper and automatic USB reconnect guidance.
+
+## Following work
+
+Rendered/hardware rehearsals and real provider checks; full-motion video/audio preview as a separate performance-budget decision; optional authenticated chat/moderation features only after a dedicated account/permissions design.
 
 ## Hardware checks still needed
 

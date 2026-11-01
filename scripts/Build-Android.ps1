@@ -14,12 +14,18 @@ Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\features.js') -De
 Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\boards.js') -Destination (Join-Path $taskBuild 'assets\www')
 Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\desktop.js') -Destination (Join-Path $taskBuild 'assets\www')
 Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\studio.js') -Destination (Join-Path $taskBuild 'assets\www')
+Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\monitor.js') -Destination (Join-Path $taskBuild 'assets\www')
 Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\hardening.js') -Destination (Join-Path $taskBuild 'assets\www')
 Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\latency.js') -Destination (Join-Path $taskBuild 'assets\www')
 Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\fonts') -Destination (Join-Path $taskBuild 'assets\www') -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\vendor') -Destination (Join-Path $taskBuild 'assets\www') -Recurse -Force
 New-Item -ItemType Directory -Force -Path (Join-Path $taskBuild 'assets\licenses') | Out-Null
 Copy-Item -Path (Join-Path $taskRoot 'companion\Licenses\*') -Destination (Join-Path $taskBuild 'assets\licenses') -Recurse -Force
+$taskUiSource=Get-Content -LiteralPath (Join-Path $taskAndroid 'src\app\tabletdeck\MainActivity.java') -Raw
+$taskAllowedBlock=[regex]::Match($taskUiSource,'UI_ASSETS=new HashSet<>\(Arrays\.asList\((.*?)\)\)',[Text.RegularExpressions.RegexOptions]::Singleline).Groups[1].Value
+$taskAllowedPaths=@([regex]::Matches($taskAllowedBlock,'"([^"]+)"') | ForEach-Object {$_.Groups[1].Value})
+$taskEntry=Get-Content -LiteralPath (Join-Path $taskRoot 'companion\wwwroot\index.html') -Raw
+foreach($taskReference in [regex]::Matches($taskEntry,'(?:src|href)="([^"]+\.(?:js|css))"')){if($taskAllowedPaths -notcontains ('/'+$taskReference.Groups[1].Value)){throw ('Native WebView blocks a referenced UI asset: '+$taskReference.Groups[1].Value)}}
 function Invoke-Checked([string]$Exe,[string[]]$Arguments){& $Exe @Arguments;if($LASTEXITCODE -ne 0){throw "Build command failed: $Exe"}}
 Invoke-Checked (Join-Path $taskBuildTools 'aapt2.exe') @('compile','--dir',(Join-Path $taskAndroid 'res'),'-o',(Join-Path $taskBuild 'resources.zip'))
 Invoke-Checked (Join-Path $taskBuildTools 'aapt2.exe') @('link','-o',(Join-Path $taskBuild 'unsigned.apk'),'--manifest',(Join-Path $taskAndroid 'AndroidManifest.xml'),'-I',$taskPlatform,'-R',(Join-Path $taskBuild 'resources.zip'),'--auto-add-overlay')
@@ -30,7 +36,7 @@ $taskArchive=[System.IO.Compression.ZipFile]::OpenRead((Join-Path $taskBuild 'un
 try {
  $taskEntries=@($taskArchive.Entries | ForEach-Object FullName)
  if(@($taskEntries | Where-Object { $_.Contains('\') }).Count){throw 'APK contains Windows path separators.'}
- foreach($taskAsset in @('index.html','app.js','features.js','boards.js','desktop.js','studio.js','hardening.js','latency.js','style.css','fonts/Manrope.ttf','vendor/purify.min.js')){
+ foreach($taskAsset in @('index.html','app.js','features.js','boards.js','desktop.js','studio.js','monitor.js','hardening.js','latency.js','style.css','fonts/Manrope.ttf','vendor/purify.min.js')){
   if($taskEntries -notcontains ('assets/www/'+$taskAsset)){throw "APK asset is missing: $taskAsset"}
  }
  foreach($taskLicense in @('ZXING-LICENSE.txt','QRCODER-LICENSE.txt')){if($taskEntries -notcontains ('assets/licenses/'+$taskLicense)){throw "APK license is missing: $taskLicense"}}

@@ -1,21 +1,21 @@
 # Set up the Windows companion
 
-Install the Windows companion, then open its control panel from the Start menu shortcut or the Windows tray menu. Select **PC setup** in the toolbar. Closing the browser or this panel leaves tablet control running; use the tray menu to exit the companion.
+Install the Windows companion, then open its console from the Start menu shortcut or tray menu. Version 1.10 uses a dedicated Windows management interface, with Overview, Board editor, Tablet connections, OBS setup, Profiles, Backups, Monitoring and Windows options in its sidebar. It does not show the tablet action grid. Closing the browser leaves control running; Stop companion in the sidebar or tray Exit stops it.
 
-A PC with no paired tablets opens setup automatically once per browser tab session. Existing paired setups go straight to the board. The PC setup entry stays available. It is hidden in the Android app and design preview.
+The Windows console opens its overview. The tablet keeps its control board, Full pad and arrangement tools. The older PC setup panel remains available through More tools for compatibility; the sidebar is the current entry point.
 
 ## Pair a tablet
 
-Choose **Pair tablet** or **Pair / manage tablets**. Install the APK on Android and enter the address, certificate code, and single-use PIN shown on the PC. PINs expire after five minutes; generate another if needed. Pairing is shared across profiles.
+Choose **Tablet connections**. Install the APK on Android and enter the address, certificate code, and single-use PIN shown on the PC, or use Show pairing QR. PINs expire after five minutes; generate another if needed. Pairing is shared across profiles.
 
 For Wi-Fi, keep both devices on the same local network and allow the companion through Windows Firewall on that private network. For USB, connect a data cable, enable USB debugging, and approve this PC on the tablet. Use `USB-Connect.cmd` from the Windows package, or enable **Reconnect USB automatically** in **Windows options**. Select USB on the tablet. With multiple tablets, set the tablet serial in Windows options. Pairing still requires the PIN/certificate check.
 
-The setup hub counts saved pairings. It does not claim a paired tablet is online or measure its latency.
+Overview separates saved pairings from active authenticated fast links and updates status every five seconds. USB status distinguishes an authorized device, established tunnels, and the installed app. Saved pairing does not prove a current connection; HTTPS fallback may work without a fast link. No connection count measures latency.
 
 ## Connect OBS
 
 1. Open OBS Studio on the same PC. In **Tools → WebSocket Server Settings**, enable the server and keep authentication enabled.
-2. In **PC setup → Set up OBS**, copy the port and password from OBS. The usual port is 4455.
+2. In **OBS setup**, copy the port and password from OBS. The usual port is 4455.
 3. Choose **Save OBS settings**. The companion saves and checks the connection. Connection checks do not start streaming, recording, playback, or other board actions.
 4. Use **Find inputs** to load audio input names from the saved OBS connection. Choose exact names for the microphone and desktop-audio fields, then save again. A connected OBS server can still have a missing audio input; the check reports both separately.
 

@@ -79,7 +79,7 @@ $output = Join-Path (Get-Location) 'dist'
 
 The script compiles resources and Java, converts classes to DEX, packages the bundled interface, aligns the APK, signs it, and verifies the result. Output: `dist/TabletDeck-Studio.apk`.
 
-App identity: `app.tabletdeck.studio`, version `1.9.0`, version code `12`, minimum SDK `26`, target SDK `35`. Increment version code for later releases. Asset checks include `boards.js`, `desktop.js`, and `studio.js`. Camera permission is optional and only requested by the user-opened QR scanner; manual pairing needs none.
+App identity: `app.tabletdeck.studio`, version `1.10.0`, version code `13`, minimum SDK `26`, target SDK `35`. Increment version code for later releases. The build verifies every index script/stylesheet against the native UI_ASSETS allowlist, as well as APK paths and license assets. Desktop-only desktop.html/console.js/console.css are served on PC loopback, not loaded into the privileged Android view. Camera permission remains optional and QR-only.
 
 On first build, the script generates `toolchain/signing/tabletdeck.jks` and a random password file. Keep these private and preserve them to update your own APK installation later. Git ignores them. The original release's private signing key is not in this repository; a newly generated key produces a different identity and cannot update the original APK without uninstalling it first.
 
@@ -143,7 +143,7 @@ USB adds ADB reverse tunnels for ports 8743 and 8744. The PC editor uses a separ
 Assemble the complete release ZIP with SHA256SUMS.txt listing every file except itself, then embed it:
 
 ```powershell
-$payload = (Resolve-Path .\dist\TabletDeck-Studio-1.9.0.zip).Path
+$payload = (Resolve-Path .\dist\TabletDeck-Studio-1.10.0.zip).Path
 dotnet publish .\installer\TabletDeck.Setup.csproj -c Release -o .\dist\Setup "-p:PayloadArchive=$payload"
 .\dist\Setup\TabletDeck-Setup.exe --verify-payload
 ```
@@ -157,6 +157,7 @@ The installer uses a fixed per-user destination. `--test-mode --quiet` installs 
 .\dist\Windows\TabletDeck-Companion.exe --hardening-self-test
 .\dist\Windows\TabletDeck-Companion.exe --boards-self-test
 .\dist\Windows\TabletDeck-Companion.exe --studio-self-test --no-browser --no-tray
+.\dist\Windows\TabletDeck-Companion.exe --monitor-self-test --no-browser --no-tray
 $env:TABLETDECK_COMPANION = (Resolve-Path .\dist\Windows\TabletDeck-Companion.exe).Path
 npm run test:headless --prefix .\tests
 npm run test:fast --prefix .\tests
@@ -165,6 +166,8 @@ npm run test:boards --prefix .\tests
 npm run test:desktop --prefix .\tests
 npm run test:studio --prefix .\tests
 npm run test:studio-ui --prefix .\tests
+npm run test:monitor --prefix .\tests
+npm run test:monitor-ui --prefix .\tests
 npm run test:integration-headless --prefix .\tests
 ```
 

@@ -5,7 +5,7 @@ const {chromium}=require('playwright');
 const root=path.resolve(__dirname,'../companion/wwwroot');
 const output=path.resolve(__dirname,'../.test-output/layout');
 fs.mkdirSync(output,{recursive:true});
-const allowed=new Set(['index.html','app.js','features.js','boards.js','desktop.js','studio.js','hardening.js','latency.js','style.css','vendor/purify.min.js','fonts/Manrope.ttf']);
+const allowed=new Set(['index.html','app.js','features.js','boards.js','desktop.js','studio.js','monitor.js','hardening.js','latency.js','style.css','vendor/purify.min.js','fonts/Manrope.ttf']);
 // Intercept a synthetic HTTPS origin inside the browser. No local web server,
 // certificate exception, or real network connection is needed for this fixture.
 const assets=new Map([...allowed].map(route=>[route,{body:fs.readFileSync(path.join(root,route)),type:route.endsWith('.js')?'application/javascript':route.endsWith('.css')?'text/css':route.endsWith('.ttf')?'font/ttf':'text/html'}]));

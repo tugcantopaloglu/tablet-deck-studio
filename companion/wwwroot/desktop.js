@@ -84,6 +84,7 @@ async function showObsSetup(){
   }catch(error){if(ownsDesktop(generation,'obs-setup'))desktopError(error.message);}
 }
 async function initializeDesktopSetup(){
+  if(typeof desktopConsole!=='undefined'&&desktopConsole)return;
   if(native||preview)return;
   document.body.classList.add('pc-editor');
   $('#pc-setup').hidden=false;$('#pc-setup').onclick=showDesktopHub;

@@ -133,12 +133,14 @@ public sealed partial class DataStore
         });
     }
     public void AddDevice(PairedDevice device) { lock(gate) { Devices = [..Devices,device]; Write("devices.json",Devices); } }
-    public void Revoke(string id) { lock(gate) { Devices=Devices.Where(x=>x.Id!=id).ToList();Write("devices.json",Devices); } }
+    private readonly Dictionary<string,DateTimeOffset> lastSeen=new(StringComparer.Ordinal);
+    public DateTimeOffset? LastSeen(PairedDevice device){lock(gate)return lastSeen.TryGetValue(device.TokenHash,out var seen)?seen:null;}
+    public void Revoke(string id) { lock(gate) {foreach(var device in Devices.Where(d=>d.Id==id))lastSeen.Remove(device.TokenHash); Devices=Devices.Where(x=>x.Id!=id).ToList();Write("devices.json",Devices); } }
     public bool Authenticate(string token)
     {
         if(token.Length < 32 || token.Length > 128) return false;
         var hash=SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token));
-        lock(gate) return Devices.Any(x=>CryptographicOperations.FixedTimeEquals(hash,Convert.FromHexString(x.TokenHash)));
+        lock(gate){var device=Devices.FirstOrDefault(x=>CryptographicOperations.FixedTimeEquals(hash,Convert.FromHexString(x.TokenHash)));if(device is null)return false;lastSeen[device.TokenHash]=DateTimeOffset.UtcNow;return true;}
     }
     public static void Validate(DeckConfig c)
     {

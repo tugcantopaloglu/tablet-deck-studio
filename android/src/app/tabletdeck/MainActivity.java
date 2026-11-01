@@ -6,6 +6,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.content.SharedPreferences;
 import android.content.Intent;
+import android.widget.FrameLayout;
 import android.graphics.Color;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
@@ -44,11 +45,14 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class MainActivity extends Activity {
     private static final String UI_HOST="app.tabletdeck.local";
     private static final Set<String> GET_PATHS=new HashSet<>(Arrays.asList("/api/ping","/api/mixer","/api/soundpad/recent","/api/profiles","/api/soundpad/favourites","/api/board","/api/state","/api/execution","/api/apps","/api/soundpad/library"));
-    private static final Set<String> POST_PATHS=new HashSet<>(Arrays.asList("/api/ping","/api/profile-lock","/api/soundpad/recent/clear","/api/profile","/api/soundpad/favourites","/api/cancel","/api/hold","/api/action","/api/audio","/api/mute","/api/apps","/api/layout","/api/soundpad/play","/api/soundpad/library"));
+    private static final Set<String> POST_PATHS=new HashSet<>(Arrays.asList("/api/monitor/frame","/api/ping","/api/profile-lock","/api/soundpad/recent/clear","/api/profile","/api/soundpad/favourites","/api/cancel","/api/hold","/api/action","/api/audio","/api/mute","/api/apps","/api/layout","/api/soundpad/play","/api/soundpad/library"));
+    private static final Set<String> UI_ASSETS=new HashSet<>(Arrays.asList("/index.html","/app.js","/features.js","/boards.js","/desktop.js","/studio.js","/monitor.js","/hardening.js","/latency.js","/style.css","/fonts/Manrope.ttf","/vendor/purify.min.js"));
     private WebView web;
+    private ChatPane chatPane;
     private SharedPreferences preferences;
     private final ExecutorService network=Executors.newFixedThreadPool(2);
     private final ExecutorService controls=Executors.newFixedThreadPool(3);
+    private final ExecutorService previews=Executors.newSingleThreadExecutor();
     private final ConcurrentHashMap<Integer,Boolean> fastPending=new ConcurrentHashMap<>();
     private FastLink fastLink;
     private int pendingScan;
@@ -82,7 +86,7 @@ public final class MainActivity extends Activity {
                 Uri url=request.getUrl();
                 if(!"https".equals(url.getScheme())||!UI_HOST.equals(url.getHost())||!"GET".equals(request.getMethod())) return blocked();
                 String path=url.getPath();if(path==null||path.equals("/"))path="/index.html";
-                if(!Arrays.asList("/index.html","/app.js","/features.js","/hardening.js","/latency.js","/style.css","/fonts/Manrope.ttf","/vendor/purify.min.js").contains(path))return blocked();
+                if(!UI_ASSETS.contains(path))return blocked();
                 try {
                     String mime=path.endsWith(".html")?"text/html":path.endsWith(".js")?"application/javascript":path.endsWith(".css")?"text/css":"font/ttf";
                     Map<String,String> headers=new HashMap<>();
@@ -93,7 +97,8 @@ public final class MainActivity extends Activity {
             }
         });
         web.addJavascriptInterface(new Bridge(),"DeckNative");
-        setContentView(web);
+        FrameLayout root=new FrameLayout(this);root.addView(web,new FrameLayout.LayoutParams(-1,-1));setContentView(root);
+        chatPane=new ChatPane(this,root,web,event->{if(!closed)web.evaluateJavascript("if(window.monitorChatEvent)window.monitorChatEvent("+event.toString()+");",null);});
         web.setOnApplyWindowInsetsListener((view,insets)->{view.setPadding(insets.getSystemWindowInsetLeft(),0,insets.getSystemWindowInsetRight(),insets.getSystemWindowInsetBottom());return insets;});
         web.loadUrl("https://"+UI_HOST+"/index.html");
         fastLink=new FastLink(new FastLink.Listener(){
@@ -122,7 +127,8 @@ public final class MainActivity extends Activity {
             if(message==null||message.length()>16384||closed)return;
             final String requestedPath;final JSONObject request;
             try{request=new JSONObject(message);requestedPath=request.getString("path");}catch(Exception ignored){return;}
-            (request.optString("method","POST").equals("POST")&&fastPath(requestedPath)?controls:network).execute(()->{
+            if(requestedPath.equals("/native/chat")){runOnUiThread(()->{try{deliver(request.getInt("id"),chatPane.command(request.getJSONObject("body")));}catch(Exception ex){try{deliver(request.getInt("id"),new JSONObject().put("error",ex.getMessage()));}catch(Exception ignored){}}});return;}
+            (requestedPath.equals("/api/monitor/frame")?previews:request.optString("method","POST").equals("POST")&&fastPath(requestedPath)?controls:network).execute(()->{
                 int id=0;JSONObject result;
                 try {
                     id=request.getInt("id");
@@ -239,7 +245,7 @@ public final class MainActivity extends Activity {
         }catch(RuntimeException ignored){/* Unsupported Wi-Fi hardware keeps the normal transport. */}
     }
     @Override public void onBackPressed(){web.evaluateJavascript("(function(){var d=document.querySelector('#confirm-dialog');if(d.open){d.close('cancel');return true;}if(document.querySelector('#panel').open){document.querySelector('#close-panel').click();return true;}return false;})()",result->{if("false".equals(result))finish();});}
-    @Override protected void onPause(){paused=true;updateWifiLock();if(fastLink!=null)fastLink.pause();if(web!=null){web.evaluateJavascript("if(typeof releaseDeckHold===\'function\')releaseDeckHold();",null);web.onPause();}super.onPause();}
-    @Override protected void onResume(){super.onResume();paused=false;updateWifiLock();if(fastLink!=null)fastLink.resume();if(web!=null)web.onResume();}
-    @Override protected void onDestroy(){closed=true;updateWifiLock();if(fastLink!=null)fastLink.close();network.shutdownNow();controls.shutdownNow();web.removeJavascriptInterface("DeckNative");web.destroy();super.onDestroy();}
+    @Override protected void onPause(){paused=true;updateWifiLock();if(chatPane!=null)chatPane.pause();if(fastLink!=null)fastLink.pause();if(web!=null){web.evaluateJavascript("if(typeof releaseDeckHold===\'function\')releaseDeckHold();if(window.monitorSuspend)window.monitorSuspend();",null);web.onPause();}super.onPause();}
+    @Override protected void onResume(){super.onResume();paused=false;updateWifiLock();if(chatPane!=null)chatPane.resume();if(fastLink!=null)fastLink.resume();if(web!=null){web.onResume();web.evaluateJavascript("if(window.monitorResume)window.monitorResume();",null);}}
+    @Override protected void onDestroy(){closed=true;updateWifiLock();if(chatPane!=null)chatPane.hide();if(fastLink!=null)fastLink.close();network.shutdownNow();controls.shutdownNow();previews.shutdownNow();web.removeJavascriptInterface("DeckNative");web.destroy();super.onDestroy();}
 }

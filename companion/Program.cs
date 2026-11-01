@@ -8,7 +8,7 @@ using System.Text.Json.Nodes;
 using System.Diagnostics;
 using System.Globalization;
 
-var flagOptions=new HashSet<string>(StringComparer.Ordinal){"--self-test","--boards-self-test","--studio-self-test","--audio-smoke-test","--hardening-self-test","--no-browser","--no-tray","--tray"};
+var flagOptions=new HashSet<string>(StringComparer.Ordinal){"--self-test","--boards-self-test","--studio-self-test","--monitor-self-test","--audio-smoke-test","--hardening-self-test","--no-browser","--no-tray","--tray"};
 var valueOptions=new HashSet<string>(StringComparer.Ordinal){"--data-dir","--http-port","--https-port","--control-port"};
 for(var i=0;i<args.Length;i++){
     if(flagOptions.Contains(args[i]))continue;
@@ -18,6 +18,7 @@ for(var i=0;i<args.Length;i++){
 if(args.Contains("--self-test")) { SelfTests.Run();return; }
 if(args.Contains("--boards-self-test")) {BoardStorageTests.Run();return;}
 if(args.Contains("--studio-self-test")) {await StudioTests.Run();return;}
+if(args.Contains("--monitor-self-test")) {await MonitorTests.Run();return;}
 if(args.Contains("--audio-smoke-test")) {await SelfTests.AudioSmokeTest();return;}
 if(args.Contains("--hardening-self-test")) {await HardeningTests.Run();return;}
 string Option(string name,string fallback) {var i=Array.IndexOf(args,name);return i>=0&&i+1<args.Length?args[i+1]:fallback;}
@@ -43,12 +44,18 @@ var fingerprint=Convert.ToHexString(SHA256.HashData(cert.RawData));
 var adminToken=Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
 var pairing=new Pairing();
 using var singleton=AcquireLock(Path.Combine(store.DirectoryPath,"runtime.lock"));
-if(singleton is null) {Console.Error.WriteLine("Tablet Deck is already running. Close the existing companion before starting another.");return;}
+if(singleton is null) {
+    if(!args.Contains("--no-browser"))try{using var current=JsonDocument.Parse(File.ReadAllText(Path.Combine(store.DirectoryPath,"admin-session.json")));var port=current.RootElement.GetProperty("httpPort").GetInt32();var token=current.RootElement.GetProperty("token").GetString()??"";if(port is <1 or >65535||token.Length!=64||!token.All(Uri.IsHexDigit))throw new ArgumentException("Invalid local console session.");Process.Start(new ProcessStartInfo($"http://127.0.0.1:{port}/desktop.html#admin={token}"){UseShellExecute=true});}catch(Exception ex) when(ex is not OutOfMemoryException){Console.Error.WriteLine("The companion is running, but its console could not be opened. Restart the companion if the tray is unavailable.");}
+    else Console.Error.WriteLine("Tablet Deck is already running. No second service was started.");
+    return;
+}
 var builder=WebApplication.CreateBuilder(new WebApplicationOptions {Args=[],ContentRootPath=AppContext.BaseDirectory,WebRootPath=Path.Combine(AppContext.BaseDirectory,"wwwroot")});
 builder.Logging.ClearProviders();builder.Logging.AddSimpleConsole(o=>o.SingleLine=true);builder.Logging.SetMinimumLevel(LogLevel.Warning);
 builder.WebHost.ConfigureKestrel(k=>{k.Limits.MaxRequestBodySize=1024*1024;k.Limits.RequestHeadersTimeout=TimeSpan.FromSeconds(10);k.Listen(IPAddress.Loopback,httpPort);k.Listen(IPAddress.Any,httpsPort,l=>l.UseHttps(cert));});
 var app=builder.Build();
 await using var obs=new ObsClient(()=>store.Config);
+await using var previewObs=new ObsClient(()=>store.Config);
+var livePreview=new LivePreview((type,data,ct)=>previewObs.Call(type,data,ct));
 var engine=new DeckEngine(store,obs);
 using var appMixer=new AppAudioMixer();
 using var holds=new HoldKeys();
@@ -69,7 +76,7 @@ app.Use(async (ctx,next)=>{
     ctx.Response.Headers["X-Content-Type-Options"]="nosniff";
     ctx.Response.Headers["X-Frame-Options"]="DENY";
     ctx.Response.Headers["Referrer-Policy"]="no-referrer";
-    ctx.Response.Headers["Content-Security-Policy"]="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
+    ctx.Response.Headers["Content-Security-Policy"]="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-src https://www.twitch.tv https://kick.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
     ctx.Response.Headers.CacheControl="no-store";
     if(ctx.Request.Path.StartsWithSegments("/api")) {
         if(ctx.Connection.LocalPort==httpPort&&ctx.Request.Host.Value!=$"127.0.0.1:{httpPort}"&&ctx.Request.Host.Value!=$"localhost:{httpPort}") {ctx.Response.StatusCode=403;return;}
@@ -84,11 +91,13 @@ app.Use(async (ctx,next)=>{
         }
     } else {
         if(ctx.Connection.LocalPort!=httpPort) {ctx.Response.StatusCode=404;return;}
+        if((ctx.Request.Path=="/"||ctx.Request.Path=="/index.html")&&ctx.Request.Query["preview"]!="1"){ctx.Response.Redirect("/desktop.html");return;}
         await next(ctx);
     }
 });
 app.UseDefaultFiles();app.UseStaticFiles();
 app.MapStudio(store,engine,fastCommands,autoProfiles,boardPacks,Principal,()=>pairing.Open(),NetworkAddresses,fingerprint,httpsPort,controlPort);
+app.MapPost("/api/monitor/frame",(PreviewRequest req,CancellationToken ct)=>livePreview.Frame(req,ct));
 app.MapGet("/api/board",()=>{var config=store.Config;return new {profileId=config.ProfileId,profileName=config.ProfileName,pages=config.Pages.Select(p=>new {p.Id,p.Name,p.Icon,buttons=p.Buttons.Select(a=>new{a.Id,a.Label,a.Kind,a.Icon,a.IconImage,a.Color,confirm=DeckEngine.NeedsConfirm(a),target=a.Kind is "scene" or "preview"?a.Target:"",configured=!(a.Kind is "app" or "sound" or "url" or "hotkey" or "soundpadPlay")||a.Target.Length>0})})};});
 app.MapGet("/api/profiles",()=>new{profiles=store.ProfileList(),warning=store.RecoveryWarning});
 app.MapPost("/api/profile",(ProfileRequest req)=>{fastCommands.ManualProfile(req.Id);return Results.Ok(new{ok=true});});
@@ -136,7 +145,7 @@ app.MapPost("/api/pair",(PairRequest req)=>{
     store.AddDevice(new(Guid.NewGuid().ToString("N"),name,Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token))),DateTimeOffset.UtcNow));
     return Results.Ok(new{token,fingerprint,name});
 });
-app.MapGet("/api/admin/info",()=>new {httpPort,httpsPort,controlPort,fingerprint,certificateCode=fingerprint[..24],addresses=NetworkAddresses(),dataDirectory=store.DirectoryPath,devices=store.Devices.Select(d=>new{d.Id,d.Name,d.Added})});
+app.MapGet("/api/admin/info",()=>new {httpPort,httpsPort,controlPort,fingerprint,certificateCode=fingerprint[..24],addresses=NetworkAddresses(),lanAddresses=NetworkLanAddresses(),connectedTablets=fastControl.ConnectedDevices,dataDirectory=store.DirectoryPath,devices=store.Devices.Select(d=>new{d.Id,d.Name,d.Added,lastSeen=store.LastSeen(d),fastConnected=fastControl.Connected(d.TokenHash)})});
 app.MapPost("/api/admin/pairing",()=>new{code=pairing.Open(),expiresIn=300,certificateCode=fingerprint[..24]});
 app.MapPost("/api/admin/revoke",(RevokeRequest req)=>{var owner=store.Devices.FirstOrDefault(device=>device.Id==req.Id)?.TokenHash;store.Revoke(req.Id);if(owner is not null){holds.ReleaseOwner(owner);fastControl.Revoke(owner);}return Results.Ok(new{ok=true});});
 app.MapGet("/api/admin/desktop",()=>new{settings=desktop.Get(),startWithWindows=DesktopPreferences.StartsWithWindows(),usbStatus=usb.Status,update=updates.Status});
@@ -181,7 +190,7 @@ app.MapPost("/api/admin/import-scenes",async ()=>{
     store.Save(c);});return Results.Ok(new{ok=true});
 });
 app.MapPost("/api/admin/shutdown",(IHostApplicationLifetime lifetime)=>{lifetime.StopApplication();return Results.Ok(new{ok=true});});
-var panel=$"http://127.0.0.1:{httpPort}/#admin={adminToken}";
+var panel=$"http://127.0.0.1:{httpPort}/desktop.html#admin={adminToken}";
 File.WriteAllText(Path.Combine(store.DirectoryPath,"admin-session.json"),JsonSerializer.Serialize(new{token=adminToken,httpPort,httpsPort},DataStore.Json));
 app.Lifetime.ApplicationStarted.Register(()=>{
     try{fastControl.Start();}catch(SocketException){Console.Error.WriteLine("Fast control port is unavailable. HTTPS fallback remains active.");}
@@ -196,7 +205,8 @@ var updateLoop=Task.Run(async()=>{while(!backgroundStop.IsCancellationRequested)
 try {await app.RunAsync();} finally {backgroundStop.Cancel();await updateLoop;tray?.Dispose();holds.ReleaseAll();VoicemeeterClient.Shutdown();WindowsActions.StopSounds();cert.Dispose();}
 static FileStream? AcquireLock(string path) {try{return new FileStream(path,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None);}catch(IOException){return null;}}
 static bool SafeEqual(string a,string b)=>a.Length==b.Length&&CryptographicOperations.FixedTimeEquals(System.Text.Encoding.UTF8.GetBytes(a),System.Text.Encoding.UTF8.GetBytes(b));
-static string[] NetworkAddresses()=>System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces().Where(n=>n.OperationalStatus==System.Net.NetworkInformation.OperationalStatus.Up).SelectMany(n=>n.GetIPProperties().UnicastAddresses).Where(a=>a.Address.AddressFamily==AddressFamily.InterNetwork&&!IPAddress.IsLoopback(a.Address)).Select(a=>a.Address.ToString()).Distinct().ToArray();
+static string[] NetworkAddresses()=>NetworkLanAddresses().Concat(System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces().Where(n=>n.OperationalStatus==System.Net.NetworkInformation.OperationalStatus.Up).SelectMany(n=>n.GetIPProperties().UnicastAddresses).Where(a=>a.Address.AddressFamily==AddressFamily.InterNetwork&&!IPAddress.IsLoopback(a.Address)).Select(a=>a.Address.ToString())).Distinct(StringComparer.Ordinal).ToArray();
+static string[] NetworkLanAddresses()=>System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces().Where(n=>n.OperationalStatus==System.Net.NetworkInformation.OperationalStatus.Up&&n.NetworkInterfaceType is System.Net.NetworkInformation.NetworkInterfaceType.Ethernet or System.Net.NetworkInformation.NetworkInterfaceType.Wireless80211&&n.GetIPProperties().GatewayAddresses.Any(g=>g.Address.AddressFamily==AddressFamily.InterNetwork&&!g.Address.Equals(IPAddress.Any))).SelectMany(n=>n.GetIPProperties().UnicastAddresses).Where(a=>a.Address.AddressFamily==AddressFamily.InterNetwork&&!IPAddress.IsLoopback(a.Address)).Select(a=>a.Address.ToString()).Distinct(StringComparer.Ordinal).ToArray();
 record ActionRequest(string Id,bool Confirmed=false);
 record ProfileRequest(string Id);
 record ManageProfileRequest(string Operation,string Id="",string Name="",bool Duplicate=false,bool Confirmed=false);

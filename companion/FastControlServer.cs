@@ -17,6 +17,8 @@ internal sealed class FastControlServer(DataStore store,FastCommands commands,St
     private readonly CancellationTokenSource stop=new();
     private readonly ConcurrentDictionary<long,Task> clients=new();
     private readonly ConcurrentDictionary<TcpClient,string> principals=new();
+    public int ConnectedDevices=>principals.Values.Distinct(StringComparer.Ordinal).Count();
+    public bool Connected(string hash)=>principals.Values.Contains(hash,StringComparer.Ordinal);
     private long sequence;
     private Task? accepting;
     public void Start(){listener.Start(16);accepting=Accept();}

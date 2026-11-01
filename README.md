@@ -18,6 +18,8 @@ The low-latency transport and Android packaging fix from 1.4.1 are retained. Phy
 
 **1.9.0 adds all eight studio tools:** connection diagnostics, explicit OBS Start/Stop/Mute actions, recent Soundpad clips, an easier button editor with app/file selection and PNG icons, offline QR pairing, optional automatic profiles, an expanded OBS mixer, and portable board packs with selected audio. Choose **Tools** on the PC or tablet; local administration tools stay on the PC. Update both components. See [the complete Studio tools guide](docs/STUDIO-TOOLS.md).
 
+**1.10.0 separates the Windows management console from the tablet board** and adds opt-in **OBS live preview and Twitch/Kick chat viewers**, with editable channel fields. The PC uses a sidebar and full-area editors; the tablet retains its action keys and optional monitor dock. Preview is a silent JPEG monitor at up to 4 fps, with independent OBS/control traffic. Android provider pages run in a separate view with no PC-control bridge. The update also fixes blocked Android script assets, improves LAN address selection and tablet/USB status, and includes a bounded Wi-Fi repair helper. See [monitoring and the desktop console](docs/MONITORING.md).
+
 ## Features
 
 | Area | Controls |
@@ -63,7 +65,7 @@ The low-latency transport and Android packaging fix from 1.4.1 are retained. Phy
 
 For a managed Windows installation, download **TabletDeck-Setup.exe**, run it, and type `INSTALL` after reviewing its destination. It creates a Start menu shortcut without launching any apps. The ZIP remains available for portable use. See [installation and uninstalling](docs/DESKTOP-AND-HOLD.md#install-or-update-windows).
 
-Download `TabletDeck-Studio-1.9.0.zip` from [Releases](https://github.com/tugcantopaloglu/tablet-deck-studio/releases/latest) for the complete package, or download `TabletDeck-Studio.apk` separately if you only need the Android installer. Update both the APK and companion for profiles, backups, favourites, progress, and cancellation. The APK keeps the original signing certificate, so installing it over an older version preserves pairing. Third-party meme collections are user content and are not included in the public release.
+Download `TabletDeck-Studio-1.10.0.zip` from [Releases](https://github.com/tugcantopaloglu/tablet-deck-studio/releases/latest) for the complete package, or download `TabletDeck-Studio.apk` separately if you only need the Android installer. Update both the APK and companion for profiles, backups, favourites, progress, and cancellation. The APK keeps the original signing certificate, so installing it over an older version preserves pairing. Third-party meme collections are user content and are not included in the public release.
 
 ```text
 TabletDeck-Studio/
@@ -82,9 +84,9 @@ TabletDeck-Studio/
 1. Extract the whole ZIP. Keep the Windows folder together: the executable needs its wwwroot, Sounds, and platform-tools folders.
 2. Run Windows/TabletDeck-Companion.exe on your streaming PC. It opens the control panel in your default browser. The companion stays in the Windows tray. Use its menu to reopen the panel or exit.
 3. In OBS, open Tools → WebSocket Server Settings. Enable the server and keep authentication enabled. The usual port is 4455. Copy the server password.
-4. In the companion’s browser panel, choose Edit. Enter the OBS password and port. Choose Save changes. Reopen Edit → Find OBS inputs to choose your exact microphone and desktop audio input names. Import OBS scenes to add real scene names to the Scenes page. The Main page starts with example scene names; change them to match your OBS scenes.
+4. In the Windows console, choose **OBS setup**, enter the port/password, and save. Use **Find inputs** for exact microphone/desktop names. Choose **Board editor → Import OBS scenes** to add real scene names. The Main page begins with example scene names; edit them to match OBS.
 5. Install TabletDeck-Studio.apk on the tablet. You can copy the APK to the tablet and allow installation from that file source, or enable USB debugging and run Windows/Install-APK.cmd.
-6. In the Windows panel choose Pair tablet, then follow either Wi-Fi or USB below.
+6. In the Windows sidebar choose **Tablet connections**, then follow either Wi-Fi or USB below. The desktop console configures the studio; action keys remain on the tablet.
 
 For Soundpad or Discord-only use, skip the OBS setup steps. An OBS disconnected indicator is expected while OBS is closed; Soundpad, app launches, and keyboard shortcuts remain available.
 
@@ -110,7 +112,7 @@ USB uses an ADB reverse tunnel and works with Wi-Fi off. It is not USB tethering
 2. Connect a USB data cable, unlock the tablet, and approve the PC’s USB debugging authorization prompt. Some tablets need their manufacturer’s Windows USB driver.
 3. Run Windows/USB-Connect.cmd. It creates the tablet-to-PC port tunnel. If no device is found, check authorization, cable, and driver. The included helper refuses to guess if multiple devices are attached; use USB-Connect.ps1 -Serial SERIAL in that case.
 4. In the tablet’s connection screen select USB. Enter the same certificate code and a fresh pairing PIN from the Windows panel. A PC Wi-Fi address is optional for initial USB-only pairing.
-5. Run USB-Connect.cmd again after unplugging the tablet or rebooting it, or enable automatic USB reconnection under Edit > Desktop settings.
+5. Run USB-Connect.cmd again after unplugging the tablet or rebooting it, or enable **Windows options → Reconnect USB automatically**. Use the complete package, including platform-tools. The console distinguishes a saved pairing, an active fast link, and whether the app is installed over an authorized USB connection.
 
 Once paired, tap the tablet’s connection status to switch between Wi-Fi and USB. If you initially paired only over USB, enter the PC’s Wi-Fi address before selecting Switch to Wi-Fi. The certificate and device credential are reused. Revoke a tablet through Pair tablet on the PC if it should lose access.
 
@@ -133,9 +135,9 @@ See Android's [ADB documentation](https://developer.android.com/tools/adb) and [
 
 ## Customize the board
 
-Use Edit in the Windows panel. Select a page and button, then change its name, action, icon, and color. Add pages or buttons; drag a row by its handle to change the order, or use Move earlier/later. Each screen shows 12 buttons; larger pages have Previous and Next controls. Save changes to sync to the tablet. Adding actions and changing PC targets remain restricted to the local PC.
+Choose **Board editor** in the Windows sidebar. Select a page and button, then change its name, action, icon, and color. Add pages or buttons; drag a row by its handle to change order, or use Move earlier/later. Save changes to sync to the tablet. The Windows console does not render the tablet control grid. Adding actions and changing PC targets remain restricted to the local PC.
 
-On the tablet, choose **Edit → Arrange buttons**, drag keys to move them, then choose **Save order**. **Cancel** keeps the saved order. Actions do not run while arranging. On PC, **Edit → Arrange board** opens the same mode after editor changes are saved or discarded. See [ordering, library, and volume instructions](docs/CONTROLS.md).
+On the tablet, choose **Edit → Arrange buttons**, drag keys to move them, then choose **Save order**. **Cancel** keeps the saved order. Actions do not run while arranging. On the PC, use the board editor’s ordering list instead. See [ordering, library, and volume instructions](docs/CONTROLS.md).
 
 Actions:
 

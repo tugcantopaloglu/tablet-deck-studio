@@ -42,6 +42,7 @@ paths.star='m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8-6.2-3.2L5.8 21 7 14.2 2 9.3l6.9-1z
 function icon(name){const filled=['obs','discord','homeFilled'].includes(name);return `<svg viewBox="-2 -2 28 28" aria-hidden="true"${filled?' class="filled-icon"':''}><path d="${paths[name]||paths.grid}"/></svg>`;}
 function actionIcon(a){return typeof a.iconImage==='string'&&a.iconImage.startsWith('data:image/png;base64,')&&a.iconImage.length<=100000?`<img class="custom-key-icon" src="${esc(a.iconImage)}" alt="">`:icon(a.icon);}
 const native=typeof window.DeckNative!=='undefined';
+const desktopConsole=document.body.dataset.surface==='desktop';
 const preview=new URLSearchParams(location.search).get('preview')==='1'&&!native;
 let adminToken=new URLSearchParams(location.hash.slice(1)).get('admin')||sessionStorage.getItem('deckAdmin')||'';
 if(adminToken){sessionStorage.setItem('deckAdmin',adminToken);history.replaceState(null,'',location.pathname+location.search);}
@@ -107,13 +108,14 @@ function notice(message,error=false){const n=$('#notice');n.textContent=message;
 $('#notice').onclick=()=>$('#notice').hidden=true;
 const panel=$('#panel');
 let panelGeneration=0;
-function openPanel(title,html){panelGeneration++;$('#panel-title').textContent=title;$('#panel-body').innerHTML=DOMPurify.sanitize(html);if(!panel.open)panel.showModal();if(typeof renewProfileLock==='function')queueMicrotask(renewProfileLock);}
+function openPanel(title,html){panelGeneration++;$('#panel-title').textContent=title;$('#panel-body').innerHTML=DOMPurify.sanitize(html);if(!panel.open){if(desktopConsole)panel.show();else panel.showModal();}if(typeof consoleViewChanged==='function')consoleViewChanged('panel',title);if(typeof refreshMonitorActivity==='function')queueMicrotask(refreshMonitorActivity);if(typeof renewProfileLock==='function')queueMicrotask(renewProfileLock);}
 async function closePanel(){if(dirty&&!await confirmAction('Discard changes?','Your unsaved changes will be lost.'))return;dirty=false;editing=false;panel.close();}
 $('#close-panel').onclick=closePanel;
 panel.addEventListener('cancel',event=>{if(dirty){event.preventDefault();closePanel();}else editing=false;});
-function confirmAction(title,copy){const d=$('#confirm-dialog');$('#confirm-title').textContent=title;$('#confirm-copy').textContent=copy;d.showModal();return new Promise(resolve=>d.addEventListener('close',()=>resolve(d.returnValue==='confirm'),{once:true}));}
+function confirmAction(title,copy){const d=$('#confirm-dialog');$('#confirm-title').textContent=title;$('#confirm-copy').textContent=copy;d.showModal();if(typeof refreshMonitorActivity==='function')refreshMonitorActivity();return new Promise(resolve=>d.addEventListener('close',()=>{if(typeof refreshMonitorActivity==='function')refreshMonitorActivity();resolve(d.returnValue==='confirm');},{once:true}));}
 function labelFor(a){if(a.kind==='stream')return !state.obsConnected?'Stream control':state.streaming?'Stop stream':'Start stream';if(a.kind==='record')return !state.obsConnected?'Record control':state.recording?'Stop recording':'Record';return a.label;}
 function renderBoard(){
+  if(desktopConsole){if(typeof renderConsoleSummary==='function')renderConsoleSummary();return;}
   if(typeof hasActiveHold==='function'&&hasActiveHold())return;
   const page=pages.find(p=>p.id===pageId)||pages[0];if(!page)return;pageId=page.id;
   const capacity=boardCapacity(),total=Math.max(1,Math.ceil(page.buttons.length/capacity));if(slice>=total)slice=total-1;
@@ -157,6 +159,7 @@ function updateState(){
   $('#obs-dot').classList.toggle('connected',!!state.obsConnected);$('#obs-status').textContent=state.pcConnected===false?'PC disconnected':state.obsConnected?'OBS connected':'OBS disconnected';
   $('#connection').title=state.error||'Connection settings';$('#transport').textContent=preview?'Preview':native?(connection.mode==='usb'?'USB':'Wi-Fi'):'PC editor';
   $('#stream-status').innerHTML=DOMPurify.sanitize(`<span class="dot ${state.obsConnected&&state.streaming?'live':''}"></span>${!state.obsConnected?'Stream unknown':state.streaming?'Streaming live':state.recording?'Recording':'Stream offline'}`);
+  if(desktopConsole){if(typeof renderConsoleSummary==='function')renderConsoleSummary();return;}
   for(const ch of ['mic','desktop']){
     const input=state.inputs?.[ch];const available=!!(state.obsConnected&&input?.available);const fader=$('#fader-'+ch);fader.disabled=!available;$('#mute-'+ch).disabled=!available;
     if(!fader.dataset.dragging){const db=Number.isFinite(input?.db)?Math.max(-60,Math.min(0,input.db)):-60;fader.value=String(Math.round(db));fader.style.setProperty('--level',((db+60)/60*100)+'%');$('#db-'+ch).textContent=available?Math.round(db)+' dB':'— dB';}
@@ -274,6 +277,7 @@ function previewData(){
   state={obsConnected:true,scene:'Gameplay',streaming:false,recording:false,inputs:{mic:{available:true,db:-6,muted:false},desktop:{available:true,db:-12,muted:false}}};$('#preview-label').hidden=false;updateState();
 }
 async function init(){
+  if(desktopConsole)return;
   applyPadView();$('#pad-toggle').onclick=()=>changePadView(!padFull);$('#pad-density').onchange=()=>changePadView(padFull,Number($('#pad-density').value));
   buildMixer();$('#edit-button').innerHTML=DOMPurify.sanitize(icon('settings')+'<span>Edit</span>');$('#edit-button').onclick=()=>typeof arranging!=='undefined'&&arranging?saveArrangement():showEditor();
   $('#pair-button').hidden=native||preview;$('#pair-button').onclick=showPairing;

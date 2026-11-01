@@ -84,4 +84,4 @@ Preview validates allowed ZIP entries, sizes, bounded metadata and sound checksu
 
 Automated fixtures cover storage, authentication, repeated OBS state commands, native QR round trips, pack validation and upload, controller navigation and unsaved-state protection. They do not replace rendered layout, real camera scanning, physical touch, keyboard/screen-reader use, foreground-app integration, or a studio audio rehearsal. See [VERIFICATION.txt](VERIFICATION.txt) for the current evidence and the disclosed test-runner startup incident.
 
-Live video preview and Twitch/Kick chat preview are the next phase. This release does not connect streaming accounts, capture preview video or display live chat. The next phase needs a separate design for account access, preview latency/CPU budget and moderation controls.
+Version 1.10 adds local silent OBS preview and public Twitch/Kick viewers, along with a separate Windows console. See [monitoring and desktop instructions](MONITORING.md). Full-motion video/audio and authenticated chat/moderation remain separate future work; these tools do not automatically connect streaming accounts.
