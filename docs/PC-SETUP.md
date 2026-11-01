@@ -2,6 +2,8 @@
 
 Install the Windows companion, then open its console from the Start menu shortcut or tray menu. Version 1.10 uses a dedicated Windows management interface, with Overview, Board editor, Tablet connections, OBS setup, Profiles, Backups, Monitoring and Windows options in its sidebar. It does not show the tablet action grid. Closing the browser leaves control running; Stop companion in the sidebar or tray Exit stops it.
 
+The tray is the notification area beside the Windows clock. Check the **Show hidden icons** arrow if Tablet Deck is not immediately visible. Double-click **Tablet Deck Studio**, or right-click it and choose **Open control panel**. Developer launches using `--no-browser --no-tray` deliberately hide both the console and tray; normal shortcuts enable the tray when starting the companion. `--tray --no-browser` starts it with only the tray visible. A separate taskbar button belongs to the open console window, while the tray remains after that window closes.
+
 The Windows console opens its overview. The tablet keeps its control board, Full pad and arrangement tools. The older PC setup panel remains available through More tools for compatibility; the sidebar is the current entry point.
 
 ## Pair a tablet

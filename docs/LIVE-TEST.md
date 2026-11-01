@@ -14,6 +14,10 @@ The tablet subsequently reappeared as authorized. An in-place APK update succeed
 
 After that update, fresh tablet-side TCP probes passed for both USB reverse endpoints (127.0.0.1:8743/8744) and both Ethernet LAN endpoints (192.168.1.21:8743/8744). This verifies current network reachability across Ethernet/Wi-Fi after the bounded repair. It does not independently verify TLS pinning, authenticated app controls, preview/chat rendering or audible output. The user was asked to open the updated tablet app and confirm its Wi-Fi status; no app window was opened by the agent.
 
+Post-release follow-up on the same date: the user confirmed that **Switch to Wi-Fi** connected successfully. The companion subsequently reported one authenticated device and one active fast link. This adds app-level Wi-Fi connection evidence, without claiming that scene actions, audio, preview or provider rendering were retested.
+
+The user could not find the desktop companion because the development deployment still used `--no-browser --no-tray`. The companion was stopped cleanly and restarted with `--tray --no-browser`, enabling the existing notification-area icon without opening a browser window. Desktop and Start menu shortcuts named **Tablet Deck Studio** were created for the current executable. The management document was served successfully; board, pairing, certificate and desktop preference hashes remained unchanged, and the tablet reconnected with one authenticated fast link. Windows may place the tray icon in its hidden-icons overflow; double-click it to reopen the console. Closing the console leaves the companion running; tray **Exit** stops it. Startup with Windows remains opt-in.
+
 ## Version 1.9 development boundary — 2026-11-01
 
 All eight requested studio additions have isolated storage, mock-OBS/API, native QR and controller checks. Real camera scanning, foreground-app switching, rendered layout, touch, keyboard/screen-reader use, live OBS/Soundpad and hardware rehearsal remain unverified. Live video and Twitch/Kick chat are a following phase.
